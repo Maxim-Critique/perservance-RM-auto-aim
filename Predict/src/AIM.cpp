@@ -1,58 +1,46 @@
 #include "AIM.h"
 
-aim::aim(Armor armor){
+Aim::Aim(Armor armor){
     target_state = Eigen::VectorXd::Zero(10);
     translation_state = Eigen::VectorXd::Zero(7);
     InitEKF(armor);
     m_model_observer = std::make_shared<ExtendedKalmanFilter>(target_state);
     m_model_translation = std::make_shared<CAEKF>(translation_state);
+    ca_yaw = armor.yaw;
     readYAML(Yaml);
-    center_tracked = false;
+    control_model = 1;
 }
 
-void aim::Shoot(Armor &armor ,Mat &img ,double time){
-    m_status = std::make_shared<StandardModel>(target_state);         
-    m_model_observer->Updatedt(time);
-    m_status = Resolve(armor);
-
-    Armor ui_armor = m_status->getArmors(0)[get_id];
-    armor.cam_pose = C_C.abs2cam(ui_armor.abs_pose);
+Armor Aim::Shoot(const Armors &armors ,Mat &img ,double time){
     
-    //绘制图像
-    if(abs(m_status->palstance)<1.8){
-        control_model = 1; 
-        m_model_translation->predict(time);
-        translation_state = m_model_translation->update(armor.abs_pose);
-        double hit_time = GetDistance(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/ (bullet_speed) + predict_time;
-        armor.abs_pose = m_model_translation->GetArmor(hit_time);
-    }else{
-        // 判断是否锁中心
-        if(center_tracked == false){
+    m_status = std::make_shared<StandardModel>(target_state);         
+    // 反小陀螺模型
+    m_model_observer->Updatedt(time);
+    m_status = Resolve(armors[0]);
+    
+   
+    ChooseFireModel();
+    double hit_time = GetDistance(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/ (bullet_speed) + predict_time;
+    Armor armor;
+    switch (control_model) {
+        case 1:  // 低速模式
+            // 平移模型
+            SloveCA(armors,time);
+            armor.abs_pose = m_model_translation->GetArmor(hit_time);
+            break;
             
-            if ((abs(m_status->palstance) - switch_threshold) > palstance_threshold)
-            {
-                center_tracked = true;
-            }
-        }  
-        else
-        {
-            if (abs(abs(m_status->palstance) + switch_threshold) < palstance_threshold){
-                center_tracked = false;
-            }     
-        }
-        if(center_tracked){
-            // 锁中心，附近是否有版
-            double center_hit_time = GetDistance(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/(bullet_speed) + predict_time;           
-            armor = m_status->getFacingArmor(center_hit_time,this->last_index,this->frames_since_last_switch,this->predict_point);    
-            control_model = 3;
-        }
-        else{       
-            // 不锁中心
-            double hit_time = GetDistance(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/ (bullet_speed) + predict_time;
-            armor = m_status->getClosestArmor(hit_time,this->last_index,this->frames_since_last_switch);
-            control_model = 2;
-        }
-        
+        case 2:  // 不锁中心模式
+            armor = m_status->getClosestArmor(hit_time, this->last_index, this->frames_since_last_switch);
+            break;
+            
+        case 3:  // 锁中心模式
+            armor = m_status->getFacingArmor(hit_time, this->last_index, 
+                                            this->frames_since_last_switch, this->predict_point);
+            break;
+            
+        default:
+            cout<<"瞄准模式选择ERROR"<<endl;
+            break;
     }
     armor.cam_pose = C_C.abs2cam(armor.abs_pose);
     ui = pnp_armor.ProjectTo2D(Point3d(-armor.cam_pose.y,-armor.cam_pose.z,armor.cam_pose.x));
@@ -61,16 +49,46 @@ void aim::Shoot(Armor &armor ,Mat &img ,double time){
     }
     
 } 
+void Aim::SloveCA(const Armors armors,double time){
+    Armor ca_armor;
+    for(auto armor : armors){
+        if(abs(armor.yaw-ca_yaw<D2R(30))){
+            ca_yaw = armor.yaw;
+            ca_armor = armor;
+        }
+    } 
+    if(ca_armor.points.empty()){
+        ca_try_times++;
+    }else{
+        m_model_translation->predict(time);
+        m_model_translation->update(ca_armor.abs_pose);
+    }
+    if(ca_try_times > 5){
+        InitEKF(armors[0]);
+        m_model_translation = std::make_shared<CAEKF>(translation_state);
+    }
 
-double aim::Homogeneity(double new_value) {
-    this->sum -= this->buffer[this->index];      // 减去即将被覆盖的值
-    this->sum += new_value;          // 加上新值
-    this->buffer[this->index] = new_value; // 存储新值
-    this->index = (this->index + 1) % 40;   // 环形索引
-    return this->sum / 40;            // 直接返回平均值
+}
+    
+
+double Aim::Homogeneity(double new_value) {
+    if (buffer.size() >= window_size) {
+        sum -= buffer.front();
+        buffer.pop_front();
+    }
+    buffer.push_back(new_value);
+    sum += new_value;
+    return sum / buffer.size();
 }
 
-std::shared_ptr<KinematicModel> aim::Resolve(const Armor &armor)
+void UpdatePrepare(VectorXd &X_,Armor armor){
+    X_ <<  armor.abs_pose.x,
+           armor.abs_pose.y,
+           armor.abs_pose.z,
+           _std_radian(armor.yaw);
+}
+
+std::shared_ptr<KinematicModel> Aim::Resolve(const Armor &armor)
 {   
 
     target_state = m_model_observer->predict(target_state);
@@ -87,12 +105,11 @@ std::shared_ptr<KinematicModel> aim::Resolve(const Armor &armor)
     Eigen::VectorXd after_change = target_state;  
     after_change[9] = Homogeneity(after_change[9]);
     std::shared_ptr<KinematicModel> posterior_status = std::make_shared<StandardModel>(after_change);
-    get_id = armor_match[num];
     return posterior_status;
 
 }
 
-void aim::InitEKF (Armor armor){
+void Aim::InitEKF (Armor armor){
     //出是半径设置为0.25
     target_state << armor.abs_pose.x - 0.25 * cos(armor.yaw) ,   //xc
             0 ,                                     //vx
@@ -113,18 +130,36 @@ void aim::InitEKF (Armor armor){
                          armor.abs_pose.z;
 }
 
-void aim::UpdatePrepare (VectorXd &X_,Armor armor){
-    X_ <<  armor.abs_pose.x,
-           armor.abs_pose.y,
-           armor.abs_pose.z,
-           _std_radian(armor.yaw);
+void Aim::ChooseFireModel() {
+    double palstance = abs(m_status->palstance);
+    switch (control_model) {
+        case 1:  // 低速模式 → 切换到不锁中心模式的条件
+            if (palstance > PI / 3) {
+                control_model = 2;
+            }
+            break;
+            
+        case 2:  // 不锁中心模式 → 切换条件
+            if (palstance < PI / 6) {
+                control_model = 1;  // 切回低速模式
+            } else if (palstance > 2.5 * PI) {
+                control_model = 3;  // 切换到锁中心模式
+            }
+            break;
+            
+        case 3:  // 锁中心模式 → 切回不锁中心模式的条件
+            if (palstance < 1.5 * PI) {
+                control_model = 2;
+            }
+            break;
+            
+        default:
+            // 可选：添加错误处理或日志记录
+            break;
+    }
 }
 
-
-
-
-
-Eigen::MatrixXd aim::GetScoreMat(const Armor &detect_armor, const Armors &standard_armors)//计算分数匹配装甲板
+Eigen::MatrixXd Aim::GetScoreMat(const Armor &detect_armor, const Armors &standard_armors)//计算分数匹配装甲板
 {
     if (standard_armors.empty()) {
         return Eigen::MatrixXd::Zero(0,0);
@@ -194,7 +229,7 @@ Eigen::MatrixXd aim::GetScoreMat(const Armor &detect_armor, const Armors &standa
     return score;
 }
 
-std::map<int, int> aim::Match(const Eigen::MatrixXd &score)
+std::map<int, int> Aim::Match(const Eigen::MatrixXd &score)
 {
     std::map<int, int> match;
     for (int i = 0; i < score.rows(); i++)
@@ -208,10 +243,10 @@ std::map<int, int> aim::Match(const Eigen::MatrixXd &score)
     return match;
 }
 
-aim::Match::Match(){}
-aim::Match::~Match(){}
+Aim::Match::Match(){}
+Aim::Match::~Match(){}
 
-std::map<int, int> aim::Match::GetMatch(Eigen::MatrixXd matrix, double score_max, int m)
+std::map<int, int> Aim::Match::GetMatch(Eigen::MatrixXd matrix, double score_max, int m)
 {
     /**
      * @brief 初始化各个变量
@@ -401,7 +436,7 @@ std::map<int, int> aim::Match::GetMatch(Eigen::MatrixXd matrix, double score_max
     return this->row_col;
 }
 
-void aim::Match::getCombinationsNumbers(std::vector<int> &input, std::vector<int> &tmp_v, std::vector<std::vector<int>> &result, int start, int k)
+void Aim::Match::getCombinationsNumbers(std::vector<int> &input, std::vector<int> &tmp_v, std::vector<std::vector<int>> &result, int start, int k)
 {
     for (int i = start; i < input.size(); i++)
     {
@@ -418,7 +453,7 @@ void aim::Match::getCombinationsNumbers(std::vector<int> &input, std::vector<int
     }
 }
 
-void aim::DraftingSoftware(Mat &img){
+void Aim::DraftingSoftware(Mat &img){
 
     // Point3d pose = C_C.abs2cam(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2));
     // Point2d zi = pnp_armor.ProjectTo2D(Point3d(-pose.y,-pose.z,pose.x + error_x));
@@ -427,12 +462,10 @@ void aim::DraftingSoftware(Mat &img){
 
 }
 
-YAML::Node aim::readYAML(const std::string& filename){
+YAML::Node Aim::readYAML(const std::string& filename){
     try {
         YAML::Node config = YAML::LoadFile(filename);
         predict_time = config["AIM"]["predict_time"].as<double>();
-        palstance_threshold = config["AIM"]["palstance_threshold"].as<double>();
-        switch_threshold = config["AIM"]["switch_threshold"].as<double>();
         show = config["CAMERA"]["show"].as<int>();
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("YAML Error: " + std::string(e.what()));

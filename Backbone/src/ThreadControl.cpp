@@ -71,10 +71,10 @@ void ThreadControl::ImageProduce()
     cout << " ------ SHORT VEDIO PRODUCE TASK ON !!! ------ " << endl;
     VideoCapture capture;
     capture.open(VIDEO_ADD);
-
     if (!capture.isOpened())
     {
         cout << "can not load the video" << endl;
+        exit(EXIT_FAILURE);
     }
 #endif
 //---->            <----//
@@ -98,7 +98,7 @@ void ThreadControl::ImageProduce()
         galaxy.CameraModeSwitch();
         if(!CameraMode)
         {
-                galaxy.getImage(data1[produce_index % BUFFER_SIZE].img);
+            galaxy.getImage(data1[produce_index % BUFFER_SIZE].img);
             while(produce_index - consumption_index >= BUFFER_SIZE && CameraMode ==0)
                 END_THREAD;            
             ++produce_index;        
@@ -107,13 +107,7 @@ void ThreadControl::ImageProduce()
 #ifdef VIDEO
         clock_gettime(CLOCK_MONOTONIC, &start_time);
         while (produce_index - consumption_index >= BUFFER_SIZE)
-            END_THREAD;  // Armor amror = AIM.shoot(armorss);
-        // Point3d wan = {-amror.xyz.y,amror.xyz.z,amror.xyz.x};
-        // Point2d wo = pnp_armor.ProjectTo2D(wan);
-        // putText(image, "PITCH: " + to_string(amror.xyz.x) + "     " + to_string(amror.xyz.y) + "    " + to_string(amror.xyz.z), 
-        //         Point(20, 260), FONT_HERSHEY_COMPLEX, 0.8, Scalar(215, 170, 125), 1);
-        // circle(image, wo, 5, Scalar(20, 25, 200), -1);
-        // try_times1 = 0;
+            END_THREAD; 
         capture.read(IMG_data[produce_index % BUFFER_SIZE].img);
         ++produce_index;
 #endif
@@ -185,14 +179,19 @@ void ThreadControl::ImageProcess()
         }                                                                  ///
 #endif                                                                     ///
 //////////////////////////////////////////////////////////////////////////////
-        // cout<<"timestamp :   "<<timestamp/1e8<<endl;
-        if(!ds.Buff_or_Armor){
-            camera.setExposureTime(exposure_time_aim);
-            auto_aim.IAmFuture(image,timestamp);
-        }else{
-            camera.setExposureTime(exposure_time_buff);                                                                                                                                                                                             
-            buff_task.SeizeGlory(image,timestamp);
+        {
+            std::unique_lock<std::mutex> lock(ds_mutex);
+            if(!ds.Buff_or_Armor){
+                lock.unlock();
+                camera.setExposureTime(exposure_time_aim);
+                auto_aim.IAmFuture(image,timestamp);
+            }else{
+                lock.unlock();
+                camera.setExposureTime(exposure_time_buff);                                                                                                                                                                                             
+                buff_task.SeizeGlory(image,timestamp);
+            }
         }
+        
         if(show){
             ShowYawPitchRoll(image);
             imshow("Linux_ubuntu",image);
@@ -245,6 +244,7 @@ YAML::Node ThreadControl::readYAML(const std::string& filename) {
 
 //在画面中展示Yaw,Pitch
 void ShowYawPitchRoll(Mat &image) {
+    std::lock_guard<std::mutex> lock(ds_mutex);
     // 弧度显示
     putText(image, "Gyro data (radian)", Point(1200, 460), FONT_HERSHEY_COMPLEX, 0.6, Scalar(115, 170, 125), 1);
     putText(image, "Y: " + to_string(ds.camera_yaw_angle), Point(1200, 500), FONT_HERSHEY_COMPLEX, 0.6, Scalar(115, 170, 125), 1);

@@ -4,8 +4,8 @@
 #include <termios.h> // POSIX Terminal Control Definitions
 #include "SerialPort.h"
 #include "camera_to_imu.h"
+std::mutex ds_mutex;
 Data_Save ds;
-bool bool_serial;
 void test(double a, double b);
 static double pit = 0.0, yaw = 0.0;
 static std::chrono::steady_clock::time_point last_time;
@@ -156,11 +156,13 @@ int SerialPort::read_data()
     if (bytes_read == -1 || bytes_read == 0)
     {
         restart_serial();
+        // cout<<"        串口未连接          "<<endl; 
     }
     else
     {
         if (read_buffer[0] == 0xAA && read_buffer[1] == 0xBB)
         {
+            std::lock_guard<std::mutex> lock(ds_mutex);
             int32_t yaw_ = read_buffer[3] << 24 | read_buffer[4] << 16 | read_buffer[5] << 8 | read_buffer[6]; // 云台yaw
             int32_t pit_ = read_buffer[7] << 24 | read_buffer[8] << 16 | read_buffer[9] << 8 | read_buffer[10]; // 云台pitch
             int32_t roll_ = read_buffer[11] << 24 | read_buffer[12] << 16 | read_buffer[13] << 8 | read_buffer[14];
@@ -170,10 +172,6 @@ int SerialPort::read_data()
             ds.color = read_buffer[15];
             ds.Buff_or_Armor = read_buffer[16];
             C_C.GetTFMat(ds.camera_roll_angle, -ds.camera_pit_angle, ds.camera_yaw_angle);
-        //      auto now = std::chrono::steady_clock::now();
-        //      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_time);
-        //      last_time = now;
-        // std::cout << "Time interval between executions: " << duration.count() << " ms" << std::endl;
         }
         else
         {

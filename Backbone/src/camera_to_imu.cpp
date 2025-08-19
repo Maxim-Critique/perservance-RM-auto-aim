@@ -115,8 +115,10 @@ Gimbal_Angle Coordinate_converter::GetAngle(cv::Point3f position)
     cv::Point3f gun_base = changeCoor(position);
     double pitch_in_camera = std::atan2(gun_base.z, std::sqrt(gun_base.x * gun_base.x + gun_base.y * gun_base.y));
     double yaw_in_camera = std::atan2(gun_base.y, gun_base.x);
+    std::unique_lock<std::mutex> lock(ds_mutex);  
     solve_angle.pitch = pitch_in_camera + ds.camera_pit_angle;
     solve_angle.yaw = yaw_in_camera + ds.camera_yaw_angle;
+    lock.unlock();
     double dis = std::sqrt(gun_base.x * gun_base.x + gun_base.z * gun_base.z);
     double angle_fix = 0;
     if (std::abs(9.8 * dis * std::pow(std::cos(solve_angle.pitch), 2)) / std::pow(bullet_speed, 2) - std::sin(solve_angle.pitch) <= 1)

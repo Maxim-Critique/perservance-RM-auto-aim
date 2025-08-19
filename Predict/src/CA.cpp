@@ -87,7 +87,7 @@ void CAEKF::predict(double time) {
     P_pri = F * P_post * F.transpose() + Q;
 }
 
-Eigen::VectorXd CAEKF::update(Point3d point) {
+void CAEKF::update(Point3d point) {
     Eigen::VectorXd z = Eigen::VectorXd::Zero(3, 1);
     z << point.x,point.y,point.z;
     H = jacobianFunctionH();
@@ -100,7 +100,6 @@ Eigen::VectorXd CAEKF::update(Point3d point) {
     P_post = (I - K * H) * P_pri;
     
     painting.KF_Curve(x_post[0],x_post[1]*80);
-    return x_post;
 }
 
 Point3d CAEKF::GetArmor(double predict_time) {

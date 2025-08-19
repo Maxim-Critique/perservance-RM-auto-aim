@@ -95,7 +95,9 @@ double GetYawAngle(YawPnP& yaw_pnp, double sys_yaw, double angle) {
 void solveYawPnP(Armor &armor, Mat &img, Gimbal_Angle &initial_abs) {
     pnp_armor.readConfig(armor);
     YawPnP* yaw_pnp = new YawPnP();
+    std::unique_lock<std::mutex> lock(ds_mutex);  
     yaw_pnp->sys_yaw = ds.camera_yaw_angle;
+    lock.unlock();
     yaw_pnp->setImagePoints(armor.points);
     yaw_pnp->setWorldPoints(pnp_armor.world_points);
     

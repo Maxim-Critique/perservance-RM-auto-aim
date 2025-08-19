@@ -6,29 +6,31 @@
 #include "Angel_Calculate.h"
 #include "CA.h"
 using namespace std;
-class aim
+class Aim
 {
 public:
-     
-    aim(Armor armor);
-
-    void Shoot(Armor &armor,Mat &img,double time);//主体
-    
-    std::shared_ptr<KinematicModel> Resolve(const Armor &armor);//ekf的主要部分
-
-    std::map<int, int> Match(const Eigen::MatrixXd &score);//匹配装甲板
-
-    void InitEKF (Armor armor);//初始化状态量
-
-    Eigen::MatrixXd GetScoreMat(const Armor &detect_armor, const Armors &standard_armors);//计算得分，匹配装甲板
-
+    // 初始化
+    Aim(Armor armor);
+    // 主接口
+    Armor Shoot(const Armors &armors,Mat &img,double time);
+    // ekf的主要部分
+    std::shared_ptr<KinematicModel> Resolve(const Armor &armor);
+    // 匹配装甲板
+    std::map<int, int> Match(const Eigen::MatrixXd &score);
+    // 初始化状态量
+    void InitEKF (Armor armor);
+    // 计算得分，匹配装甲板
+    Eigen::MatrixXd GetScoreMat(const Armor &detect_armor, const Armors &standard_armors);
+    // 读配置文件
     YAML::Node readYAML(const std::string& filename);
-
-    void UpdatePrepare (VectorXd &X_,Armor armor);
-    //绘制三维重投影
+    // 绘制三维重投影
     void DraftingSoftware(Mat &img);
-
-    double Homogeneity(double new_value)
+    // 均值滤波，过滤角速度
+    double Homogeneity(double new_value);
+    // 选择瞄准模式
+    void ChooseFireModel();
+    // CA的主要部分 
+    void SloveCA(const Armors armors,double time);
     ///////////////////////////          变量               ////////////////////////////////////////////
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW ;
     double m_score_tolerance;                                    // 装甲板匹配得分最大值
@@ -37,18 +39,16 @@ public:
     std::shared_ptr<CAEKF>m_model_translation;                   // 平移观测器
     Eigen::VectorXd target_state;                                // EKF状态量
     Eigen::VectorXd translation_state;                           // 平移状态量
-    bool center_tracked;                                         // 是否锁中心
+    double ca_yaw;                                               // 平移模型中朝向角
+    int ca_try_times;                                            // ca模型的换板
     Point2d ui;
     double predict_time;                                         // 预测时长
-    double palstance_threshold;                                  // 锁中心角速度阈值（弧度值）
-    double switch_threshold;                                     // 切换阈值，防止频繁切换
     Point3d predict_point;                                       // 预测点俯视图
-    int get_id;
     bool show;
     int control_model;
-    double buffer[40] = {0};
-    int index = 0;
+    std::deque<double> buffer;
     double sum = 0;
+    const size_t window_size = 40;
     int last_index = 0;
     int frames_since_last_switch = 0;
 private:

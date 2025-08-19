@@ -5,7 +5,6 @@
 #include <find_armor.h>
 #include "Base.h"
 #include "camera_to_imu.h"
-#include "BA_Optimizer.h"
 #include <ceres/ceres.h>
 using namespace cv;
 class YawPnP {

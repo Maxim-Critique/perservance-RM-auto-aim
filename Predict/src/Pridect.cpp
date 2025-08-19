@@ -60,7 +60,9 @@ Armors StandardModel::getArmors(double predict_time)
 
 Armor StandardModel::getClosestArmor(double predict_time,int &last_index,int &frames_since_last_switch)
 {   
+    std::unique_lock<std::mutex> lock(ds_mutex);
     double yaw = ds.camera_yaw_angle;
+    lock.unlock();
     int SWITCH_FRAME_INTERVAL = 4;
     bool should_switch = false;
     Armors armors = getArmors(predict_time);
@@ -114,8 +116,9 @@ Armor StandardModel::getClosestArmor(double predict_time,int &last_index,int &fr
 
 Armor StandardModel::getFacingArmor(double predict_time,int &last_index,int &frames_since_last_switch,Point3d &center_pose)
 {
-    
+    std::unique_lock<std::mutex> lock(ds_mutex);
     double yaw = ds.camera_yaw_angle;
+    lock.unlock();
     int SWITCH_FRAME_INTERVAL = 4;
     bool should_switch = false;
     Armors armors = getArmors(predict_time);

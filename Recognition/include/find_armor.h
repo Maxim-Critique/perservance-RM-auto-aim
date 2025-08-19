@@ -58,39 +58,24 @@ const std::string ARMOR_TYPE_STR[3] = {"small", "large", "invalid"};
 struct Armor
 {
     Armor() = default;
-    Armor(const LightBlob &l1, const LightBlob &l2)
-    {
-        if (l1.center.x < l2.center.x)
-        {
-        left_light = l1, right_light = l2;
-        }
-        else
-        {
-        left_light = l2, right_light = l1;
-        }
-        center = (left_light.center + right_light.center) / 2;
-        max_light_area = std::max(left_light.light_area, right_light.light_area);
-    }
-
     Armor(const std::vector<cv::Point2f>& points, int index, ArmorType type)
     {
         this->points = points;
         this->type = type;
+        this->center = (points[0]+points[2])/2;  
     }
 
     // Light pairs part
     LightBlob left_light, right_light;
     cv::Point2f center;
-    int max_light_area;
     double yaw;
     double pridict_yaw;
-    double relative_yaw;
     // Number part
     cv::Mat number_img;
     std::string number;
     float confidence;
     std::string classfication_result;
-    vector<Point2f> points ;
+    vector<Point2f> points;
     ArmorType type;
     Point3d cam_pose;
     Point3d abs_pose;

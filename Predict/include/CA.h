@@ -11,7 +11,7 @@ class CAEKF {
 public:
     CAEKF(Eigen::VectorXd & X_);
     void predict(double time);
-    Eigen::VectorXd update(Point3d point);
+    void update(Point3d point);
     Point3d GetArmor(double predict_time);
     
 private:

@@ -17,7 +17,7 @@ private:
     //发ID
     int FoundID(string x);
     //从多个装甲板中按照ID选择进整车观测的装甲板
-    Armor ChooseProcess(Armors armors,Mat &img,uint64_t timestamp);
+    Armors ChooseProcess(Armors armors,Mat &img);
     //检查装甲板组是否为空
     bool CheckArmors();
     //没找到对象时重置
@@ -30,15 +30,13 @@ private:
     void Transmit(Armor armor,Mat &img,uint64_t timestamp);
     //读取配置文件
     YAML::Node readYAML(const std::string& filename);
-    //防倒影
-    void SortArmors(Armors& armors);
     //发射间隔
     bool ShootAble();
     //检测整车观测
     void CheckAimer(Armor armor);
     /////////////////////////////////变量/////////////////////////////
     double time_interval;                             //两次时间间隔
-    std::unique_ptr<aim> aim_ptr;                     //整车观测的指针
+    std::unique_ptr<Aim> aim_ptr;                     //整车观测的指针
     int try_times;                                    //整车观测找板次数
     string aim_id;                                    //瞄准的ID
     uint64_t last_time;                               //上一次时间

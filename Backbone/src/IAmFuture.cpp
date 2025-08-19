@@ -18,25 +18,18 @@ int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
         return 0;
     }
     
-    Armor armor = ChooseProcess(armors,img,timestamp);
-    if(armor.points.empty()){
+    armors = ChooseProcess(armors,img);
+    if(armors.size()){
         Reboot();
         return 0;
     }
     
-    solveYawPnP(armor,img,initial_abs);
-    if(GetDistance(armor.cam_pose)>5||GetDistance(armor.abs_pose)>5){
-        Reboot();
-        return 0;
-    }
-
     UpdateTimeInterval(timestamp);
     if(time_interval == 0){
         Reboot();
         return 0;
     }
-    bool time_delta = (timestamp - frist_find)/1e8 > 0;
-    aim_ptr->Shoot(armor,img,time_interval);
+    Armor armor = aim_ptr->Shoot(armors,img,time_interval);
     Transmit(armor,img,timestamp);
     CheckAimer(armor);
 }
@@ -51,12 +44,13 @@ void Auto_aim::Transmit(Armor armor,Mat &img,uint64_t timestamp){
     try_times = 0;
     gimbal_angle = C_C.GetAngle(armor.cam_pose);
     if(Protection()){
-        // int32_t yaw = (R2D(this->initial_abs.yaw) + compensate_yaw) * 1e4;
-        // int32_t pitch = (R2D(this->initial_abs.pitch) + compensate_pitch) * 1e4;
+        
         int32_t yaw = (R2D(gimbal_angle.yaw) + compensate_yaw) * 1e4;
         int32_t pitch = (R2D(gimbal_angle.pitch) + compensate_pitch) * 1e4;
-        bool yaw_delta = abs(R2D(gimbal_angle.yaw) + compensate_yaw - R2D(ds.camera_yaw_angle)) < 1.4;
+        std::unique_lock<std::mutex> lock(ds_mutex);
+        bool yaw_delta = abs(R2D(gimbal_angle.yaw) + compensate_yaw - R2D(ds.camera_yaw_angle)) < 1;
         bool pitch_delta = abs(R2D(gimbal_angle.pitch)  + compensate_pitch - R2D(ds.camera_pit_angle)) < 1.5;
+        lock.unlock();
         bool distance =  GetDistance(armor.cam_pose)>1.5&&GetDistance(armor.cam_pose)<4;
         int distance_delta = distance*10 + aim_ptr->control_model;
         if(aim_ptr->control_model == 3){
@@ -64,7 +58,6 @@ void Auto_aim::Transmit(Armor armor,Mat &img,uint64_t timestamp){
             yaw = (R2D(center.yaw) + compensate_yaw) * 1e4;
             pitch = (R2D(center.pitch) + compensate_pitch) * 1e4;
         }
-        cout<<" yaw_delta "<<yaw_delta<<" yaw_delta "<<R2D(gimbal_angle.yaw) + compensate_yaw - R2D(ds.camera_yaw_angle)<<endl;
         if(yaw_delta && pitch_delta)
         {
             dg.Vision2Control(yaw,pitch,aim_ptr->ui.x*100,aim_ptr->ui.y*100,distance_delta,1);
@@ -80,35 +73,49 @@ void Auto_aim::Transmit(Armor armor,Mat &img,uint64_t timestamp){
     serial_.send_data(dg);
 }
 
-
-
-
-
+//处理倒影
+void SortArmors(Armors& armors) {
+    std::sort(armors.begin(), armors.end(), 
+        [](const Armor& a, const Armor& b) {
+            return a.points[0].y < b.points[0].y;
+        });
+}
 
 //从多个装甲板中按照ID选择进整车观测的装甲板
-Armor Auto_aim::ChooseProcess(Armors armors,Mat &img,uint64_t timestamp){
-    Armor armor;
+Armors Auto_aim::ChooseProcess(Armors armors,Mat &img){
+    Armors after_armors;
     SortArmors(armors);
     if(aim_id.empty()){
-        for(auto a : armors){
-            solveYawPnP(a,img,initial_abs);
-            if(GetDistance(a.cam_pose)<5){
-                armor = a; 
-                aim_id = a.number;
-                aim_ptr = std::make_unique<aim>(armor);
-                frist_find = timestamp;
+        for(auto armor : armors){
+            solveYawPnP(armor,img,initial_abs);
+            if(GetDistance(armor.cam_pose)<5){
+                after_armors.push_back(armor); 
+                aim_id = armor.number;
+                aim_ptr = std::make_unique<Aim>(armor);
                 break;
             }
         }
     }else{
-        for(auto a : armors){
-            if(a.number == aim_id){
-                armor = a;
+        for(auto armor : armors){
+            if(armor.number == aim_id){
+                if(after_armors.size()){
+                    cout<<" armors[0].center "<<armors[0].center<<"  ";
+                    if(abs(armors[0].center.x-armor.center.x>(armor.points[3].x-armor.points[0].x)/2)){
+                        solveYawPnP(armor,img,initial_abs);
+                        after_armors.push_back(armor);
+                    }
+                }else{
+                    solveYawPnP(armor,img,initial_abs);
+                    after_armors.push_back(armor);
+                }
+            }
+            if(after_armors.size()>2){
                 break;
             }
         }
     }
-    return armor;
+
+    return after_armors;
 }
 
 //防甩头
@@ -172,13 +179,6 @@ YAML::Node Auto_aim::readYAML(const std::string& filename){
     return YAML::LoadFile(filename);
 }
 
-//处理倒影
-void Auto_aim::SortArmors(Armors& armors) {
-    std::sort(armors.begin(), armors.end(), 
-        [](const Armor& a, const Armor& b) {
-            return a.points[0].y < b.points[0].y;
-        });
-}
 
 
 

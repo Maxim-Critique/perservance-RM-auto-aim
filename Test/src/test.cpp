@@ -90,9 +90,9 @@ int Test()
     ifs >> time >> x >> y >> z >> yaw;
     armor.abs_pose = Point3d(x,y,z);
     armor.yaw = yaw;
-    std::unique_ptr<aim> aim_ptr; 
+    std::unique_ptr<Aim> aim_ptr; 
     std::shared_ptr<KinematicModel> m_status;     
-    aim_ptr = std::make_unique<aim>(armor);
+    aim_ptr = std::make_unique<Aim>(armor);
     m_status = std::make_shared<StandardModel>(aim_ptr->target_state); 
     float scaling = 100;
     while (!ifs.eof())

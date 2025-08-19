@@ -7,42 +7,29 @@
 #include "Base.h"
 #include <deque>
 #include <chrono>
-
+#include <mutex>
 using namespace std;
 using namespace cv;
-
+extern std::mutex ds_mutex;
 
 
 struct Data_Save {
     double camera_yaw_angle;
     double camera_pit_angle;  
     double camera_roll_angle;
-    int Buff_or_Armor = 2;       // 自瞄或大符
+    int Buff_or_Armor;       // 自瞄或大符
     bool buff_mode;          // 大符或小符
-    bool choose_aim;         // 操作手是否开启自瞄
-    float PitchCompensation; // 大符Pitch补偿
-    float YawCompensation;   // 大符Yaw补偿
     int color;               // 敌方颜色
-    int spinning_top;        // 是否进入小陀螺
-};
-
-struct Data_Before{
-    double yaw;
-    double pitch;
-    std::chrono::steady_clock::time_point get_time;
 };
     
 
 extern Data_Save ds;
-extern bool bool_serial;
 struct Data_Get
 {
     int size;
     u_char raw_data[21];
     u_char MAI_raw_data[21];
-
     void Vision2Control(int32_t x, int32_t y,int32_t ui_x, int32_t ui_y, uint8_t found, uint8_t fire);
-    // void Vision2Control();
 };
 
 extern Data_Get dg;
