@@ -16,9 +16,7 @@ Armor Aim::Shoot(const Armors &armors ,Mat &img ,double time){
     m_status = std::make_shared<StandardModel>(target_state);         
     // 反小陀螺模型
     m_model_observer->Updatedt(time);
-    m_status = Resolve(armors[0]);
-    
-   
+    m_status = Resolve(armors);
     ChooseFireModel();
     double hit_time = GetDistance(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/ (bullet_speed) + predict_time;
     Armor armor;
@@ -47,7 +45,7 @@ Armor Aim::Shoot(const Armors &armors ,Mat &img ,double time){
     if(show){
         DraftingSoftware(img);
     }
-    
+    return armor;
 } 
 void Aim::SloveCA(const Armors armors,double time){
     Armor ca_armor;
@@ -82,26 +80,25 @@ double Aim::Homogeneity(double new_value) {
 }
 
 void UpdatePrepare(VectorXd &X_,Armor armor){
+   
     X_ <<  armor.abs_pose.x,
            armor.abs_pose.y,
            armor.abs_pose.z,
            _std_radian(armor.yaw);
 }
 
-std::shared_ptr<KinematicModel> Aim::Resolve(const Armor &armor)
+std::shared_ptr<KinematicModel> Aim::Resolve(const Armors &armors)
 {   
-
+    
     target_state = m_model_observer->predict(target_state);
     std::shared_ptr<KinematicModel> prior_status = std::make_shared<StandardModel>(target_state);
-    Eigen::MatrixXd score = GetScoreMat(armor, prior_status->getArmors(0));
-    std::map<int, int> armor_match = m_match.GetMatch(score,1, 4);
-
-    auto first_element = armor_match.begin();
-    int num = armor_match.begin()->first;
+    Eigen::MatrixXd score = GetScoreMat(armors, prior_status->getArmors(0));
+    // std::map<int, int> armor_match = Match(score);
+    std::map<int, int> armor_match = m_match.GetMatch(score,1,4);
+    int num = armor_match.at(0);
     VectorXd z = Eigen::VectorXd::Zero(4, 1);
-    UpdatePrepare(z,armor);
-    target_state = m_model_observer->update(z,armor_match[num]);
-    
+    UpdatePrepare(z,armors[0]);
+    target_state = m_model_observer->update(z,num);
     Eigen::VectorXd after_change = target_state;  
     after_change[9] = Homogeneity(after_change[9]);
     std::shared_ptr<KinematicModel> posterior_status = std::make_shared<StandardModel>(after_change);
@@ -159,70 +156,57 @@ void Aim::ChooseFireModel() {
     }
 }
 
-Eigen::MatrixXd Aim::GetScoreMat(const Armor &detect_armor, const Armors &standard_armors)//计算分数匹配装甲板
+Eigen::MatrixXd Aim::GetScoreMat(const Armors &detect_armors, const Armors &standard_armors)
 {
-    if (standard_armors.empty()) {
-        return Eigen::MatrixXd::Zero(0,0);
-    }
-    int m = 1;
-    int n = standard_armors.size();
-    // 计算两组装甲板之间的坐标差和角度差两个负向指标
-    Eigen::Matrix<double, Eigen::Dynamic, 2> negative_score;
-    negative_score.resize(m * n, 2);
-    
-    for (int i = 0; i < m; i++)
-    {
-        for (int j = 0; j < n; j++)
-        {
-            negative_score(i * n + j, 0) = GetDistance(detect_armor.abs_pose - standard_armors[j].abs_pose);
-            negative_score(i * n + j, 1) = abs(_std_radian(detect_armor.yaw - standard_armors[j].pridict_yaw));
+    const int m = detect_armors.size();
+    const int n = standard_armors.size();
+    if (m == 0 || n == 0)
+        return Eigen::MatrixXd::Zero(m, n);
+
+    // 1. 计算负向指标矩阵 (m×n × 3)
+    Eigen::Matrix<double, Eigen::Dynamic, 3> negative_score(m * n, 3);
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < n; ++j) {
+            const auto &detect = detect_armors[i].abs_pose;
+            const auto &standard = standard_armors[j].abs_pose;
+            // xy平面距离
+            negative_score(i * n + j, 0) = std::hypot(detect.x - standard.x, detect.y - standard.y);
+            // z轴距离
+            negative_score(i * n + j, 1) = std::abs(detect.z - standard.z);
+            // 角度差
+            negative_score(i * n + j, 2) = std::abs(_std_radian(detect_armors[i].yaw - standard_armors[j].predict_yaw));
         }
     }
 
-    // 数据标准化
-    Eigen::Matrix<double, Eigen::Dynamic, 2> regular_score;
-    regular_score.resize(m * n, 2);
-    for (int i = 0; i < regular_score.rows(); i++)
-    {
-        regular_score(i, 0) = (negative_score.col(0).maxCoeff() - negative_score(i, 0)) / (negative_score.col(0).maxCoeff() - negative_score.col(0).minCoeff());
-        regular_score(i, 1) = (negative_score.col(1).maxCoeff() - negative_score(i, 1)) / (negative_score.col(1).maxCoeff() - negative_score.col(1).minCoeff());
+    // 2. 标准化 (利用广播和逐元素运算)
+    const auto max_vals = negative_score.colwise().maxCoeff();
+    const auto min_vals = negative_score.colwise().minCoeff();
+    const auto denoms = (max_vals - min_vals).cwiseMax(1e-10);  // 防止除以零
+    const auto regular_score = (max_vals.matrix().replicate(m * n, 1) - negative_score).array().rowwise() / denoms.array();
+
+    // 3. 计算权重 (熵权法)
+    const auto col_sums = regular_score.colwise().sum().cwiseMax(1e-10);  // 防止除以零
+    const auto score_weight = regular_score.array().rowwise() / col_sums.array();
+
+    Eigen::Vector3d entropy = Eigen::Vector3d::Zero();
+    for (int i = 0; i < score_weight.rows(); ++i) {
+        for (int j = 0; j < 3; ++j) {
+            const double val = score_weight(i, j);
+            if (val > 0)
+                entropy(j) -= val * std::log(val);
+        }
     }
+    entropy /= std::log(score_weight.rows());
 
-    // 计算样本值占指标的比重
-    Eigen::Matrix<double, Eigen::Dynamic, 2> score_weight;
-    score_weight.resize(m * n, 2);
-    Eigen::VectorXd col_sum = regular_score.colwise().sum();
-    for (int i = 0; i < score_weight.rows(); i++)
-    {
-        score_weight(i, 0) = regular_score(i, 0) / col_sum(0);
-        score_weight(i, 1) = regular_score(i, 1) / col_sum(1);
-    }
+    // 4. 计算最终权重
+    const double denom = std::max(3.0 - entropy.sum(), 1e-10);  // 防止除以零
+    const Eigen::Vector3d weight = (Eigen::Vector3d::Ones() - entropy) / denom;
 
-    // 计算每项指标的熵值
-    Eigen::Vector2d entropy = Eigen::Vector2d::Zero();
-    for (int i = 0; i < score_weight.rows(); i++)
-    {
-        if (score_weight(i, 0) != 0)
-            entropy(0) -= score_weight(i, 0) * log(score_weight(i, 0));
-        if (score_weight(i, 1) != 0)
-            entropy(1) -= score_weight(i, 1) * log(score_weight(i, 1));
-    }
-    entropy /= log(score_weight.rows());
-
-    // 计算权重
-    Eigen::Vector2d weight = (Eigen::Vector2d::Ones() - entropy) / (2 - entropy.sum());
-
-    // 计算匹配得分矩阵
-    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> score;
-    score.resize(m, n);
-    for (int i = 0; i < m; i++)
-    {
-        for (int j = 0; j < n; j++)
-        {
-            if (i < 1 && j < standard_armors.size())
-            {
-                score(i, j) = negative_score.row(i * standard_armors.size() + j) * weight;
-            }
+    // 5. 计算匹配得分矩阵 (m×n)
+    Eigen::MatrixXd score(m, n);
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < n; ++j) {
+            score(i, j) = negative_score.row(i * n + j).dot(weight);
         }
     }
 
@@ -249,9 +233,9 @@ Aim::Match::~Match(){}
 std::map<int, int> Aim::Match::GetMatch(Eigen::MatrixXd matrix, double score_max, int m)
 {
     /**
-     * @brief 初始化各个变量
-     *
-     */
+        * @brief 初始化各个变量
+        *
+        */
     /// 初始化最终结果
     this->row_col.clear();
     for (int i = 0; i < matrix.rows(); i++)
@@ -285,31 +269,30 @@ std::map<int, int> Aim::Match::GetMatch(Eigen::MatrixXd matrix, double score_max
     this->fourAfour.clear();
 
     /**
-     * @brief 用A(n,m)求出可能选择的所有行的组合
-     * 因为C(n,m) * A(m,m) = A(n,m)，所以先计算C(n,m)，再计算A(m,m)，最后将结果存到result中
-     *
-     */
+        * @brief 用A(n,m)求出可能选择的所有行的组合
+        * 因为C(n,m) * A(m,m) = A(n,m)，所以先计算C(n,m)，再计算A(m,m)，最后将结果存到result中
+        *
+        */
     /// 计算C(n,m)
     if (matrix.rows() <= m)
         this->getCombinationsNumbers(this->row, this->tmp_v, this->result, 0, matrix.rows());
     else
         this->getCombinationsNumbers(this->row, this->tmp_v, this->result, 0, m);
-
-    #ifdef match_debug
     // 输出C(n,m)计算结果
-    // 红色输出
-    std::cout << _red("C(n,m)生成结果") << std::endl;
-    for (auto it = this->result.begin(); it != this->result.end(); it++)
+    if (this->debug)
     {
-        for (std::vector<int>::iterator it2 = it->begin(); it2 != it->end(); it2++)
+        // 红色输出
+        std::cout << "C(n,m)生成结果" << std::endl;
+        for (auto it = this->result.begin(); it != this->result.end(); it++)
         {
-            std::cout << *it2 << " ";
+            for (std::vector<int>::iterator it2 = it->begin(); it2 != it->end(); it2++)
+            {
+                std::cout << *it2 << " ";
+            }
+            std::cout << std::endl;
         }
-        std::cout << std::endl;
+        std::cout << "-------------------------------" << std::endl;
     }
-    std::cout << "-------------------------------" << std::endl;
-    #endif
-
     /// 使用上一步的结果计算A(m,m)，最终得到A(n,m)
     for (auto it = this->result.begin(); it != this->result.end(); it++)
     {
@@ -318,51 +301,51 @@ std::map<int, int> Aim::Match::GetMatch(Eigen::MatrixXd matrix, double score_max
             this->nAfour.emplace_back(*it);
         } while (next_permutation(it->begin(), it->end())); // stl自带全排列函数
     }
-
-    #ifdef match_debug
     // 输出A(n,m)计算结果
-    // 绿色输出
-    std::cout << _green("A(n,m)生成结果") << std::endl;
-    for (auto it = this->nAfour.begin(); it != this->nAfour.end(); it++)
+    if (this->debug)
     {
-        for (std::vector<int>::iterator it2 = it->begin(); it2 != it->end(); it2++)
+        // 绿色输出
+        std::cout << "A(n,m)生成结果" << std::endl;
+        for (auto it = this->nAfour.begin(); it != this->nAfour.end(); it++)
         {
-            std::cout << *it2 << " ";
+            for (std::vector<int>::iterator it2 = it->begin(); it2 != it->end(); it2++)
+            {
+                std::cout << *it2 << " ";
+            }
+            std::cout << std::endl;
         }
-        std::cout << std::endl;
+        std::cout << "-------------------------------" << std::endl;
     }
-    std::cout << "-------------------------------" << std::endl;
-    #endif
 
     /**
-     * @brief 用A(m,m)求出可能选择的所有列的组合
-     *
-     */
+        * @brief 用A(m,m)求出可能选择的所有列的组合
+        *
+        */
     /// 计算A(m,m)
     do
     {
         fourAfour.push_back(col);
     } while (next_permutation(col.begin(), col.end())); // stl自带全排列函数
-
-    #ifdef match_debug
     // 输出A(m,m)计算结果
-    // 蓝色输出
-    std::cout << _blue("A(m,m)生成结果") << std::endl;
-    for (auto it = this->fourAfour.begin(); it != this->fourAfour.end(); it++)
+    if (this->debug)
     {
-        for (std::vector<int>::iterator it2 = it->begin(); it2 != it->end(); it2++)
+        // 蓝色输出
+        std::cout <<"A(m,m)生成结果" << std::endl;
+        for (auto it = this->fourAfour.begin(); it != this->fourAfour.end(); it++)
         {
-            std::cout << *it2 << " ";
+            for (std::vector<int>::iterator it2 = it->begin(); it2 != it->end(); it2++)
+            {
+                std::cout << *it2 << " ";
+            }
+            std::cout << std::endl;
         }
-        std::cout << std::endl;
+        std::cout << "-------------------------------" << std::endl;
     }
-    std::cout << "-------------------------------" << std::endl;
-    #endif
 
     /**
-     * @brief 用A(n,m)和A(m,m)求出可能选择的所有行列的组合的结果
-     *
-     */
+        * @brief 用A(n,m)和A(m,m)求出可能选择的所有行列的组合的结果
+        *
+        */
     for (auto it = this->nAfour.begin(); it != this->nAfour.end(); it++)
     {
         for (auto it2 = this->fourAfour.begin(); it2 != this->fourAfour.end(); it2++)
@@ -384,18 +367,17 @@ std::map<int, int> Aim::Match::GetMatch(Eigen::MatrixXd matrix, double score_max
             }
         }
     }
-
-    #ifdef match_debug
     // 输出删除前的map
-    // 紫色输出
-    std::cout << _purple("删除-1前的map结果") << std::endl;
-    for (auto it = this->row_col.begin(); it != this->row_col.end(); it++)
+    if (this->debug)
     {
-        std::cout << it->first << " " << it->second << std::endl;
+        // 紫色输出
+        std::cout << "删除-1前的map结果" << std::endl;
+        for (auto it = this->row_col.begin(); it != this->row_col.end(); it++)
+        {
+            std::cout << it->first << " " << it->second << std::endl;
+        }
+        std::cout << "-------------------------------" << std::endl;
     }
-    std::cout << "-------------------------------" << std::endl;
-    #endif
-
     /// 删除-1的键值对
     for (auto it = this->row_col.begin(); it != this->row_col.end();)
     {
@@ -406,33 +388,33 @@ std::map<int, int> Aim::Match::GetMatch(Eigen::MatrixXd matrix, double score_max
         else
             ++it;
     }
-
-    #ifdef match_debug
     // 输出min的值和删除后的map
-    // 白色输出
-    std::cout << _white("min和删除-1后的map结果") << std::endl;
-    std::cout << "min = " << min << std::endl;
-    for (auto it = this->row_col.begin(); it != this->row_col.end(); ++it)
+    if (this->debug)
     {
-        std::cout << it->first << " " << it->second << " " << matrix(it->first, it->second) << std::endl;
-    }
-    std::cout << "-------------------------------" << std::endl;
-    #endif
-
-    /// 输出矩阵
-    #ifdef match_debug
-    std::cout << "matrix:" << std::endl;
-    for (int i = 0; i < matrix.rows(); i++)
-    {
-        for (int j = 0; j < matrix.cols(); j++)
+        // 白色输出
+        std::cout << "min和删除-1后的map结果" << std::endl;
+        std::cout << "min = " << min << std::endl;
+        for (auto it = this->row_col.begin(); it != this->row_col.end(); ++it)
         {
-            std::cout << matrix(i, j) << " ";
+            std::cout << it->first << " " << it->second << " " << matrix(it->first, it->second) << std::endl;
+        }
+        std::cout << "-------------------------------" << std::endl;
+    }
+    /// 输出矩阵
+    if (this->debug)
+    {
+        std::cout << "matrix:" << std::endl;
+        for (int i = 0; i < matrix.rows(); i++)
+        {
+            for (int j = 0; j < matrix.cols(); j++)
+            {
+                std::cout << matrix(i, j) << " ";
+            }
+            std::cout << std::endl;
         }
         std::cout << std::endl;
     }
-    std::cout << std::endl;
-    #endif
-
+    
     return this->row_col;
 }
 

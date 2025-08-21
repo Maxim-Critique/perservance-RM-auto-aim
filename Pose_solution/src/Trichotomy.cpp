@@ -50,6 +50,17 @@ void initControlWindow() {
 }
 
 double GetYawAngle(YawPnP& yaw_pnp, double sys_yaw, double angle) {
+    // double min_error_angle;
+    // double min_error = 1e10;
+    // for(int i=-70;i<=70;i+=2){
+    //     double angle = D2R(i) + sys_yaw + PI;
+    //     double error = yaw_pnp.GetError(angle);
+    //     if(error<min_error){
+    //         min_error = error;
+    //         min_error_angle = angle;
+    //     }
+    // }
+    // return min_error_angle;
 
     // 搜索范围
     double min_yaw = -5.0 * PI / 12.0 + sys_yaw + PI;
@@ -89,6 +100,8 @@ double GetYawAngle(YawPnP& yaw_pnp, double sys_yaw, double angle) {
     //     cout<<yaw_pnp.GetError(angle+PI+sys_yaw)<<"  "<<yaw_pnp.GetError(-angle+PI+sys_yaw)<<endl;
     //     return -angle+PI+sys_yaw;
     // }
+
+   
 }
 
 // 三分法接口        
@@ -144,31 +157,6 @@ double YawPnP::GetError(double angle){
         error += (P_project[i][0]-P_pixel[i][0])*(P_project[i][0]-P_pixel[i][0]) + (P_project[i][1]-P_pixel[i][1])*(P_project[i][1]-P_pixel[i][1]);
     }
     return error;
-    // auto P_mapping = getMapping(angle);
-    // auto P_project = getProject(P_mapping);
-
-    // // 海伦公式误差计算
-    // double helen_err = 0.0;
-    // for (int i = 0; i < 4; i++) {
-    //     // 计算重投影三角形与检测点三角形的面积差
-    //     helen_err += TriangleArea(
-    //         P_project[i], 
-    //         P_project[(i + 1) % 4], 
-    //         P_pixel[i]
-    //     );
-    //     helen_err += TriangleArea(
-    //         P_pixel[i], 
-    //         P_pixel[(i + 1) % 4], 
-    //         P_project[i]
-    //     );
-    // }
-
-    // // 可选：根据装甲板长宽比调整权重
-    // double width = (P_pixel[0] - P_pixel[1]).norm() + (P_pixel[2] - P_pixel[3]).norm();
-    // double height = (P_pixel[1] - P_pixel[2]).norm() + (P_pixel[3] - P_pixel[0]).norm();
-    // double ratio = height / width; // 长宽比权重
-
-    // return helen_err * ratio;
 }
 
 bool YawPnP::GetScope(){

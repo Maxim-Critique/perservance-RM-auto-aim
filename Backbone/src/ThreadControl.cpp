@@ -41,7 +41,6 @@ ThreadControl::ThreadControl()
     std::signal(SIGINT, signal_handler);  // 注册信号处理
 }
 
-
 // 图像生成线程
 void ThreadControl::ImageProduce()
 {
@@ -59,7 +58,7 @@ void ThreadControl::ImageProduce()
     camera.open();
     camera.setGain(1);//设置为自动手动要改一下
     camera.setGamma(0);
-    
+    camera.setExposureTime(exposure_time_aim);
 #endif  
 #ifdef CAMERA1
     CameraDevice galaxy;
@@ -179,18 +178,16 @@ void ThreadControl::ImageProcess()
         }                                                                  ///
 #endif                                                                     ///
 //////////////////////////////////////////////////////////////////////////////
-        {
-            std::unique_lock<std::mutex> lock(ds_mutex);
-            if(!ds.Buff_or_Armor){
-                lock.unlock();
-                camera.setExposureTime(exposure_time_aim);
-                auto_aim.IAmFuture(image,timestamp);
-            }else{
-                lock.unlock();
-                camera.setExposureTime(exposure_time_buff);                                                                                                                                                                                             
-                buff_task.SeizeGlory(image,timestamp);
-            }
+        
+        std::unique_lock<std::mutex> lock(ds_mutex);
+        if(!ds.Buff_or_Armor){
+            lock.unlock();
+            auto_aim.IAmFuture(image,timestamp);
+        }else{
+            lock.unlock();                                                                                                                                                                                
+            buff_task.SeizeGlory(image,timestamp);
         }
+        
         
         if(show){
             ShowYawPitchRoll(image);

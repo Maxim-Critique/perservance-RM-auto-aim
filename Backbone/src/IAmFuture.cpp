@@ -6,6 +6,7 @@ Auto_aim::Auto_aim(){
 }
 
 int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
+   
     //尝试次数大于20重置
     if(try_times == 20){ReEKF();}
     //传统找装甲板
@@ -17,42 +18,42 @@ int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
         Reboot();
         return 0;
     }
-    
     armors = ChooseProcess(armors,img);
-    if(armors.size()){
+    if(!armors.size()){
         Reboot();
         return 0;
     }
-    
     UpdateTimeInterval(timestamp);
     if(time_interval == 0){
         Reboot();
         return 0;
     }
     Armor armor = aim_ptr->Shoot(armors,img,time_interval);
-    Transmit(armor,img,timestamp);
-    CheckAimer(armor);
+    Transmit(armor);
+
 }
 
 void Auto_aim::UpdateTimeInterval(uint64_t timestamp){
     time_interval = (timestamp - last_time)/1e8;
     last_time = timestamp;
-    cout<<1/time_interval<<endl;
+    //跑视频
+    time_interval = 0.006;
 }
 
-void Auto_aim::Transmit(Armor armor,Mat &img,uint64_t timestamp){
+void Auto_aim::Transmit(const Armor &armor){
     try_times = 0;
     gimbal_angle = C_C.GetAngle(armor.cam_pose);
+     
     if(Protection()){
-        
         int32_t yaw = (R2D(gimbal_angle.yaw) + compensate_yaw) * 1e4;
         int32_t pitch = (R2D(gimbal_angle.pitch) + compensate_pitch) * 1e4;
         std::unique_lock<std::mutex> lock(ds_mutex);
         bool yaw_delta = abs(R2D(gimbal_angle.yaw) + compensate_yaw - R2D(ds.camera_yaw_angle)) < 1;
-        bool pitch_delta = abs(R2D(gimbal_angle.pitch)  + compensate_pitch - R2D(ds.camera_pit_angle)) < 1.5;
+        bool pitch_delta = abs(R2D(gimbal_angle.pitch)  + compensate_pitch - R2D(ds.camera_pit_angle)) < 1;
         lock.unlock();
         bool distance =  GetDistance(armor.cam_pose)>1.5&&GetDistance(armor.cam_pose)<4;
         int distance_delta = distance*10 + aim_ptr->control_model;
+        
         if(aim_ptr->control_model == 3){
             Gimbal_Angle center = C_C.GetAngle(C_C.abs2cam(aim_ptr->predict_point));
             yaw = (R2D(center.yaw) + compensate_yaw) * 1e4;
@@ -99,7 +100,6 @@ Armors Auto_aim::ChooseProcess(Armors armors,Mat &img){
         for(auto armor : armors){
             if(armor.number == aim_id){
                 if(after_armors.size()){
-                    cout<<" armors[0].center "<<armors[0].center<<"  ";
                     if(abs(armors[0].center.x-armor.center.x>(armor.points[3].x-armor.points[0].x)/2)){
                         solveYawPnP(armor,img,initial_abs);
                         after_armors.push_back(armor);

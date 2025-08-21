@@ -7,7 +7,6 @@
 PNP::PNP()
 {
     
-    //大恒相机： 
     Intrinsic_Matrix = Mat::zeros(3, 3, CV_32F);
     float tempMatrix[3][3] = 
     {{1730.7    ,       0.4,               731.1},

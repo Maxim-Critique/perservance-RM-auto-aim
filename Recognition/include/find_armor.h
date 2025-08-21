@@ -69,7 +69,7 @@ struct Armor
     LightBlob left_light, right_light;
     cv::Point2f center;
     double yaw;
-    double pridict_yaw;
+    double predict_yaw;
     // Number part
     cv::Mat number_img;
     std::string number;

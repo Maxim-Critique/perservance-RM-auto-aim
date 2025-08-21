@@ -122,23 +122,21 @@ Eigen::VectorXd ExtendedKalmanFilter::update(const Eigen::VectorXd & z, int num1
     // 更新状态
     x_post = x_pri + K * (tmp);
     P_post = (I - K * H) * P_pri;
-    // painting.KF_Curve(x_post[8]*25,x_post[9]*25);
     Constraint(x_post);//约束
     // std::ofstream out("ekf_data.txt", std::ios::app);  // 追加模式
     // out << dt_ << " ";
     // for (size_t i = 0; i < x_post.size(); ++i) {
     //     out << x_post[i] << " ";  // 写入10个状态量（空格分隔）
     // }
-
-    std::ofstream in("adjust.txt", std::ios::app);  // 追加模式
-    in << dt_ << " ";
-    for (size_t i = 0; i < z.size(); ++i) {
-        in << z[i] << " ";  
-    }
-    in << "\n";
+    // std::ofstream in("adjust.txt", std::ios::app);  // 追加模式
+    // in << dt_ << " ";
+    // for (size_t i = 0; i < z.size(); ++i) {
+    //     in << z[i] << " ";  
+    // }
+    // in << "\n";
     return x_post;
 }
-int try_time = 0;
+
 void ExtendedKalmanFilter::Constraint(Eigen::VectorXd & X_){
     X_[6] = std::clamp(X_[6], 0.18, 0.4);
     X_[7] = std::clamp(X_[7], 0.18, 0.4);

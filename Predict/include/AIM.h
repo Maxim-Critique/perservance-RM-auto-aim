@@ -14,13 +14,13 @@ public:
     // 主接口
     Armor Shoot(const Armors &armors,Mat &img,double time);
     // ekf的主要部分
-    std::shared_ptr<KinematicModel> Resolve(const Armor &armor);
+    std::shared_ptr<KinematicModel> Resolve(const Armors &armors);
     // 匹配装甲板
     std::map<int, int> Match(const Eigen::MatrixXd &score);
     // 初始化状态量
     void InitEKF (Armor armor);
     // 计算得分，匹配装甲板
-    Eigen::MatrixXd GetScoreMat(const Armor &detect_armor, const Armors &standard_armors);
+    Eigen::MatrixXd GetScoreMat(const Armors &detect_armors, const Armors &standard_armors);
     // 读配置文件
     YAML::Node readYAML(const std::string& filename);
     // 绘制三维重投影

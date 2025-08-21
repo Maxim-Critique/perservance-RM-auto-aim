@@ -234,7 +234,7 @@ void Data_Get::Vision2Control(int32_t x, int32_t y,int32_t ui_x, int32_t ui_y, u
     raw_data[18] = found;
     raw_data[19] = fire;
     raw_data[20] = 0xBB;
-    cout << " yaw : " << x*1e-4 << "    pit : " << y*1e-4 <<" ui_x : "<<ui_x<<"  ui_y : "<<ui_y<< " found : " << static_cast<int>(found) << "   fire: " << static_cast<int>(fire)<< endl;
+    // cout << " yaw : " << x*1e-4 << "    pit : " << y*1e-4 <<" ui_x : "<<ui_x<<"  ui_y : "<<ui_y<< " found : " << static_cast<int>(found) << "   fire: " << static_cast<int>(fire)<< endl;
     
 }
 

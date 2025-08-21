@@ -100,7 +100,9 @@ int Test()
         double time,x,y,z,yaw;
         background = cv::Mat(cv::Size(1024, 1024), CV_8UC3, cv::Scalar(255, 255, 255));
         ifs >> time >> x >> y >> z >> yaw;
+        Armors armors;
         Armor armor;
+        armors.push_back(armor);
         armor.abs_pose = Point3d(x,y,z);
         armor.yaw = yaw;
         cv::circle(background, base_point + cv::Point2f(armor.abs_pose.x, armor.abs_pose.y) * scaling, 3,
@@ -110,7 +112,7 @@ int Test()
                     cv::Scalar(255,0 , 0), 2, 8);
         aim_ptr->m_model_observer->Updatedt(time);
         // Ԥ��������
-        m_status = aim_ptr->Resolve(armor);
+        m_status = aim_ptr->Resolve(armors);
         // ��ǰ״̬��
         Armors filter_armors = m_status->getArmors();
         double hit_time = GetDistance(Point3d(m_status->center.x,m_status->center.y,(m_status->radius[0]+m_status->radius[1]/2))) / bullet_speed + 0.14;

@@ -27,7 +27,7 @@ private:
     //更新时间间隔
     void UpdateTimeInterval(uint64_t timestamp);
     //发送给电控
-    void Transmit(Armor armor,Mat &img,uint64_t timestamp);
+    void Transmit(const Armor &armor);
     //读取配置文件
     YAML::Node readYAML(const std::string& filename);
     //发射间隔

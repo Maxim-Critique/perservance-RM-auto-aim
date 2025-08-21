@@ -127,7 +127,7 @@ Gimbal_Angle Coordinate_converter::GetAngle(cv::Point3f position)
     }
     else
     {
-        // std::cout << "[AngleSolver] Wrong distance in angle_fix" << std::endl;
+        std::cout << "[AngleSolver] Wrong distance in angle_fix" << std::endl;
     }
     return solve_angle;
 }

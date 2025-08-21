@@ -207,12 +207,8 @@ Armors Tradition::Find_light(Mat &src, const cv::Rect& roi) { // 默认参数为
     for (int l = 0; l != light_blobs_light.size(); l++) {
         for (int d = 0; d != light_blobs_dim.size(); d++) {
             if (isSameBlob(light_blobs_light[l], light_blobs_dim[d])) {
-                bool keep_light = false, keep_dim = false;
-                if (light_blobs_light[l].rect.size.area() < 300) {
-                    keep_light = light_blobs_light[l].rect.size.area() >= light_blobs_dim[d].rect.size.area();
-                } else {
-                    keep_light = light_blobs_light[l].area_ratio >= light_blobs_dim[d].area_ratio;
-                }
+                bool keep_light = false;
+                keep_light = light_blobs_light[l].area_ratio >= light_blobs_dim[d].area_ratio;
                 if (keep_light) {
                     light_to_merge.emplace_back(l);
                 } else {

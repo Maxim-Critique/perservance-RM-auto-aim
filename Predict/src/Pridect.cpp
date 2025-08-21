@@ -53,7 +53,7 @@ Armors StandardModel::getArmors(double predict_time)
         cv::Point2d point = center + velocity * predict_time +
                             cv::Point2d(radius[i % 2] * cos(angle), radius[i % 2] * sin(angle));
         armors[i].abs_pose = cv::Point3d(point.x, point.y, height[i % 2]);
-        armors[i].pridict_yaw = angle;
+        armors[i].predict_yaw = angle;
     }
     return armors;
 }
@@ -70,7 +70,7 @@ Armor StandardModel::getClosestArmor(double predict_time,int &last_index,int &fr
     // 查找符合条件的装甲板
     for (int i = 0; i < number; i++) 
     {
-        double angle = _std_radian(armors[i].pridict_yaw - PI - yaw);
+        double angle = _std_radian(armors[i].predict_yaw - PI - yaw);
         if (abs(angle) <= PI/4) 
         {
             if(abs(angle) > D2R(30)){
@@ -126,7 +126,7 @@ Armor StandardModel::getFacingArmor(double predict_time,int &last_index,int &fra
     // 查找符合条件的装甲板
     for (int i = 0; i < number; i++) 
     {
-        double angle = _std_radian(armors[i].pridict_yaw - PI - yaw);
+        double angle = _std_radian(armors[i].predict_yaw - PI - yaw);
         if (abs(angle) <= PI/4) 
         {
             if(abs(angle) > D2R(30)){
