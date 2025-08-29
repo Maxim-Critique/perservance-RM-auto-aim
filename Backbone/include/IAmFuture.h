@@ -1,5 +1,5 @@
 #include "find_armor.h"
-#include "Trichotomy.h"
+#include "Angle_Calculate.h"
 #include "AIM.h"
 #include <algorithm> 
 #include <sys/time.h>

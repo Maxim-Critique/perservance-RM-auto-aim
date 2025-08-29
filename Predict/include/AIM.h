@@ -3,7 +3,7 @@
 #include <eigen3/Eigen/Dense>
 #include <Eigen/Dense>
 #include "SerialPort.h"
-#include "Angel_Calculate.h"
+#include "Angle_Calculate.h"
 #include "CA.h"
 using namespace std;
 class Aim
@@ -12,9 +12,9 @@ public:
     // 初始化
     Aim(Armor armor);
     // 主接口
-    Armor Shoot(const Armors &armors,Mat &img,double time);
+    Armor Shoot(const Armors &armors,Mat &img,double &time);
     // ekf的主要部分
-    std::shared_ptr<KinematicModel> Resolve(const Armors &armors);
+    std::shared_ptr<KinematicModel> Resolve(const Armors &armors,double time);
     // 匹配装甲板
     std::map<int, int> Match(const Eigen::MatrixXd &score);
     // 初始化状态量

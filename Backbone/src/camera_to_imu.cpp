@@ -23,6 +23,7 @@ Coordinate_converter::Coordinate_converter(){
 cv::Point3d Coordinate_converter::cam2abs(cv::Point3d position)
 {
     Vector4d target(position.x, position.y, position.z, 1.0);
+    std::unique_lock<std::mutex> lock(ds_mutex); 
     Vector4d abs_target = this->tf_mat * target;
     return cv::Point3d(abs_target(0), abs_target(1), abs_target(2));
 }
@@ -31,6 +32,7 @@ cv::Point3d Coordinate_converter::cam2abs(cv::Point3d position)
 cv::Point3d Coordinate_converter::abs2cam(cv::Point3d position)
 {
     Vector4d target(position.x, position.y, position.z, 1.0);
+    std::unique_lock<std::mutex> lock(ds_mutex); 
     Vector4d cam_target = this->tf_mat.inverse() * target;
     return cv::Point3d(cam_target(0), cam_target(1), cam_target(2));
 }

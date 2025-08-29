@@ -2,7 +2,6 @@
 #include "Base.h"
 #include <Eigen/Dense>
 #include "camera_to_imu.h"
-#include "Angel_Calculate.h"
 #include <thread>
 #include <mutex>
 #include <deque>
@@ -42,17 +41,16 @@ double VectorizedVaneArctan2(Point3d point) {
 
 
 Buff_Task::Buff_Task() {
-    try {
-        YAML::Node config = YAML::LoadFile(Yaml);
-        compensate_pitch = config["Buff"]["pitch"].as<double>();
-        compensate_yaw = config["Buff"]["yaw"].as<double>();
-        show = config["CAMERA"]["show"].as<double>();
-    } catch (const YAML::Exception& e) {
-        throw std::runtime_error("YAML Error: " + std::string(e.what()));
-    }
+    // try {
+    //     YAML::Node config = YAML::LoadFile(Yaml);
+    //     compensate_pitch = config["Buff"]["pitch"].as<double>();
+    //     compensate_yaw = config["Buff"]["yaw"].as<double>();
+    //     show = config["CAMERA"]["show"].as<double>();
+    // } catch (const YAML::Exception& e) {
+    //     throw std::runtime_error("YAML Error: " + std::string(e.what()));
+    // }
      
-    Buff_discover = std::make_unique<Buff_Discover>(); 
-//     Gauss = std::make_unique<BigNewtonGauss>(); 
+    // Buff_discover = std::make_unique<Buff_Discover>(); 
 }
 
 Buff_Task::~Buff_Task() {}
@@ -124,8 +122,8 @@ bool Buff_Task::SeizeGlory(Mat &src, uint64_t time) {
         Point3d predict_pose = Point3d(Buff_discover->Rpose.x+prediction.x*sin(phi),Buff_discover->Rpose.y+prediction.x*cos(phi),Buff_discover->Rpose.z+prediction.y);
         // Point3d predict_pose = Buff_discover->Rpose;
         predict_pose = C_C.abs2cam(predict_pose);
-        Point2d zi = pnp_armor.ProjectTo2D(Point3d(-predict_pose.y,-predict_pose.z,predict_pose.x+error_x));
-        cv::circle(src, zi, 40, cv::Scalar(0, 0, 255), -1); 
+        // Point2d zi = pnp_armor.ProjectTo2D(Point3d(-predict_pose.y,-predict_pose.z,predict_pose.x+error_x));
+        // cv::circle(src, zi, 40, cv::Scalar(0, 0, 255), -1); 
         Transmit(predict_pose);
         return true;
     }
@@ -136,12 +134,12 @@ void Buff_Task::Transmit(Point3d Aim){
     Gimbal_Angle angle = C_C.GetAngle(Aim);
     int32_t yaw = (R2D(angle.yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (R2D(angle.pitch) + compensate_pitch) * 1e4;
-    Point2d zi = pnp_armor.ProjectTo2D(Point3d(-Aim.y,-Aim.z,Aim.x+error_x));
+    // Point2d zi = pnp_armor.ProjectTo2D(Point3d(-Aim.y,-Aim.z,Aim.x+error_x));
     bool yaw_delta = abs(R2D(angle.yaw) - R2D(ds.camera_yaw_angle)) < 20;
     bool pitch_delta = abs(R2D(angle.pitch)  + compensate_pitch - R2D(ds.camera_pit_angle) -1) < 1.5;
     if(yaw_delta)
     {
-        dg.Vision2Control(yaw,pitch,zi.x,zi.y,3,0);
+        dg.Vision2Control(yaw,pitch,0,0,3,0);
     }else{
         dg.Vision2Control(0,0,0,0,0,0);
     }

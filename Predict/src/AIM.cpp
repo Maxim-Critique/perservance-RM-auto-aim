@@ -11,12 +11,11 @@ Aim::Aim(Armor armor){
     control_model = 1;
 }
 
-Armor Aim::Shoot(const Armors &armors ,Mat &img ,double time){
+Armor Aim::Shoot(const Armors &armors ,Mat &img ,double &time){
     
     m_status = std::make_shared<StandardModel>(target_state);         
     // 反小陀螺模型
-    m_model_observer->Updatedt(time);
-    m_status = Resolve(armors);
+    m_status = Resolve(armors,time);
     ChooseFireModel();
     double hit_time = GetDistance(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/ (bullet_speed) + predict_time;
     Armor armor;
@@ -41,7 +40,7 @@ Armor Aim::Shoot(const Armors &armors ,Mat &img ,double time){
             break;
     }
     armor.cam_pose = C_C.abs2cam(armor.abs_pose);
-    ui = pnp_armor.ProjectTo2D(Point3d(-armor.cam_pose.y,-armor.cam_pose.z,armor.cam_pose.x));
+    // ui = pnp_armor.ProjectTo2D(Point3d(-armor.cam_pose.y,-armor.cam_pose.z,armor.cam_pose.x));
     if(show){
         DraftingSoftware(img);
     }
@@ -87,18 +86,18 @@ void UpdatePrepare(VectorXd &X_,Armor armor){
            _std_radian(armor.yaw);
 }
 
-std::shared_ptr<KinematicModel> Aim::Resolve(const Armors &armors)
+std::shared_ptr<KinematicModel> Aim::Resolve(const Armors &armors,double time)
 {   
     
-    target_state = m_model_observer->predict(target_state);
+    target_state = m_model_observer->predict(time);
     std::shared_ptr<KinematicModel> prior_status = std::make_shared<StandardModel>(target_state);
     Eigen::MatrixXd score = GetScoreMat(armors, prior_status->getArmors(0));
-    // std::map<int, int> armor_match = Match(score);
     std::map<int, int> armor_match = m_match.GetMatch(score,1,4);
-    int num = armor_match.at(0);
-    VectorXd z = Eigen::VectorXd::Zero(4, 1);
-    UpdatePrepare(z,armors[0]);
-    target_state = m_model_observer->update(z,num);
+    vector<int>match;
+    for (const auto& [key, value] : armor_match) { 
+        match.push_back(value);
+    }
+    target_state = m_model_observer->update(armors,match);
     Eigen::VectorXd after_change = target_state;  
     after_change[9] = Homogeneity(after_change[9]);
     std::shared_ptr<KinematicModel> posterior_status = std::make_shared<StandardModel>(after_change);

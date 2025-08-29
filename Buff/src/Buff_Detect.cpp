@@ -1,5 +1,4 @@
 #include "Buff_Detect.h"
-#include "Angel_Calculate.h"
 #include "SerialPort.h"
 cv::dnn::Net net_bh;
 std::mutex mutex_bh;
@@ -361,15 +360,15 @@ bool Buff_Discover::FoundBuff(Mat &img, Mat &draw_img) {
         drawRotatedRect(draw_img,sl.rect,sl.ordered_pnp_points);
     }
     
-    if(sl.rect.size.area()>0){
-        pnp_armor.BuffPnP(sl.ordered_pnp_points,sl.pose,Rpose,Aimpose,sl.roll,sl.yaw);
-        return true;
-    }
-    return false;
+    // if(sl.rect.size.area()>0){
+    //     pnp_armor.BuffPnP(sl.ordered_pnp_points,sl.pose,Rpose,Aimpose,sl.roll,sl.yaw);
+    //     return true;
+    // }
+    // return false;
 }
 
 Buff_Discover::Buff_Discover(){
-    YAML::Node config = YAML::LoadFile(Yaml);   
+    
     // show = config["CAMERA"]["show"].as<int>();
     show = 1;
 }

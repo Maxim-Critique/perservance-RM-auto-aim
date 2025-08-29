@@ -1,4 +1,4 @@
-test: 0
+test: 1
 CAMERA:
   video_write_enable: 0
   exposure_time_aim: 1000
@@ -17,6 +17,7 @@ EKF:
     rd: 0.01
     rz: 0.1
     ra: 0.9
+    rr: 0.8
   m_gain: 25
 Transmit:
   compensate_pitch: 2

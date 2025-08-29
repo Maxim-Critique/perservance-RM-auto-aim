@@ -1,6 +1,5 @@
 #include <opencv2/highgui.hpp>
 #include <eigen3/Eigen/Dense>
-#include "Angel_Calculate.h"
 #include "find_armor.h"
 
 
@@ -221,23 +220,11 @@ Armors Tradition::Find_armor(cv::Mat &src, LightBlobs &light_blobs)
             if (light_blobs[i].center.x < light_blobs[j].center.x)
             {
                 std::vector<cv::Point2f> points = {blob_i.bottom, blob_i.top, blob_j.top, blob_j.bottom};
-                // std::vector<cv::Point2f> points = {
-                //     Point2f((blob_i.bottom.x*4 + blob_i.top.x),(blob_i.bottom.y*4 + blob_j.bottom.y))/5,
-                //     Point2f((blob_i.top.x*4 + blob_i.bottom.x),(blob_i.top.y*4 + blob_j.top.y))/5,
-                //     Point2f((blob_j.top.x*4 + blob_j.bottom.x),(blob_j.top.y*4 + blob_i.top.y))/5,
-                //     Point2f((blob_j.bottom.x*4 + blob_j.top.x),(blob_j.bottom.y*4 + blob_i.bottom.y))/5
-                // };
                 Armors.emplace_back(points, enemy_color, type);
             }
             else
             {
                 std::vector<cv::Point2f> points = {blob_j.bottom, blob_j.top, blob_i.top, blob_i.bottom};
-                // std::vector<cv::Point2f> points = {
-                //     Point2f((blob_j.bottom.x*4 + blob_j.top.x),(blob_j.bottom.y*4 + blob_i.bottom.y))/5,
-                //     Point2f((blob_j.top.x*4 + blob_j.bottom.x),(blob_j.top.y*4 + blob_i.top.y))/5,
-                //     Point2f((blob_i.top.x*4 + blob_i.bottom.x),(blob_i.top.y*4 + blob_j.top.y))/5,
-                //     Point2f((blob_i.bottom.x*4 + blob_i.top.x),(blob_i.bottom.y*4 + blob_j.bottom.y))/5
-                // };
                 Armors.emplace_back(points, enemy_color, type);
             }
         }

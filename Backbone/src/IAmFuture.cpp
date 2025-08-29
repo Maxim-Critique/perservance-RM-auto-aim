@@ -86,9 +86,10 @@ void SortArmors(Armors& armors) {
 Armors Auto_aim::ChooseProcess(Armors armors,Mat &img){
     Armors after_armors;
     SortArmors(armors);
+    std::unique_ptr<PNP> pnp = std::make_unique<PNP>();
     if(aim_id.empty()){
         for(auto armor : armors){
-            solveYawPnP(armor,img,initial_abs);
+            pnp->Solve(armor, img, initial_abs);
             if(GetDistance(armor.cam_pose)<5){
                 after_armors.push_back(armor); 
                 aim_id = armor.number;
@@ -101,15 +102,15 @@ Armors Auto_aim::ChooseProcess(Armors armors,Mat &img){
             if(armor.number == aim_id){
                 if(after_armors.size()){
                     if(abs(armors[0].center.x-armor.center.x>(armor.points[3].x-armor.points[0].x)/2)){
-                        solveYawPnP(armor,img,initial_abs);
+                        pnp->Solve(armor, img, initial_abs);
                         after_armors.push_back(armor);
                     }
                 }else{
-                    solveYawPnP(armor,img,initial_abs);
+                    pnp->Solve(armor, img, initial_abs);
                     after_armors.push_back(armor);
                 }
             }
-            if(after_armors.size()>2){
+            if(after_armors.size()>1){
                 break;
             }
         }
