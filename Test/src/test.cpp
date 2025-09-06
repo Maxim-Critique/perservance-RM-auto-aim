@@ -3,7 +3,8 @@
 #include "test.h"
 #include <random>
 #include <algorithm>
-
+#include <cstdlib>  
+#include <ctime>   
 // 使用录制数据进行仿真
 // #define USE_DATA
 
@@ -94,7 +95,7 @@ unsigned int getTimeUSecNow()
 } 
 
 // 帧率控制器
-Rate rate(10);
+Rate rate(100);
 
 /**
  * @brief 标准化角度到[-π, π]范围
@@ -133,7 +134,7 @@ Armors generateSimulatedArmors() {
     for (int i = 0; i < armors.size(); i++) {
         // 添加高斯噪声
         std::normal_distribution<float> dist_pos(0, sigma);
-        std::normal_distribution<float> dist_angle(0, sigma * 5);
+        std::normal_distribution<float> dist_angle(0, sigma * 15);
         
         // 计算装甲板位置
         float armor_r = r[i % 2];
@@ -157,7 +158,7 @@ Armors generateSimulatedArmors() {
         });
     
     // 只保留距离最近的1个装甲板
-    armors.resize(2);
+    armors.resize(1 + rand() % 2);
     
     // 在仿真图上绘制装甲板
     for (const auto& armor : armors) {
@@ -179,6 +180,10 @@ Armors generateSimulatedArmors() {
 }
 
 int Test() {
+
+    YAML::Node config = YAML::LoadFile(Yaml);
+    double predict_time = config["AIM"]["predict_time"].as<double>();
+    srand(time(nullptr));
     // 初始化随机数生成器
     rng.seed(time(NULL));
     
@@ -189,7 +194,7 @@ int Test() {
     // 跟踪变量
     int last_index = 0;
     int frames_since_last_switch = 0;
-    
+    std::unique_ptr<MPC> mpc = std::make_unique<MPC>();
     while (true) {
         // 清空背景
         background = cv::Mat(cv::Size(1024, 1024), CV_8UC3, cv::Scalar(255, 255, 255));
@@ -207,14 +212,16 @@ int Test() {
         m_status = aim_ptr->Resolve(armors, dt);
         
         // 获取当前状态估计
-        Armors filter_armors = m_status->getArmors(0);
-        double hit_time = getDistance(Point3d(m_status->center.x, m_status->center.y, 
-                                             (m_status->radius[0] + m_status->radius[1]) / 2)) / bullet_speed + 0.14;
-        
+        Armors filter_armors = m_status->GetArmors(0);
+        double hit_time = cv::norm(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/ (bullet_speed) + predict_time;
         // 获取预测装甲板
-        Armors predict_armors = m_status->getArmors(hit_time);
-        Armor target_armor = m_status->getClosestArmor(hit_time, last_index, frames_since_last_switch);
-        
+        Armors predict_armors = m_status->GetArmors(hit_time);
+        Armor target_armor = m_status->GetClosestArmor(hit_time, last_index, frames_since_last_switch);
+        Point3d point = C_C.abs2cam(target_armor.abs_pose);
+        double yaw = std::atan2(point.y, point.x);
+        // std::ofstream out("mpc_log.txt", std::ios::app); 
+        // out << R2D(yaw) << " ";
+        mpc->TrajectoryPlanning(*m_status);
         // 绘制状态估计和预测结果
         for (int i = 0; i < filter_armors.size(); i++) {
             // 当前状态估计量（红）

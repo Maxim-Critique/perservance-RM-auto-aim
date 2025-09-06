@@ -17,7 +17,7 @@ Armor Aim::Shoot(const Armors &armors ,Mat &img ,double &time){
     // 反小陀螺模型
     m_status = Resolve(armors,time);
     ChooseFireModel();
-    double hit_time = GetDistance(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/ (bullet_speed) + predict_time;
+    double hit_time = cv::norm(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/ (bullet_speed) + predict_time;
     Armor armor;
     switch (control_model) {
         case 1:  // 低速模式
@@ -27,11 +27,11 @@ Armor Aim::Shoot(const Armors &armors ,Mat &img ,double &time){
             break;
             
         case 2:  // 不锁中心模式
-            armor = m_status->getClosestArmor(hit_time, this->last_index, this->frames_since_last_switch);
+            armor = m_status->GetClosestArmor(hit_time, this->last_index, this->frames_since_last_switch);
             break;
             
         case 3:  // 锁中心模式
-            armor = m_status->getFacingArmor(hit_time, this->last_index, 
+            armor = m_status->GetFacingArmor(hit_time, this->last_index, 
                                             this->frames_since_last_switch, this->predict_point);
             break;
             
@@ -91,7 +91,7 @@ std::shared_ptr<KinematicModel> Aim::Resolve(const Armors &armors,double time)
     
     target_state = m_model_observer->predict(time);
     std::shared_ptr<KinematicModel> prior_status = std::make_shared<StandardModel>(target_state);
-    Eigen::MatrixXd score = GetScoreMat(armors, prior_status->getArmors(0));
+    Eigen::MatrixXd score = GetScoreMat(armors, prior_status->GetArmors(0));
     std::map<int, int> armor_match = m_match.GetMatch(score,1,4);
     vector<int>match;
     for (const auto& [key, value] : armor_match) { 

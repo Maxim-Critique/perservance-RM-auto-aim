@@ -36,8 +36,6 @@ int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
 void Auto_aim::UpdateTimeInterval(uint64_t timestamp){
     time_interval = (timestamp - last_time)/1e8;
     last_time = timestamp;
-    //跑视频
-    time_interval = 0.006;
 }
 
 void Auto_aim::Transmit(const Armor &armor){
@@ -51,7 +49,7 @@ void Auto_aim::Transmit(const Armor &armor){
         bool yaw_delta = abs(R2D(gimbal_angle.yaw) + compensate_yaw - R2D(ds.camera_yaw_angle)) < 1;
         bool pitch_delta = abs(R2D(gimbal_angle.pitch)  + compensate_pitch - R2D(ds.camera_pit_angle)) < 1;
         lock.unlock();
-        bool distance =  GetDistance(armor.cam_pose)>1.5&&GetDistance(armor.cam_pose)<4;
+        bool distance =  cv::norm(armor.cam_pose)>1.5&&cv::norm(armor.cam_pose)<4;
         int distance_delta = distance*10 + aim_ptr->control_model;
         
         if(aim_ptr->control_model == 3){
@@ -90,7 +88,7 @@ Armors Auto_aim::ChooseProcess(Armors armors,Mat &img){
     if(aim_id.empty()){
         for(auto armor : armors){
             pnp->Solve(armor, img, initial_abs);
-            if(GetDistance(armor.cam_pose)<5){
+            if(cv::norm(armor.cam_pose)<5){
                 after_armors.push_back(armor); 
                 aim_id = armor.number;
                 aim_ptr = std::make_unique<Aim>(armor);

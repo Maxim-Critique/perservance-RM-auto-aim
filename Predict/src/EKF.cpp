@@ -1,7 +1,7 @@
 #include "EKF.h"
 #include <cmath>
 #include <algorithm>
-#include "camera_to_imu.h"
+#include "Coordinate.h"
 
 
 double ExtendedKalmanFilter::UpdateStrategy::rd = 0.0;

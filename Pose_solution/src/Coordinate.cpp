@@ -1,4 +1,4 @@
-#include "camera_to_imu.h"
+#include "Coordinate.h"
 #include "Base.h"
 #include "SerialPort.h"
 
@@ -17,31 +17,39 @@ double D2R(double degree)
 }
 Coordinate_converter::Coordinate_converter(){
     tf_mat.setIdentity();
+    camera_gimbal << -0.10, 0.05, 0;
 }
+
+
 
 // 将装甲板坐标从相对坐标转化为绝对坐标
 cv::Point3d Coordinate_converter::cam2abs(cv::Point3d position)
 {
-    Vector4d target(position.x, position.y, position.z, 1.0);
+    Vector3d target(position.x, position.y, position.z);
     std::unique_lock<std::mutex> lock(ds_mutex); 
-    Vector4d abs_target = this->tf_mat * target;
+    Vector3d abs_target = this->tf_mat * target + camera_gimbal;
     return cv::Point3d(abs_target(0), abs_target(1), abs_target(2));
 }
 
 // 将装甲板坐标从绝对坐标转化为相对坐标
 cv::Point3d Coordinate_converter::abs2cam(cv::Point3d position)
 {
-    Vector4d target(position.x, position.y, position.z, 1.0);
+    Vector3d target(position.x, position.y, position.z);
     std::unique_lock<std::mutex> lock(ds_mutex); 
-    Vector4d cam_target = this->tf_mat.inverse() * target;
+    Vector3d cam_target = this->tf_mat.inverse() * target - camera_gimbal;
     return cv::Point3d(cam_target(0), cam_target(1), cam_target(2));
 }
  
 // 更新此刻的云台位资
-void Coordinate_converter::GetTFMat(double x,double y,double z){
-    Matrix4d rot_mat = GetRotMatXYZ(x,y,z);
-    Matrix4d trans_mat = GetTransMat(-0.10, 0.05, 0);
-    this->tf_mat = rot_mat * trans_mat;
+void Coordinate_converter::GetTFMat(const double &x, const double &y, const double &z)
+{
+    const double cosx = cos(x), sinx = sin(x);
+    const double cosy = cos(y), siny = sin(y);
+    const double cosz = cos(z), sinz = sin(z);
+    
+    this->tf_mat << cosy*cosz,           cosz*sinx*siny - cosx*sinz,           cosx*cosz*siny + sinx*sinz,
+                    cosy*sinz,           cosx*cosz + sinx*siny*sinz,          -cosz*sinx + cosx*siny*sinz,
+                        -siny,                      cosy*sinx,                                  cosx*cosy;
 }
     
 // 三分法工具函数
@@ -58,56 +66,47 @@ Matrix4d Coordinate_converter::GetTrichMat(double yaw,Point3d point){
     return TrichMat;
 }
 
-Matrix4d GetRotMatX(double x)
+Matrix3d GetRotMatX(double x)
 {
-    Matrix4d MatX;
-    MatX << 1,      0,       0, 0,
-            0, cos(x), -sin(x), 0,
-            0, sin(x),  cos(x), 0,
-            0,      0,       0, 1;
+    Matrix3d MatX;
+    MatX << 1,      0,       0, 
+            0, cos(x), -sin(x), 
+            0, sin(x),  cos(x);
+           
     return MatX;
 }
 
-Matrix4d GetRotMatY(double y)
+Matrix3d GetRotMatY(double y)
 {
-    Matrix4d MatY;
-    MatY << cos(y), 0, sin(y), 0,
-                 0, 1,      0, 0,
-           -sin(y), 0, cos(y), 0,
-                 0, 0,      0, 1;
+    Matrix3d MatY;
+    MatY << cos(y), 0, sin(y),
+                 0, 1,      0,
+           -sin(y), 0, cos(y);
+        
     return MatY;
 }
 
-Matrix4d GetRotMatZ(double z)
+Matrix3d GetRotMatZ(double z)
 {
-    Matrix4d MatZ;
-    MatZ << cos(z), -sin(z), 0, 0,
-            sin(z),  cos(z), 0, 0,
-                0,       0,  1, 0,
-                0,       0,  0, 1;
+    Matrix3d MatZ;
+    MatZ << cos(z), -sin(z), 0, 
+            sin(z),  cos(z), 0, 
+                0,       0,  1;
+ 
     return MatZ;
 }
 
-Matrix4d GetTransMat(double x, double y, double z)
-{
-    Matrix4d Mat;
-    Mat << 1, 0, 0, x,
-           0, 1, 0, y,
-           0, 0, 1, z,
-           0, 0, 0, 1;
-    return Mat;
-}
-
-Matrix4d GetRotMatXYZ(double x, double y, double z)
+Matrix3d GetRotMatXYZ(double x, double y, double z)
 {
     return GetRotMatZ(z) * GetRotMatY(y) * GetRotMatX(x);
 }
 
 cv::Point3f Coordinate_converter::changeCoor(cv::Point3f point)
 {
-    Matrix4d trans_mat = GetTransMat(0, 0, 0.03);
-    Vector4d target(point.x, point.y, point.z, 1.0);
-    Vector4d target_in_base = trans_mat * target;
+    Vector3d trans_mat;
+    trans_mat<< 0, 0, 0.03;
+    Vector3d target(point.x, point.y, point.z);
+    Vector3d target_in_base = trans_mat + target;
     return cv::Point3f(target_in_base(0), target_in_base(1), target_in_base(2));
 }
 

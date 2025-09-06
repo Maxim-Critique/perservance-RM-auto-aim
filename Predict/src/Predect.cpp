@@ -1,4 +1,4 @@
-#include "Pridict.h"
+#include "Predict.h"
 #include <fstream>
 
 
@@ -32,8 +32,6 @@ StandardModel::StandardModel(const Eigen::Matrix<double, 10, 1> &X)
 }
 StandardModel::~StandardModel()
 {
-    last_execution_time = std::chrono::steady_clock::time_point::min();;
-    Window_time = -1;
 }
 
 StandardModel StandardModel::operator=(const StandardModel &status)
@@ -44,7 +42,7 @@ StandardModel StandardModel::operator=(const StandardModel &status)
     return *this;
 }
 
-Armors StandardModel::getArmors(double predict_time)
+Armors StandardModel::GetArmors(double predict_time)
 {
     Armors armors(number);
     for (int i = 0; i < number; i++)
@@ -58,70 +56,81 @@ Armors StandardModel::getArmors(double predict_time)
     return armors;
 }
 
-Armor StandardModel::getClosestArmor(double predict_time,int &last_index,int &frames_since_last_switch)
+Armor StandardModel::GetClosestArmor(double predict_time,int &last_index,int &frames_since_last_switch)
 {   
-    std::unique_lock<std::mutex> lock(ds_mutex);
-    double yaw = ds.camera_yaw_angle;
-    lock.unlock();
-    int SWITCH_FRAME_INTERVAL = 4;
-    bool should_switch = false;
-    Armors armors = getArmors(predict_time);
-    bool flag = 0;
-    // 查找符合条件的装甲板
-    for (int i = 0; i < number; i++) 
-    {
-        double angle = _std_radian(armors[i].predict_yaw - PI - yaw);
-        if (abs(angle) <= PI/4) 
-        {
-            if(abs(angle) > D2R(30)){
-                if(angle > 0 && (abs(palstance) / palstance) == 1){
-                    if(i == 0){
-                        index = 3;
-                    }else{
-                        index = i - 1;
-                    }
-                }
-                else if(angle < 0 && (abs(palstance) / palstance) == -1){
-                    index = (i + 1) % number;
-                }
-                else{
-                    index = i;
-                }
-            }else{
-                index = i;
-            } 
-            // cout<<" index "<<index<<" last_index "<<last_index<< " AfterChange ";
-            should_switch = (frames_since_last_switch >= SWITCH_FRAME_INTERVAL);
-            if(index != last_index){
-                if(should_switch){
-                    frames_since_last_switch = 0;
-                    last_index = index;
-                    flag = 1;
-                }else{
-                    index = last_index;
-                    frames_since_last_switch ++;
-                }
-            }else{
-                frames_since_last_switch ++;
-            }
-            break;
-        }
+    // std::unique_lock<std::mutex> lock(ds_mutex);
+    // double yaw = ds.camera_yaw_angle;
+    // lock.unlock();
+    // int SWITCH_FRAME_INTERVAL = 4;
+    // bool should_switch = false;
+    // Armors armors = GetArmors(predict_time);
+    // bool flag = 0;
+    // // 查找符合条件的装甲板
+    // for (int i = 0; i < number; i++) 
+    // {
+    //     double angle = _std_radian(armors[i].predict_yaw - PI - yaw);
+    //     if (abs(angle) <= PI/4) 
+    //     {
+    //         if(abs(angle) > D2R(30)){
+    //             if(angle > 0 && (abs(palstance) / palstance) == 1){
+    //                 if(i == 0){
+    //                     index = 3;
+    //                 }else{
+    //                     index = i - 1;
+    //                 }
+    //             }
+    //             else if(angle < 0 && (abs(palstance) / palstance) == -1){
+    //                 index = (i + 1) % number;
+    //             }
+    //             else{
+    //                 index = i;
+    //             }
+    //         }else{
+    //             index = i;
+    //         } 
+    //         // cout<<" index "<<index<<" last_index "<<last_index<< " AfterChange ";
+    //         should_switch = (frames_since_last_switch >= SWITCH_FRAME_INTERVAL);
+    //         if(index != last_index){
+    //             if(should_switch){
+    //                 frames_since_last_switch = 0;
+    //                 last_index = index;
+    //                 flag = 1;
+    //             }else{
+    //                 index = last_index;
+    //                 frames_since_last_switch ++;
+    //             }
+    //         }else{
+    //             frames_since_last_switch ++;
+    //         }
+    //         break;
+    //     }
+    // }
+    // // cout<<" index "<<index<<" last_index "<<last_index<<" frames_since_last_switch "<<frames_since_last_switch<<"   ";
+    // std::ofstream out("ekf_data.txt", std::ios::app); 
+    // out << flag << "\n";
+    // armors[index].yaw = phase;
+    // return armors[index];
+    Armors armors = GetArmors(predict_time);
+    double min_distance = 100;
+    cv::Point3d point;
+    for(auto armor : armors){
+        if(min_distance>cv::norm(armor.abs_pose)){
+            point = armor.abs_pose;
+        } 
     }
-    // cout<<" index "<<index<<" last_index "<<last_index<<" frames_since_last_switch "<<frames_since_last_switch<<"   ";
-    std::ofstream out("ekf_data.txt", std::ios::app); 
-    out << flag << "\n";
-    armors[index].yaw = phase;
-    return armors[index];
+    Armor armor;
+    armor.abs_pose = point;
+    return armor;
 }
 
-Armor StandardModel::getFacingArmor(double predict_time,int &last_index,int &frames_since_last_switch,Point3d &center_pose)
+Armor StandardModel::GetFacingArmor(double predict_time,int &last_index,int &frames_since_last_switch,Point3d &center_pose)
 {
     std::unique_lock<std::mutex> lock(ds_mutex);
     double yaw = ds.camera_yaw_angle;
     lock.unlock();
     int SWITCH_FRAME_INTERVAL = 4;
     bool should_switch = false;
-    Armors armors = getArmors(predict_time);
+    Armors armors = GetArmors(predict_time);
     bool flag = 0;
     // 查找符合条件的装甲板
     for (int i = 0; i < number; i++) 
@@ -169,7 +178,6 @@ Armor StandardModel::getFacingArmor(double predict_time,int &last_index,int &fra
     center_pose = Point3d(center.x+velocity.x*predict_time,center.y+velocity.y*predict_time,(height[0]+height[1])/2);
     armors[index].yaw = phase;
     return armors[index];
-    
 }
 
 void StandardModel::print(std::string tag)

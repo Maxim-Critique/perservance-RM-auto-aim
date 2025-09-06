@@ -178,7 +178,7 @@ void ThreadControl::ImageProcess()
         }                                                                  ///
 #endif                                                                     ///
 //////////////////////////////////////////////////////////////////////////////
-        
+buff_task.SeizeGlory(image,timestamp);
         std::unique_lock<std::mutex> lock(ds_mutex);
         if(!ds.Buff_or_Armor){
             lock.unlock();

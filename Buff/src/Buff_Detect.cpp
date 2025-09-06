@@ -359,7 +359,7 @@ bool Buff_Discover::FoundBuff(Mat &img, Mat &draw_img) {
         circle(draw_img,bh.rect.center,40,Scalar(200,0,200),20);
         drawRotatedRect(draw_img,sl.rect,sl.ordered_pnp_points);
     }
-    
+    return false;
     // if(sl.rect.size.area()>0){
     //     pnp_armor.BuffPnP(sl.ordered_pnp_points,sl.pose,Rpose,Aimpose,sl.roll,sl.yaw);
     //     return true;

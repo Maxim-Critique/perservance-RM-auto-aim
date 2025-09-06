@@ -1,7 +1,7 @@
 #include "Buff_Task.h"
 #include "Base.h"
 #include <Eigen/Dense>
-#include "camera_to_imu.h"
+#include "Coordinate.h"
 #include <thread>
 #include <mutex>
 #include <deque>
@@ -85,49 +85,47 @@ bool Buff_Task::SeizeGlory(Mat &src, uint64_t time) {
         return false;
     }
     Mat test = Buff_discover->Buff_img_deal(src);
-    if(show){
-        imshow("test",test);
-    }
+    imshow("test",test);
     bool Found = Buff_discover->FoundBuff(test, src);
 
-    if(Found){
-        double time_interval = (time - last_time)/1e8;
-        last_time = time;
-        GetThetaPhi(); 
-        if(ds.Buff_or_Armor - 1) {
-            // if(!init){
-            //     EKF = std::make_unique<CAlphaEKF>(this->theta);
-            //     init = true;
-            // }
-            // EKF->predict(time_interval);
-            // Eigen::Vector4d state = EKF->update(this->theta-PI);
-            // state[0]+=PI;
+    // if(Found){
+    //     double time_interval = (time - last_time)/1e8;
+    //     last_time = time;
+    //     GetThetaPhi(); 
+    //     if(ds.Buff_or_Armor - 1) {
+    //         // if(!init){
+    //         //     EKF = std::make_unique<CAlphaEKF>(this->theta);
+    //         //     init = true;
+    //         // }
+    //         // EKF->predict(time_interval);
+    //         // Eigen::Vector4d state = EKF->update(this->theta-PI);
+    //         // state[0]+=PI;
             
-            // // painting.KF_Curve(R2D(theta),R2D(state[0]));
-            // painting.Speed_Curve(state[1]*50);
-            // Gauss->fit(state[0],state[1],time);
-            // double znacun = theta;
-            // theta = Gauss->getAngle(time+0.5*1e8);
-            // painting.KF_Curve(R2D(znacun),R2D(theta));
-            // std::ofstream out("ekf_data.txt", std::ios::app);  // ׷��ģʽ
-            // out << time*1e-8 << " "<<state[1]<<"\n";
-            theta -= D2R(30);
-        }else{
-            theta += D2R(30);
-        }
-        Point2d prediction = Point2d(0.65 * cos(theta),0.65 * sin(theta));
-        Buff_discover->Rpose = last_center *0.9+Buff_discover->Rpose*0.1;
-        last_center = Buff_discover->Rpose;
+    //         // // painting.KF_Curve(R2D(theta),R2D(state[0]));
+    //         // painting.Speed_Curve(state[1]*50);
+    //         // Gauss->fit(state[0],state[1],time);
+    //         // double znacun = theta;
+    //         // theta = Gauss->getAngle(time+0.5*1e8);
+    //         // painting.KF_Curve(R2D(znacun),R2D(theta));
+    //         // std::ofstream out("ekf_data.txt", std::ios::app);  // ׷��ģʽ
+    //         // out << time*1e-8 << " "<<state[1]<<"\n";
+    //         theta -= D2R(30);
+    //     }else{
+    //         theta += D2R(30);
+    //     }
+    //     Point2d prediction = Point2d(0.65 * cos(theta),0.65 * sin(theta));
+    //     Buff_discover->Rpose = last_center *0.9+Buff_discover->Rpose*0.1;
+    //     last_center = Buff_discover->Rpose;
 
-        Point3d predict_pose = Point3d(Buff_discover->Rpose.x+prediction.x*sin(phi),Buff_discover->Rpose.y+prediction.x*cos(phi),Buff_discover->Rpose.z+prediction.y);
-        // Point3d predict_pose = Buff_discover->Rpose;
-        predict_pose = C_C.abs2cam(predict_pose);
-        // Point2d zi = pnp_armor.ProjectTo2D(Point3d(-predict_pose.y,-predict_pose.z,predict_pose.x+error_x));
-        // cv::circle(src, zi, 40, cv::Scalar(0, 0, 255), -1); 
-        Transmit(predict_pose);
-        return true;
-    }
-    return false;
+    //     Point3d predict_pose = Point3d(Buff_discover->Rpose.x+prediction.x*sin(phi),Buff_discover->Rpose.y+prediction.x*cos(phi),Buff_discover->Rpose.z+prediction.y);
+    //     // Point3d predict_pose = Buff_discover->Rpose;
+    //     predict_pose = C_C.abs2cam(predict_pose);
+    //     // Point2d zi = pnp_armor.ProjectTo2D(Point3d(-predict_pose.y,-predict_pose.z,predict_pose.x+error_x));
+    //     // cv::circle(src, zi, 40, cv::Scalar(0, 0, 255), -1); 
+    //     Transmit(predict_pose);
+    //     return true;
+    // }
+    // return false;
 }
 
 void Buff_Task::Transmit(Point3d Aim){

@@ -2,7 +2,7 @@
 #include "Base.h"
 #include <numeric>
 #include <string>
-#include "camera_to_imu.h"
+#include "Coordinate.h"
 
 // 添加的全局变量和函数声明
 namespace {
