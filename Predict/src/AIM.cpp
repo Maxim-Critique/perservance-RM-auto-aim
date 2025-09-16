@@ -1,17 +1,24 @@
 #include "AIM.h"
 
 Aim::Aim(Armor armor){
+    try {
+        YAML::Node config = YAML::LoadFile(Yaml);
+        predict_time = config["AIM"]["predict_time"].as<double>();
+        show = config["CAMERA"]["show"].as<int>();
+    } catch (const YAML::Exception& e) {
+        throw std::runtime_error("YAML Error: " + std::string(e.what()));
+    }
     target_state = Eigen::VectorXd::Zero(10);
     translation_state = Eigen::VectorXd::Zero(7);
     InitEKF(armor);
     m_model_observer = std::make_shared<ExtendedKalmanFilter>(target_state);
     m_model_translation = std::make_shared<CAEKF>(translation_state);
+    mpc = std::make_unique<MPC>();
     ca_yaw = armor.yaw;
-    readYAML(Yaml);
     control_model = 1;
 }
 
-Armor Aim::Shoot(const Armors &armors ,Mat &img ,double &time){
+Gimbal_Angle Aim::Shoot(const Armors &armors ,Mat &img ,double &time){
     
     m_status = std::make_shared<StandardModel>(target_state);         
     // 反小陀螺模型
@@ -40,11 +47,11 @@ Armor Aim::Shoot(const Armors &armors ,Mat &img ,double &time){
             break;
     }
     armor.cam_pose = C_C.abs2cam(armor.abs_pose);
-    // ui = pnp_armor.ProjectTo2D(Point3d(-armor.cam_pose.y,-armor.cam_pose.z,armor.cam_pose.x));
-    if(show){
-        DraftingSoftware(img);
-    }
-    return armor;
+    // 简单方法
+    // Gimbal_Angle gimbal_angle = C_C.GetAngle(armor.cam_pose);
+    // MPC方法
+    Gimbal_Angle gimbal_angle = mpc->TrajectoryPlanning(*m_status);;
+    return gimbal_angle;
 } 
 void Aim::SloveCA(const Armors armors,double time){
     Armor ca_armor;
@@ -108,15 +115,15 @@ std::shared_ptr<KinematicModel> Aim::Resolve(const Armors &armors,double time)
 void Aim::InitEKF (Armor armor){
     //出是半径设置为0.25
     target_state << armor.abs_pose.x - 0.25 * cos(armor.yaw) ,   //xc
-            0 ,                                     //vx
-            armor.abs_pose.y - 0.25 * sin(armor.yaw) ,   //yc
-            0 ,                                     //vy
-            armor.abs_pose.z ,                           //z1
-            armor.abs_pose.z ,                           //z2        
-            0.25 ,                                  //r1
-            0.25 ,                                  //r2
-            armor.yaw ,                             //yaw
-            0 ;                                     //vyaw
+            0 ,                                                  //vx
+            armor.abs_pose.y - 0.25 * sin(armor.yaw) ,           //yc
+            0 ,                                                  //vy
+            armor.abs_pose.z ,                                   //z1
+            armor.abs_pose.z ,                                   //z2        
+            0.25 ,                                               //r1
+            0.25 ,                                               //r2
+            armor.yaw ,                                          //yaw
+            0 ;                                                  //vyaw
     translation_state << armor.abs_pose.x,
                          0,
                          0,
@@ -432,24 +439,4 @@ void Aim::Match::getCombinationsNumbers(std::vector<int> &input, std::vector<int
         getCombinationsNumbers(input, tmp_v, result, i + 1, k);
         tmp_v.pop_back();
     }
-}
-
-void Aim::DraftingSoftware(Mat &img){
-
-    // Point3d pose = C_C.abs2cam(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2));
-    // Point2d zi = pnp_armor.ProjectTo2D(Point3d(-pose.y,-pose.z,pose.x + error_x));
-    // cv::circle(img, zi, 2, cv::Scalar(0, 0, 255), -1);  // 红色：BGR(0, 0, 255)
-    cv::circle(img, ui, 2, cv::Scalar(0, 0, 255), -1);  // 红色：BGR(0, 0, 255)
-
-}
-
-YAML::Node Aim::readYAML(const std::string& filename){
-    try {
-        YAML::Node config = YAML::LoadFile(filename);
-        predict_time = config["AIM"]["predict_time"].as<double>();
-        show = config["CAMERA"]["show"].as<int>();
-    } catch (const YAML::Exception& e) {
-        throw std::runtime_error("YAML Error: " + std::string(e.what()));
-    }
-    return YAML::LoadFile(filename);
 }

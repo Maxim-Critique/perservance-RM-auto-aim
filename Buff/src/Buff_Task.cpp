@@ -130,11 +130,11 @@ bool Buff_Task::SeizeGlory(Mat &src, uint64_t time) {
 
 void Buff_Task::Transmit(Point3d Aim){
     Gimbal_Angle angle = C_C.GetAngle(Aim);
-    int32_t yaw = (R2D(angle.yaw) + compensate_yaw) * 1e4;
-    int32_t pitch = (R2D(angle.pitch) + compensate_pitch) * 1e4;
+    int32_t yaw = (R2D(angle.target_yaw) + compensate_yaw) * 1e4;
+    int32_t pitch = (R2D(angle.target_pitch) + compensate_pitch) * 1e4;
     // Point2d zi = pnp_armor.ProjectTo2D(Point3d(-Aim.y,-Aim.z,Aim.x+error_x));
-    bool yaw_delta = abs(R2D(angle.yaw) - R2D(ds.camera_yaw_angle)) < 20;
-    bool pitch_delta = abs(R2D(angle.pitch)  + compensate_pitch - R2D(ds.camera_pit_angle) -1) < 1.5;
+    bool yaw_delta = abs(R2D(angle.target_yaw) - R2D(ds.camera_yaw_angle)) < 20;
+    bool pitch_delta = abs(R2D(angle.target_pitch)  + compensate_pitch - R2D(ds.camera_pit_angle) -1) < 1.5;
     if(yaw_delta)
     {
         dg.Vision2Control(yaw,pitch,0,0,3,0);

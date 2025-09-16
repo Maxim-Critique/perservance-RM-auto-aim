@@ -20,25 +20,29 @@ int cnt = 0;
 cv::Point2f base_point = cv::Point2f(512, 512);
 
 // 仿真参数
-cv::Point2f center(2, 2);  // 中心点
+cv::Point2f center(3, 0);  // 中心点初始位置
 float z[2] = {0.15, 0.1};  // 装甲板高度
 float r[2] = {0.2, 0.3};   // 装甲板旋转半径
-cv::Point2f velocity(0, 0); // 水平速度
-float palstance = 2;        // 角速度
-float scaling = 100;        // 放大比例
-double angle = 0;           // 起始角度
-float dt = 1e-2;            // 每帧时间
-float sigma = 0.02;         // 噪声大小
+float palstance = 4;       // 角速度
+float scaling = 100;       // 放大比例
+double angle = 0;          // 起始角度
+float dt = 1e-2;           // 每帧时间
+float sigma = 0.02;        // 噪声大小
 std::default_random_engine rng;
 
+// 路径点定义
+std::vector<cv::Point2f> waypoints = {
+    cv::Point2f(2, 2),
+    cv::Point2f(-2, 2),
+    cv::Point2f(-2, -2),
+    cv::Point2f(2, -2)
+};
+int current_target_index = 0;
+float movement_speed = 0.8; // 移动速度
 
 /**
- *@brief: ��ȡ��ǰʱ��
-    *
-    *@param: null
-    *
-    *@return: double ʱ���
-    */
+ * @brief 获取当前时间（秒）
+ */
 double now()
 {
     timeval tv;
@@ -49,24 +53,16 @@ double now()
 Rate::Rate() : Rate(30) {}
 
 /**
- *@brief: ֡�ʿ���
-    *
-    *@param: unsigned int ֡��
-    *
-    *@return: null
-    */
+ * @brief 帧率控制器构造函数
+ */
 Rate::Rate(unsigned int r)
 :   m_LoopRate(r),
     m_start_time_with_usec(0)
 {}
 
 /**
- *@brief: �趨ʱ��˯���Դﵽ֡�ʿ���
-    *
-    *@param: null
-    *
-    *@return: void
-    */
+ * @brief 控制帧率
+ */
 void Rate::sleep()
 {
     double period = 1. / m_LoopRate;
@@ -81,12 +77,8 @@ void Rate::sleep()
 }
 
 /**
- *@brief: ������΢��Ϊ��λ��ʱ���
-    *
-    *@param: null
-    *
-    *@return: void
-    */
+ * @brief 获取当前时间（微秒）
+ */
 unsigned int getTimeUSecNow()
 {
     timeval tv;
@@ -99,8 +91,6 @@ Rate rate(100);
 
 /**
  * @brief 标准化角度到[-π, π]范围
- * @param angle 输入角度
- * @return 标准化后的角度
  */
 float normalizeAngle(float angle) {
     while (angle > PI) angle -= 2 * PI;
@@ -110,8 +100,6 @@ float normalizeAngle(float angle) {
 
 /**
  * @brief 计算两点间距离
- * @param p 点坐标
- * @return 到观察点的距离
  */
 float getDistance(const Point3d& p) {
     return sqrt(pow(p.x - observation_point.x, 2) + 
@@ -120,14 +108,30 @@ float getDistance(const Point3d& p) {
 
 /**
  * @brief 生成仿真装甲板数据并只保留距离最近的1个
- * @return Armors 装甲板数据（只包含最近的1个）
  */
 Armors generateSimulatedArmors() {
     Armors armors;
     armors.resize(4);
     
-    // 更新中心位置和角度
-    center = center + velocity;
+    // // 更新中心位置（在四个顶点之间移动）
+    // cv::Point2f target = waypoints[current_target_index];
+    // cv::Point2f direction = target - center;
+    // float distance = cv::norm(direction);
+    
+    // if (distance < 0.1f) {
+    //     // 到达目标点，切换到下一个点
+    //     current_target_index = (current_target_index + 1) % waypoints.size();
+    //     target = waypoints[current_target_index];
+    //     direction = target - center;
+    // }
+    
+    // // 标准化方向向量并乘以速度
+    // if (distance > 0) {
+    //     direction = (direction / distance) * movement_speed * dt;
+    //     center += direction;
+    // }
+    
+    // 更新角度（保持旋转）
     angle += PI * dt * palstance;
     
     // 生成4个装甲板
@@ -180,10 +184,10 @@ Armors generateSimulatedArmors() {
 }
 
 int Test() {
-
     YAML::Node config = YAML::LoadFile(Yaml);
     double predict_time = config["AIM"]["predict_time"].as<double>();
     srand(time(nullptr));
+    
     // 初始化随机数生成器
     rng.seed(time(NULL));
     
@@ -195,11 +199,12 @@ int Test() {
     int last_index = 0;
     int frames_since_last_switch = 0;
     std::unique_ptr<MPC> mpc = std::make_unique<MPC>();
+    
     while (true) {
         // 清空背景
         background = cv::Mat(cv::Size(1024, 1024), CV_8UC3, cv::Scalar(255, 255, 255));
         
-        // 生成仿真装甲板数据（只保留最近的1个）
+        // 生成仿真装甲板数据
         Armors armors = generateSimulatedArmors();
         
         // 如果是第一次运行，初始化预测器
@@ -210,21 +215,22 @@ int Test() {
         
         // 预测器解算
         m_status = aim_ptr->Resolve(armors, dt);
-        
         // 获取当前状态估计
         Armors filter_armors = m_status->GetArmors(0);
         double hit_time = cv::norm(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/ (bullet_speed) + predict_time;
+        
         // 获取预测装甲板
         Armors predict_armors = m_status->GetArmors(hit_time);
+        Point3d point;
         Armor target_armor = m_status->GetClosestArmor(hit_time, last_index, frames_since_last_switch);
-        Point3d point = C_C.abs2cam(target_armor.abs_pose);
+        point = C_C.abs2cam(target_armor.abs_pose);
         double yaw = std::atan2(point.y, point.x);
-        // std::ofstream out("mpc_log.txt", std::ios::app); 
-        // out << R2D(yaw) << " ";
+        
+        // MPC轨迹规划
         mpc->TrajectoryPlanning(*m_status);
         // 绘制状态估计和预测结果
         for (int i = 0; i < filter_armors.size(); i++) {
-            // 当前状态估计量（红）
+            // 当前状态估计量（红色）
             cv::circle(background, 
                     base_point + cv::Point2f(filter_armors[i].abs_pose.x, filter_armors[i].abs_pose.y) * scaling, 
                     3, cv::Scalar(0, 0, 255), -1, 8);
@@ -243,9 +249,10 @@ int Test() {
                     base_point + ideal_position * scaling, 
                     2, cv::Scalar(0, 255, 0), -1, 10);
         }
+        
         // 显示目标装甲板（紫色圆圈）
         cv::circle(background, 
-                  base_point + cv::Point2f(target_armor.abs_pose.x, target_armor.abs_pose.y) * scaling, 
+                  base_point + cv::Point2f(m_status->center.x, m_status->center.y) * scaling, 
                   10, cv::Scalar(255, 0, 255), 2, 8);
         
         // 显示结果

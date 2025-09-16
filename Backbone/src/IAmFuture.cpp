@@ -28,8 +28,8 @@ int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
         Reboot();
         return 0;
     }
-    Armor armor = aim_ptr->Shoot(armors,img,time_interval);
-    Transmit(armor);
+    auto gimbal_angle = aim_ptr->Shoot(armors,img,time_interval);
+    Transmit(gimbal_angle);
 
 }
 
@@ -38,32 +38,23 @@ void Auto_aim::UpdateTimeInterval(uint64_t timestamp){
     last_time = timestamp;
 }
 
-void Auto_aim::Transmit(const Armor &armor){
-    try_times = 0;
-    gimbal_angle = C_C.GetAngle(armor.cam_pose);
-     
-    if(Protection()){
-        int32_t yaw = (R2D(gimbal_angle.yaw) + compensate_yaw) * 1e4;
-        int32_t pitch = (R2D(gimbal_angle.pitch) + compensate_pitch) * 1e4;
+void Auto_aim::Transmit(const Gimbal_Angle &gimbal_angle){
+
+    if(abs(initial_abs.target_yaw-gimbal_angle.target_yaw)<PI/6){
+        int32_t yaw = (R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
+        int32_t pitch = (R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
         std::unique_lock<std::mutex> lock(ds_mutex);
-        bool yaw_delta = abs(R2D(gimbal_angle.yaw) + compensate_yaw - R2D(ds.camera_yaw_angle)) < 1;
-        bool pitch_delta = abs(R2D(gimbal_angle.pitch)  + compensate_pitch - R2D(ds.camera_pit_angle)) < 1;
+        bool yaw_delta = abs(R2D(gimbal_angle.target_yaw) + compensate_yaw - R2D(ds.camera_yaw_angle)) < 1;
+        bool pitch_delta = abs(R2D(gimbal_angle.target_pitch)  + compensate_pitch - R2D(ds.camera_pit_angle)) < 1;
         lock.unlock();
-        bool distance =  cv::norm(armor.cam_pose)>1.5&&cv::norm(armor.cam_pose)<4;
-        int distance_delta = distance*10 + aim_ptr->control_model;
-        
-        if(aim_ptr->control_model == 3){
-            Gimbal_Angle center = C_C.GetAngle(C_C.abs2cam(aim_ptr->predict_point));
-            yaw = (R2D(center.yaw) + compensate_yaw) * 1e4;
-            pitch = (R2D(center.pitch) + compensate_pitch) * 1e4;
-        }
+
         if(yaw_delta && pitch_delta)
         {
-            dg.Vision2Control(yaw,pitch,aim_ptr->ui.x*100,aim_ptr->ui.y*100,distance_delta,1);
+            dg.Vision2Control(yaw,pitch,gimbal_angle.yaw_vel*1e4,0,1,1);
         }
         else
         {
-           dg.Vision2Control(yaw,pitch,aim_ptr->ui.x*100,aim_ptr->ui.y*100,distance_delta,0);
+           dg.Vision2Control(yaw,pitch,gimbal_angle.yaw_vel*1e4,0,1,0);
         }
     }
     else{
@@ -117,12 +108,6 @@ Armors Auto_aim::ChooseProcess(Armors armors,Mat &img){
     return after_armors;
 }
 
-//防甩头
-bool Auto_aim::Protection(){
-    // cout<<R2D(initial_abs_yaw)<<"       "<<R2D(gimbal_angle.yaw)<<endl;
-    bool sign = abs(initial_abs.yaw - gimbal_angle.yaw) < PI/6;
-    return sign;
-}
 
 Rect Auto_aim::MakeROI(Point2d found_armor) {
     const int IMG_WIDTH = 1440;

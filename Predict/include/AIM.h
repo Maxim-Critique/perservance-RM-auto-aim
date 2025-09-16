@@ -12,8 +12,8 @@ public:
     // 初始化
     Aim(Armor armor);
     // 主接口
-    Armor Shoot(const Armors &armors,Mat &img,double &time);
-    // ekf的主要部分
+    Gimbal_Angle Shoot(const Armors &armors,Mat &img,double &time);
+    // EKF的主要部分
     std::shared_ptr<KinematicModel> Resolve(const Armors &armors,double time);
     // 匹配装甲板
     std::map<int, int> Match(const Eigen::MatrixXd &score);
@@ -21,8 +21,6 @@ public:
     void InitEKF (Armor armor);
     // 计算得分，匹配装甲板
     Eigen::MatrixXd GetScoreMat(const Armors &detect_armors, const Armors &standard_armors);
-    // 读配置文件
-    YAML::Node readYAML(const std::string& filename);
     // 绘制三维重投影
     void DraftingSoftware(Mat &img);
     // 均值滤波，过滤角速度
@@ -37,6 +35,7 @@ public:
     std::shared_ptr<KinematicModel> m_status;                    // 当前状态。为了保留最佳目标装甲板，必须声明为类成员变量以保留其索引值
     std::shared_ptr<ExtendedKalmanFilter> m_model_observer;      // 状态观测器
     std::shared_ptr<CAEKF>m_model_translation;                   // 平移观测器
+    std::unique_ptr<MPC> mpc;                                    // MPC规划器
     Eigen::VectorXd target_state;                                // EKF状态量
     Eigen::VectorXd translation_state;                           // 平移状态量
     double ca_yaw;                                               // 平移模型中朝向角

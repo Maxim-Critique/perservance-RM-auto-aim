@@ -28,7 +28,6 @@ struct Data_Get
 {
     int size;
     u_char raw_data[21];
-    u_char MAI_raw_data[21];
     void Vision2Control(int32_t x, int32_t y,int32_t ui_x, int32_t ui_y, uint8_t found, uint8_t fire);
 };
 

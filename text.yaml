@@ -1,4 +1,4 @@
-test: 1
+test: 0
 CAMERA:
   video_write_enable: 0
   exposure_time_aim: 1000
@@ -6,7 +6,7 @@ CAMERA:
   show: 1
 AIM:
   predict_time: 0.06
-  max_yaw_acc: 500
+  max_yaw_acc: 50
 EKF:
   ProcessNoise:
     dd: 20

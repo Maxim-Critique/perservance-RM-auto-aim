@@ -371,14 +371,17 @@ int solve(TinySolver *solver)
             solver->solution->u = solver->work->znew;
 
             // std::cout << "Solver converged in " << solver->work->iter << " iterations" << std::endl;
-
+        
             return 0;
         }
 
         // Save previous slack variables
         solver->work->v = solver->work->vnew;
         solver->work->z = solver->work->znew;
-      
+        if(i>20){
+            std::cout<<"mpc times"<<i<<std::endl;
+        }
+        
     }
     
     solver->solution->iter = solver->work->iter;

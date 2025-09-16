@@ -12,11 +12,9 @@ static double areaRatio(const std::vector<cv::Point> &contour, const cv::Rotated
 }
 // 判断轮廓是否为一个灯条
 static bool isValidLightBlob(const std::vector<cv::Point> &contour, const cv::RotatedRect &rect) {
-    return true;
     return (0.8 < lw_rate(rect) && lw_rate(rect) < 120) &&
                 (rect.size.area() < 6000) && ((rect.size.area() > 5)) ;
-           ((rect.size.area() > 200 && areaRatio(contour, rect) > 0.5)||(rect.size.area() < 200));
-
+          
 }
 
 // 判断两个灯条区域是同一个灯条
@@ -24,10 +22,10 @@ static bool isSameBlob(LightBlob blob1, LightBlob blob2) {
     auto dist = blob1.rect.center - blob2.rect.center;
     return (dist.x * dist.x + dist.y * dist.y) < 25 ;
 }
+
 // 开闭运算
 static void imagePreProcess(cv::Mat &src) {
     
-
     static cv::Mat kernel_dilate = getStructuringElement(cv::MORPH_RECT, cv::Size(3, 5));
     dilate(src, src, kernel_dilate);
 
@@ -55,28 +53,7 @@ static void imagePreProcess1(cv::Mat &src) {
     // erode(src, src, kernel_erode2);
 }
 
-// // 判断灯条颜色(此函数可以有性能优化).
-// static uint8_t get_blob_color(const cv::Mat &src, const cv::RotatedRect &blobPos) {
-//     auto region = blobPos.boundingRect();
-//     region.x -= fmax(3, region.width * 0.1);
-//     region.y -= fmax(3, region.height * 0.05);
-//     region.width += 2 * fmax(3, region.width * 0.1);
-//     region.height += 2 * fmax(3, region.height * 0.05);
-//     region &= cv::Rect(0, 0, src.cols, src.rows);
-//     cv::Mat roi = src(region);
-//     int red_cnt = 0, blue_cnt = 0;
-//     for (int row = 0; row < roi.rows; row++) {
-//         for (int col = 0; col < roi.cols; col++) {
-//             red_cnt += roi.at<cv::Vec3b>(row, col)[2];
-//             blue_cnt += roi.at<cv::Vec3b>(row, col)[0];
-//         }
-//     }
-//     if (red_cnt > blue_cnt) {
-//         return BLOB_RED;
-//     } else {
-//         return BLOB_BLUE;
-//     }
-// }
+
 
 static uint8_t get_blob_color(const cv::Mat &src, const cv::RotatedRect &blobPos) {
     auto region = blobPos.boundingRect();

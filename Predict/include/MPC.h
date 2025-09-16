@@ -7,11 +7,15 @@ class MPC
 {
 public:
     MPC();
-    void TrajectoryPlanning(KinematicModel& m_status);
+    Gimbal_Angle TrajectoryPlanning(KinematicModel& m_status);
     
 private:
     double GetGimbalYaw(KinematicModel& m_status,double time);
+    double GetGimbalPitch(KinematicModel& m_status,double time);
     TinySolver *yaw_solver;
     double predict_time;
-    double max_yaw_acc;      //最大角加速度
+    double max_yaw_acc;      // 最大角加速度
+    double target_yaw;       // 目标yaw
+    double target_vel;       // 目标角速度
+    double target_acc;       // 目标角加速度
 };

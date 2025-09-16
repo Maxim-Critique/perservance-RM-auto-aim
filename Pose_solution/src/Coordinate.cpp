@@ -43,6 +43,7 @@ cv::Point3d Coordinate_converter::abs2cam(cv::Point3d position)
 // 更新此刻的云台位资
 void Coordinate_converter::GetTFMat(const double &x, const double &y, const double &z)
 {
+    // this->tf_mat = GetRotMatXYZ(x,y,z);
     const double cosx = cos(x), sinx = sin(x);
     const double cosy = cos(y), siny = sin(y);
     const double cosz = cos(z), sinz = sin(z);
@@ -117,14 +118,14 @@ Gimbal_Angle Coordinate_converter::GetAngle(cv::Point3f position)
     double pitch_in_camera = std::atan2(gun_base.z, std::sqrt(gun_base.x * gun_base.x + gun_base.y * gun_base.y));
     double yaw_in_camera = std::atan2(gun_base.y, gun_base.x);
     std::unique_lock<std::mutex> lock(ds_mutex);  
-    solve_angle.pitch = pitch_in_camera + ds.camera_pit_angle;
-    solve_angle.yaw = yaw_in_camera + ds.camera_yaw_angle;
+    solve_angle.target_pitch = pitch_in_camera + ds.camera_pit_angle;
+    solve_angle.target_yaw = yaw_in_camera + ds.camera_yaw_angle;
     lock.unlock();
     double dis = std::sqrt(gun_base.x * gun_base.x + gun_base.z * gun_base.z);
     double angle_fix = 0;
-    if (std::abs(9.8 * dis * std::pow(std::cos(solve_angle.pitch), 2)) / std::pow(bullet_speed, 2) - std::sin(solve_angle.pitch) <= 1)
+    if (std::abs(9.8 * dis * std::pow(std::cos(solve_angle.target_pitch), 2)) / std::pow(bullet_speed, 2) - std::sin(solve_angle.target_pitch) <= 1)
     {
-        angle_fix = 0.5 * (std::asin((9.8 * dis * std::pow(std::cos(solve_angle.pitch), 2)) / std::pow(bullet_speed, 2) - std::sin(solve_angle.pitch)) + solve_angle.pitch);
+        angle_fix = 0.5 * (std::asin((9.8 * dis * std::pow(std::cos(solve_angle.target_pitch), 2)) / std::pow(bullet_speed, 2) - std::sin(solve_angle.target_pitch)) + solve_angle.target_pitch);
     }
     else
     {

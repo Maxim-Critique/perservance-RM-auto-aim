@@ -13,3 +13,5 @@ public:
 private:
     int m_LoopRate;
 };
+int Test();
+int MPCTest();
