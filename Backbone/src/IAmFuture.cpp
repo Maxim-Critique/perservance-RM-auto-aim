@@ -9,8 +9,13 @@ int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
    
     //尝试次数大于20重置
     if(try_times == 20){ReEKF();}
+    LightBlobs light_blobs = find_ptr->FindLight(img);
+    if(light_blobs.size()>=2){
+        Reboot();
+        return 0;
+    }
     //传统找装甲板
-    Armors armors = find_ptr->Find_light(img,roi);
+    Armors armors = find_ptr->FindArmor(img,light_blobs);
     //MLP神经网络
     classifier.extractNumbers(img,armors);
     classifier.classify(armors);
@@ -19,7 +24,7 @@ int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
         return 0;
     }
     armors = ChooseProcess(armors,img);
-    if(!armors.size()){
+    if(armors.empty()){
         Reboot();
         return 0;
     }
@@ -30,7 +35,6 @@ int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
     }
     auto gimbal_angle = aim_ptr->Shoot(armors,img,time_interval);
     Transmit(gimbal_angle);
-
 }
 
 void Auto_aim::UpdateTimeInterval(uint64_t timestamp){
@@ -127,15 +131,14 @@ Rect Auto_aim::MakeROI(Point2d found_armor) {
 }
 
 int Auto_aim::FoundID(string x) {
-    if (x == "1") {
-        return 1;
-    } else if (x == "3") {
-        return 3;
+    if (x == "outpost") {
+        return 6;
     } else if (x == "guard") {
         return 7;
+    } else if (x == "base") {
+        return 8;
     } else {
-        // 如果输入的字符串不匹配，可以返回一个默认值，比如 -1
-        return -1;
+        return std::stoi(x);
     }
 }
 
@@ -158,7 +161,7 @@ YAML::Node Auto_aim::readYAML(const std::string& filename){
         compensate_pitch = config["Transmit"]["compensate_pitch"].as<double>();
         compensate_yaw = config["Transmit"]["compensate_yaw"].as<double>();
     } catch (const YAML::Exception& e) {
-        throw std::runtime_error("YAML Error: " + std::string(e.what()));
+        throw std::runtime_error("YAML Error: " + std::string(e.what()) + "Auto_aim");
     }
     return YAML::LoadFile(filename);
 }

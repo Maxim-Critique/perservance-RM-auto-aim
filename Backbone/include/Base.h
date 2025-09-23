@@ -23,7 +23,7 @@ extern int keyboard_key;
 #define VIDEO_ADD "/home/killer_machine/WRITE/videos/2.avi"
 //waitkey的值
 #define WAITKEY_VALUE 1
-#define DEBUG_SERIAL
+#define DEBUG_SERIAL 1
 
 #define ONE 1
 #define ONE_SIZE ONE + 1

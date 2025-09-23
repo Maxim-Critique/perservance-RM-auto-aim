@@ -20,19 +20,12 @@ void CAEKF::readYAML() {
         rd_ = config["CAEKF"]["RNoise"]["rd"].as<double>();
         rz_ = config["CAEKF"]["RNoise"]["rz"].as<double>();
     } catch (YAML::Exception & e) {
-        std::cerr << "YAML Error: " << e.what() << std::endl;
-        // ʹ��Ĭ��ֵ
+        std::cerr << "YAML Error: " << e.what() <<" CAEKF "<< std::endl;
         dd_ = 0.01;
         dz_ = 0.1;
         rd_ = 0.1;
         rz_ = 0.2;
-    } catch (std::exception & e) {
-        std::cerr << e.what() << std::endl;
-        dd_ = 0.01;
-        dz_ = 0.1;
-        rd_ = 0.1;
-        rz_ = 0.2;
-    }
+    } 
 }
 
 Eigen::MatrixXd CAEKF::jacobianFunctionF() {

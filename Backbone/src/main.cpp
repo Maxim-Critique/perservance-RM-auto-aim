@@ -20,8 +20,8 @@ int main()
     YAML::Node config = YAML::LoadFile(Yaml);
     int is_test = config["test"].as<int>();
     if(is_test){
-        // Test();
-        MPCTest();
+        Test();
+        // MPCTest();
     }else{
         // 开启相关线程
         ThreadControl ImageControl;

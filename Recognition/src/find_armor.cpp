@@ -1,68 +1,35 @@
 #include <opencv2/highgui.hpp>
 #include <eigen3/Eigen/Dense>
 #include "find_armor.h"
-
-
-
-ArmorBox::ArmorBox(const LightBlobs &blobs, int color, const ArmorType &Armor_type) : light_blobs(blobs), box_color(color), type(Armor_type) {};
-
-// 判断两个灯条的角度差
-static bool angelJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
+#include "Coordinate.h"
+// 判断装甲板倾斜度
+static bool AngleJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
 {
-    float angle_i = light_blob_i.rect.size.width > light_blob_i.rect.size.height ? light_blob_i.rect.angle : light_blob_i.rect.angle - 90;
-    float angle_j = light_blob_j.rect.size.width > light_blob_j.rect.size.height ? light_blob_j.rect.angle : light_blob_j.rect.angle - 90;
-    return abs(angle_i - angle_j) < 80;
+    cv::Point2f direction = light_blob_i.center - light_blob_j.center;
+    float angle = std::abs(std::atan2(direction.y, direction.x));
+    return angle<D2R(45);
 }
-// 判断两个灯条的高度差
-static bool heightJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
+// 判断装甲板的长宽比
+static bool LengthWidthJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
 {
-    cv::Point2f centers = light_blob_i.rect.center - light_blob_j.rect.center;
-    return abs(centers.y) < 50;
-}
-// 判断两个灯条的间距
-static bool lengthJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
-{
-    double side_length;
-    cv::Point2f centers = light_blob_i.rect.center - light_blob_j.rect.center;
-    side_length = sqrt(centers.ddot(centers));
-    return (side_length / light_blob_i.length < 5 && side_length / light_blob_i.length > 0.2);
+    // 计算两个灯条中心点的距离
+    double side_length = cv::norm(light_blob_i.rect.center - light_blob_j.rect.center);
+    // 获取两个灯条中较长的长度
+    double max_length = std::max(light_blob_i.length, light_blob_j.length);
+    // 检查距离与灯条长度的比例是否在合理范围内
+    return (max_length / side_length< 5.0 &&  max_length / side_length> 1.0);
 }
 // 判断两个灯条的长度比
-static bool lengthRatioJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
+static bool LengthRatioJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
 {
-    return (light_blob_i.length / light_blob_j.length < 3 && light_blob_i.length / light_blob_j.length > 0.2);
+    // 获取较长和较短的灯条长度
+    double longer_length = std::max(light_blob_i.length, light_blob_j.length);
+    double shorter_length = std::min(light_blob_i.length, light_blob_j.length);
+    // 判断较长灯条与较短灯条的比值是否在合理范围内
+    return (longer_length / shorter_length < 2.5);
 }
-
-/* 判断两个灯条的错位度，不知道英文是什么！！！ */
-static bool CuoWeiDuJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
-{
-    float angle_i = light_blob_i.rect.size.width > light_blob_i.rect.size.height ? light_blob_i.rect.angle : light_blob_i.rect.angle - 90;
-    float angle_j = light_blob_j.rect.size.width > light_blob_j.rect.size.height ? light_blob_j.rect.angle : light_blob_j.rect.angle - 90;
-    float angle = (angle_i + angle_j) / 2.0 / 180.0 * 3.14159265459;
-    if (abs(angle_i - angle_j) > 90)
-    {
-        angle += 3.14159265459 / 2;
-    }
-    Eigen::Vector2f orientation(cos(angle), sin(angle));
-    Eigen::Vector2f p2p(light_blob_j.rect.center.x - light_blob_i.rect.center.x,
-                        light_blob_j.rect.center.y - light_blob_i.rect.center.y);
-    return abs(orientation.dot(p2p)) < 40;
-}
-// 判断装甲板方向
-static bool boxAngleJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
-{
-    float angle_i = light_blob_i.rect.size.width > light_blob_i.rect.size.height ? light_blob_i.rect.angle : light_blob_i.rect.angle - 90;
-    float angle_j = light_blob_j.rect.size.width > light_blob_j.rect.size.height ? light_blob_j.rect.angle : light_blob_j.rect.angle - 90;
-    float angle = (angle_i + angle_j) / 2.0;
-    if (abs(angle_i - angle_j) > 90)
-    {
-        angle += 90.0;
-    }
-    return (-120.0 < angle && angle < -60.0) || (60.0 < angle && angle < 120.0);
-}
-
-// Check if there is another light in the boundingRect formed by the 2 lights
-static bool containLight(const LightBlob &light_blob_i, const LightBlob &light_blob_j, const LightBlobs &lights)
+// 两个灯条中是否夹了灯条
+static bool ContainLight(const LightBlob &light_blob_i, const LightBlob &light_blob_j, const LightBlobs &lights)
 {
     auto points = std::vector<cv::Point2f>{light_blob_i.top, light_blob_i.bottom, light_blob_j.top, light_blob_j.bottom};
     auto bounding_rect = cv::boundingRect(points);
@@ -84,16 +51,13 @@ static bool containLight(const LightBlob &light_blob_i, const LightBlob &light_b
 }
 
 // 判断两个灯条是否可以匹配
-static bool isCoupleLight(const LightBlob &light_blob_i, const LightBlob &light_blob_j, int enemy_color)
+static bool IsCoupleLight(const LightBlob &light_blob_i, const LightBlob &light_blob_j, int enemy_color)
 {
     return light_blob_i.blob_color == enemy_color &&
            light_blob_j.blob_color == enemy_color &&
-           lengthRatioJudge(light_blob_i, light_blob_j) &&
-           lengthJudge(light_blob_i, light_blob_j) &&
-           heightJudge(light_blob_i, light_blob_j) ;//&&
-           //angelJudge(light_blob_i, light_blob_j);
-    //    boxAngleJudge(light_blob_i, light_blob_j) &&
-    //    CuoWeiDuJudge(light_blob_i, light_blob_j);
+           LengthRatioJudge(light_blob_i, light_blob_j) &&
+           LengthWidthJudge(light_blob_i, light_blob_j) &&
+           AngleJudge(light_blob_i, light_blob_j);
 }
 
 void Judge_Type(const LightBlob &light_blob_i, const LightBlob &light_blob_j, ArmorType &type)
@@ -105,10 +69,6 @@ void Judge_Type(const LightBlob &light_blob_i, const LightBlob &light_blob_j, Ar
     // 灯条的高度
     double light_height;
     light_height = (light_blob_i.length + light_blob_j.length) / 2;
-    // cout<<" side length: "<<side_length<<endl;
-    // cout<<" light_height: "<<light_height<<endl;
-    // cout<<" (side_length / light_height) :"<<(side_length / light_height)<<endl;
-    // if ((side_length / light_height) > 3.2)
     if ((side_length / light_height) > 2.8)
     {
         type = ArmorType::LARGE;
@@ -119,132 +79,117 @@ void Judge_Type(const LightBlob &light_blob_i, const LightBlob &light_blob_j, Ar
     }
 }
 
-// Returns the order of rectangular points
-void order_points_2nd(vector<Point2f> &points)
-{
-    vector<pair<float, Point2f *>> order_points_x, order_points_y;
-
-    for (int i = 0; i < 4; i++)
-    {
-        order_points_x.push_back(make_pair(points.at(i).x, &points.at(i)));
-        order_points_y.push_back(make_pair(points.at(i).y, &points.at(i)));
+static cv::Point2f GreyLevelCentroid(const cv::Point2f& point, double radius, const cv::Mat &src) {
+    
+    cv::Rect roi_rect(cvRound(point.x - radius), cvRound(point.y - radius), 
+                     cvRound(2 * radius), cvRound(2 * radius));  
+    
+    // 边界检查
+    roi_rect &= cv::Rect(0, 0, src.cols, src.rows);
+    if (roi_rect.width <= 0 || roi_rect.height <= 0) {
+        return point;
     }
-
-    // find the max x and max y
-    sort(order_points_x.begin(), order_points_x.end());
-    sort(order_points_y.begin(), order_points_y.end());
-
-    // float point
-    // 顺序点
-    Point2f left_top, left_bottom, right_top, right_bottom;
-
-    // match point
-    for (int i = 2; i < 4; i++)
-    {
-        if ((*order_points_x.at(2).second).y >= (*order_points_x.at(3).second).y)
-        {
-            right_bottom.x = order_points_x.at(2).first;
-            right_bottom.y = (*(order_points_x.at(2).second)).y;
-            right_top.x = order_points_x.at(3).first;
-            right_top.y = (*(order_points_x.at(3).second)).y;
-        }
-        else
-        {
-            right_bottom.x = order_points_x.at(3).first;
-            right_bottom.y = (*(order_points_x.at(3).second)).y;
-            right_top.x = order_points_x.at(2).first;
-            right_top.y = (*(order_points_x.at(2).second)).y;
-        }
+    
+    cv::Mat roi = src(roi_rect); 
+    // 转换为灰度
+    cv::Mat gray_roi;
+    cv::cvtColor(roi, gray_roi, cv::COLOR_BGR2GRAY);
+    
+    // 创建圆形掩码并直接应用
+    cv::Mat mask = cv::Mat::zeros(gray_roi.size(), CV_8U);
+    cv::circle(mask, cv::Point(gray_roi.cols/2, gray_roi.rows/2), cvRound(radius), 255, -1);
+    
+    // 应用掩码：将掩码外的像素设为0
+    cv::bitwise_and(gray_roi, gray_roi, gray_roi, mask);
+    
+    // 计算矩
+    cv::Moments m = cv::moments(gray_roi, false);
+    
+    if (m.m00 <= 0) {
+        return point;
     }
-
-    for (int i = 0; i < 2; i++)
-    {
-        if ((*order_points_x.at(0).second).y >= (*order_points_x.at(1).second).y)
-        {
-            left_bottom.x = order_points_x.at(0).first;
-            left_bottom.y = (*(order_points_x.at(0).second)).y;
-            left_top.x = order_points_x.at(1).first;
-            left_top.y = (*(order_points_x.at(1).second)).y;
-        }
-        else
-        {
-            left_bottom.x = order_points_x.at(1).first;
-            left_bottom.y = (*(order_points_x.at(1).second)).y;
-            left_top.x = order_points_x.at(0).first;
-            left_top.y = (*(order_points_x.at(0).second)).y;
-        }
-    }
-
-    points.clear();
-
-    points.push_back(left_top);
-    points.push_back(right_top);
-    points.push_back(right_bottom);
-    points.push_back(left_bottom);
+    
+    // 计算重心坐标
+    double cx = m.m10 / m.m00;
+    double cy = m.m01 / m.m00;
+    return cv::Point2f(point.x - radius + cx, point.y - radius + cy);
 }
 
-// // // 匹配所有灯条，得出装甲板候选区
-Armors Tradition::Find_armor(cv::Mat &src, LightBlobs &light_blobs)
+std::vector<cv::Point2f> GetPoints(const LightBlob &blob_i, const LightBlob &blob_j, const cv::Mat &src) {
+    std::vector<cv::Point2f> points;
+    // 确定左右灯条
+
+    const LightBlob* left_blob = &blob_i;
+    const LightBlob* right_blob = &blob_j;
+    if (blob_i.center.x > blob_j.center.x) {
+        left_blob = &blob_j;
+        right_blob = &blob_i;
+    }
+    
+    // 对每个灯条的四个角点进行灰度重心精修
+    cv::Point2f left_bottom_refined = GreyLevelCentroid(left_blob->bottom, left_blob->length*0.1, src);
+    cv::Point2f left_top_refined = GreyLevelCentroid(left_blob->top, left_blob->length*0.1, src);
+    cv::Point2f right_top_refined = GreyLevelCentroid(right_blob->top, right_blob->length*0.1, src);
+    cv::Point2f right_bottom_refined = GreyLevelCentroid(right_blob->bottom, right_blob->length*0.1, src);
+    
+    /*
+        1-----2
+        |     |
+        0-----3
+    */
+    // 按顺时针顺序返回四个角点：左下、左上、右上、右下
+    points.push_back(left_bottom_refined);
+    points.push_back(left_top_refined);
+    points.push_back(right_top_refined);
+    points.push_back(right_bottom_refined);
+    
+    return points;
+}
+
+
+// 匹配所有灯条，得出装甲板候选区
+Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
 {
-    Armors Armors;
+    Armors armors;
     ArmorType type;
     string big_or_small;
 
     for (size_t i = 0; i < light_blobs.size() - 1; ++i)
     {
         const auto& blob_i = light_blobs[i];
-        cv::Rect2d rect_left = blob_i.rect.boundingRect();
-
         for (size_t j = i + 1; j < light_blobs.size(); ++j)
         {
             const auto& blob_j = light_blobs[j];
-            cv::Rect2d rect_right = blob_j.rect.boundingRect();
-
-            if (!isCoupleLight(blob_i, blob_j, enemy_color))
+            if (!IsCoupleLight(blob_i, blob_j, enemy_color))
             {
                 continue;
             }
 
-            if (containLight(blob_i, blob_j, light_blobs))
+            if (ContainLight(blob_i, blob_j, light_blobs))
             {
                 continue;
             }
 
             Judge_Type(blob_i, blob_j, type);
             big_or_small = ARMOR_TYPE_STR[static_cast<int>(type)];
-            /*
-                1-----2
-                |     |
-                0-----3
-            */
-            if (light_blobs[i].center.x < light_blobs[j].center.x)
-            {
-                std::vector<cv::Point2f> points = {blob_i.bottom, blob_i.top, blob_j.top, blob_j.bottom};
-                Armors.emplace_back(points, enemy_color, type);
-            }
-            else
-            {
-                std::vector<cv::Point2f> points = {blob_j.bottom, blob_j.top, blob_i.top, blob_i.bottom};
-                Armors.emplace_back(points, enemy_color, type);
-            }
+            
+            std::vector<cv::Point2f> points = GetPoints(blob_i,blob_j,src);
+            armors.emplace_back(points, enemy_color, type);
+
         }
     }
-    
-    light_blobs.clear();
-    return Armors;
-}
-
-YAML::Node Tradition::readYAML(const std::string& filename){
-    try {
-        YAML::Node config = YAML::LoadFile(filename);
-        enemy_color = config["Find"]["enemy_color"].as<double>();
-        is_get_from_ds = config["Find"]["is_get_from_ds"].as<double>();
-    } catch (const YAML::Exception& e) {
-        throw std::runtime_error("YAML Error: " + std::string(e.what()));
-    }
-    return YAML::LoadFile(filename);
+    return armors;
 }
 
 Tradition::Tradition(){
-    readYAML(Yaml);
+    try {
+        YAML::Node config = YAML::LoadFile(Yaml);
+        enemy_color = config["Find"]["enemy_color"].as<double>();
+        is_get_from_ds = config["Find"]["is_get_from_ds"].as<double>();
+        light_threshold = config["Tradition"]["light_threshold"].as<int>();
+        dim_threshold = config["Tradition"]["dim_threshold"].as<int>();
+    } catch (const YAML::Exception& e) {
+        throw std::runtime_error("YAML Error: " + std::string(e.what()) + "Tradition");
+    }
+
 }

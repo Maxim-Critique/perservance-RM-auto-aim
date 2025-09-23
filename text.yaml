@@ -4,6 +4,9 @@ CAMERA:
   exposure_time_aim: 1000
   exposure_time_buff: 2000
   show: 1
+Tradition:
+  light_threshold: 180
+  light_threshold: 110
 AIM:
   predict_time: 0.06
   max_yaw_acc: 50

@@ -197,7 +197,7 @@ void ExtendedKalmanFilter::loadConfig(const std::string& filename) {
                                         config["EKF"]["m_gain"].as<double>(),
                                         config["EKF"]["RNoise"]["rr"].as<double>());
     } catch (const YAML::Exception& e) {
-        throw std::runtime_error("YAML Error: " + std::string(e.what()));
+        throw std::runtime_error("YAML Error: " + std::string(e.what()) + "EKF");
     }
 }
 
