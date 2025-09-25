@@ -4,8 +4,12 @@ CAMERA:
   exposure_time_aim: 1000
   exposure_time_buff: 2000
   show: 1
+Tradition:
+  light_threshold: 180
+  dim_threshold: 110
 AIM:
   predict_time: 0.06
+  max_yaw_acc: 50
 EKF:
   ProcessNoise:
     dd: 20
@@ -17,6 +21,7 @@ EKF:
     rd: 0.01
     rz: 0.1
     ra: 0.9
+    rr: 0.8
   m_gain: 25
 Transmit:
   compensate_pitch: 2
@@ -25,5 +30,5 @@ Buff:
   pitch: 9
   yaw: -0.8
 Find:
-  is_get_from_ds: 1 #是否由电控发颜色
-  enemy_color: 1  # 目标红色为1,蓝色为0
+  is_get_from_ds: false #是否由电控发颜色
+  enemy_color: 0  # 目标红色为1,蓝色为0

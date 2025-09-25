@@ -15,7 +15,7 @@ find_package(Threads REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(yaml-cpp REQUIRED)
-
+add_subdirectory(tinympc)
 # 设置包含目录
 include_directories(
     ${CMAKE_SOURCE_DIR}/Backbone/include
@@ -30,6 +30,7 @@ include_directories(
     ${CERES_INCLUDE_DIRS}
     ${YAML_CPP_INCLUDE_DIRS}
     "/opt/MVS/include"
+    ${CMAKE_SOURCE_DIR}/tinympc
 )
 
 # 设置库文件目录
@@ -60,6 +61,7 @@ target_link_libraries(action
     ${MVS}
     -lgxiapi
     ${YAML_CPP_LIBRARIES}
+    tinympcstatic
 )
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -Wall")

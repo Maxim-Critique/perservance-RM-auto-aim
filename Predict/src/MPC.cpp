@@ -1,163 +1,89 @@
-#include "MPC.hpp"
+#include "MPC.h"
+#include <fstream>
+constexpr double dt = 0.01;  
+constexpr int half_horizon = 50;    
+constexpr int horizon = half_horizon * 2; 
+using trajectory = Eigen::Matrix<double, 2, horizon>; 
+MPC::MPC(){
 
-MPC::MPC()
-{
-    m_process_error_weight << 10000 ,10000;
-    m_target_error_weight  << 10000 ,10000;
-    m_process_control_weight << 10  ,   20;
-    m_dt = 0.01;
-    m_step = 5 ;
-    setMPCMatrix();
-    m_debug = 0;
+    YAML::Node config = YAML::LoadFile(YamlPath);
+    predict_time = config["AIM"]["predict_time"].as<double>();
+    max_yaw_acc = config["AIM"]["max_yaw_acc"].as<double>();
+    Eigen::MatrixXd A{{1, dt}, {0, 1}};
+    Eigen::MatrixXd B{{0}, {dt}};
+    Eigen::VectorXd f{{0, 0}};
+    Eigen::Matrix<double, 2, 1> Q(5e7,0);
+    Eigen::Matrix<double, 1, 1> R(5e-2);
+    tiny_setup(&yaw_solver, A, B, f, Q.asDiagonal(), R.asDiagonal(), 1.0, 2, 1, horizon, 0);
+
+    Eigen::MatrixXd x_min = Eigen::MatrixXd::Constant(2, horizon, -1e17);
+    Eigen::MatrixXd x_max = Eigen::MatrixXd::Constant(2, horizon, 1e17);
+    Eigen::MatrixXd u_min = Eigen::MatrixXd::Constant(1, horizon - 1, -max_yaw_acc);
+    Eigen::MatrixXd u_max = Eigen::MatrixXd::Constant(1, horizon - 1, max_yaw_acc);
+    tiny_set_bound_constraints(yaw_solver, x_min, x_max, u_min, u_max);
+}
+
+Gimbal_Angle MPC::TrajectoryPlanning(KinematicModel& m_status){
+    double hit_time = cv::norm(Point3d(m_status.center.x,m_status.center.y,(m_status.height[0]+m_status.height[1])/2))/ (bullet_speed) + predict_time;
+    double counter =  -(half_horizon + 1);
+    double yaw_last = GetGimbalYaw(m_status,hit_time+dt*(counter));
+    counter++;
+    double yaw_now = GetGimbalYaw(m_status,hit_time+dt*(counter));
+    double yaw0 = GetGimbalYaw(m_status,hit_time);
+    trajectory traj;
+    for (int col = 0; counter < half_horizon; col++) {
+        counter++;
+        double yaw_next = GetGimbalYaw(m_status, hit_time+dt * counter);
+        double yaw_vel = _std_radian(yaw_next - yaw_last) / (2 * dt);
+        traj.col(col) << yaw_now-yaw0, yaw_vel;
+        yaw_last = yaw_now;
+        yaw_now = yaw_next;
+    }
     
-}
-MPC::~MPC()
-{}
-
-void MPC::setMPCMatrix()
-{
-    // 初始化系统参数
-    m_A.resize(_D_STATE_, _D_STATE_);
-    m_B.resize(_D_STATE_, _D_CTRL_);
-    m_Q.resize(_D_STATE_, _D_STATE_);
-    m_R.resize(_D_CTRL_, _D_CTRL_);
-    m_F.resize(_D_STATE_, _D_STATE_);
-
-    m_A <<  1, 0,
-            0, 1;
-    m_B << m_dt,     0,
-              0,  m_dt;
-
-    m_Q = m_process_error_weight.asDiagonal();
-    m_R = m_process_control_weight.asDiagonal();
-    m_F = m_target_error_weight.asDiagonal();
-
-
-    // 初始化中间量
-    Eigen::MatrixXd M;
-    Eigen::MatrixXd C;
-    M.resize((m_step + 1) * _D_STATE_, _D_STATE_);
-    C.resize((m_step + 1) * _D_STATE_, m_step * _D_STATE_);
-    M.setZero();
-    C.setZero();
-
-    Eigen::MatrixXd tmp = Eigen::Matrix<double, _D_STATE_, _D_STATE_>::Identity();
-    M.block<_D_STATE_, _D_STATE_>(0, 0) = Eigen::Matrix<double, _D_STATE_, _D_STATE_>::Identity();
-    for (int i = 1; i <= m_step; i++)
-    {
-        C.block<_D_STATE_, _D_CTRL_>(i * _D_STATE_, 0) = tmp * m_B;
-        for (int j = 1; j < m_step; j++)
-        {
-            C.block<_D_STATE_, _D_CTRL_>(i * _D_STATE_, j * _D_CTRL_) = C.block<_D_STATE_, _D_CTRL_>((i - 1) * _D_STATE_, (j - 1) * _D_CTRL_);
-        }
-        tmp *= m_A;
-        M.block<_D_STATE_, _D_STATE_>(i * _D_STATE_, 0) = tmp;
-    }
-
     
-    Eigen::MatrixXd Q_;
-    Eigen::MatrixXd R_;
-    Q_.resize((m_step + 1) *_D_STATE_, (m_step + 1) * _D_STATE_);
-    R_.resize(m_step *_D_CTRL_, m_step * _D_CTRL_);
-    Q_.setZero();
-    R_.setZero();
-
-    for (int i = 0; i < m_step; i++)
-    {
-        Q_.block<_D_STATE_, _D_STATE_>(i * _D_STATE_, i * _D_STATE_) = m_Q;
-        R_.block<_D_CTRL_, _D_CTRL_>(i * _D_CTRL_, i * _D_CTRL_) = m_R;
-    }
-    Q_.block<_D_STATE_, _D_STATE_>(m_step * _D_STATE_, m_step * _D_STATE_) = m_F;
-
+    tiny_set_x_ref(yaw_solver,traj);
+    yaw_solver->work->Xref = traj.block(0, 0, 2, horizon);
+    tiny_solve(yaw_solver);
     
+    target_yaw = _std_radian(yaw_solver->work->x(0, half_horizon)+yaw0);
+    target_vel = yaw_solver->work->x(1, half_horizon);
+    target_acc = yaw_solver->work->u(0, half_horizon);
+    Gimbal_Angle gimbal_angle;
+    gimbal_angle.manage_yaw = target_yaw;
+    gimbal_angle.yaw_vel = target_vel;
+    gimbal_angle.target_yaw = yaw0;
+    gimbal_angle.target_pitch = GetGimbalPitch(m_status,hit_time);
+    std::ofstream out("mpc_log.txt", std::ios::app); 
+    out << yaw0 << " " << target_yaw << "\n";
+    return gimbal_angle;
 
-    // 计算损失函数系数
-    m_H = C.transpose() * Q_ * C + R_;
-    m_E = C.transpose() * Q_ * M;
-    m_Ed = C.transpose() * Q_;
-
-       
-    // std::cout << "[MPC] H: " << std::endl << m_H << std::endl;
-    // std::cout << "[MPC] E: " << std::endl << m_E << std::endl;
-    // std::cout << "[MPC] Ed: " << std::endl << m_Ed << std::endl;
-        
 }
 
-Point2d MPC::getGimbalSpeed(vector<Point2d>P_Y)
-{
-    // std::cout<<P_Y[0]*180/PI<<std::endl;
-    // 根据运动模型预测控制目标
-    Eigen::MatrixXd predict_ctrl_target = getPredictControlTarget(P_Y);
-    // predict_ctrl_target.conservativeResize(predict_ctrl_target.rows() * predict_ctrl_target.cols(), 1);
-    predict_ctrl_target.resize(predict_ctrl_target.rows() * predict_ctrl_target.cols(), 1);
-    // std::cout << "[MPC] Predict_Ctrl_Target: " << std::endl << predict_ctrl_target << std::endl;
-
-    // 求解最优控制
-    Eigen::Matrix<double, 2, 1> cur_state;
-    cur_state << 0,0;
-    // cur_state << ds.camera_pit_angle, ds.camera_yaw_angle;
-    Eigen::MatrixXd U = solveQuadProg(m_H, m_E * cur_state - m_Ed * predict_ctrl_target);
-    Point2d target_ctrl;
-    target_ctrl.x=U(0, 0),
-    target_ctrl.y=U(1, 0);
-
-    return target_ctrl;
-}
-
-Eigen::Matrix<double, _D_STATE_,6> MPC::getPredictControlTarget(vector<Point2d>P_Y)
-{
-    // 控制目标
-    Eigen::MatrixXd predict_ctrl_target;
-    predict_ctrl_target.resize(_D_STATE_, m_step + 1);
-    predict_ctrl_target.setZero();
-
-    for (int i = 0; i <= m_step; i++)
-    {
-        predict_ctrl_target(0, i) = P_Y[i].x;
-        predict_ctrl_target(1, i) = P_Y[i].y;
+double MPC::GetGimbalYaw(KinematicModel& m_status,double time){
+    Armors armors = m_status.GetArmors(time);
+    double min_distance = 100;
+    cv::Point3d point;
+    for(auto armor : armors){
+        if(min_distance>cv::norm(armor.abs_pose)){
+            point = armor.abs_pose;
+            min_distance = cv::norm(armor.abs_pose);
+        } 
     }
-    return predict_ctrl_target;
+    point = C_C.abs2cam(point);
+    return std::atan2(point.y, point.x);
 }
 
-Eigen::MatrixXd MPC::solveQuadProg(Eigen::MatrixXd H, Eigen::MatrixXd f)
-{
-    // 迭代中间量，在循环中可以看作是上一次迭代的结果
-    Eigen::MatrixXd x0;
-    Eigen::MatrixXd r0;
-    Eigen::MatrixXd p0;
-    x0 = f;
-    x0.setZero();
-    r0 = H * x0 + f;
-    p0 = r0;
-
-    // 迭代更新量
-    Eigen::MatrixXd x;
-    Eigen::MatrixXd r;
-    Eigen::MatrixXd p;
-    Eigen::MatrixXd alpha;
-    Eigen::MatrixXd beta;
-
-    for (int i = 0; i < 1000; i++)
-    {
-        alpha = (r0.transpose() * r0) * (p0.transpose() * H * p0).inverse();
-        x = x0 - alpha(0, 0) * p0;
-        r = r0 - alpha(0, 0) * H * p0;
-        beta = (r.transpose() * r) * (r0.transpose() * r0).inverse();
-        p = r + beta(0, 0) * p0;
-
-        if ((x - x0).norm() < 1e-8)
-        {
-            return x;
-        }
-
-        x0 = x;
-        r0 = r;
-        p0 = p;
-        
+double MPC::GetGimbalPitch(KinematicModel& m_status,double time){
+    Armors armors = m_status.GetArmors(time);
+    double min_distance = 100;
+    cv::Point3d point;
+    for(auto armor : armors){
+        if(min_distance>cv::norm(armor.abs_pose)){
+            point = armor.abs_pose;
+            min_distance = cv::norm(armor.abs_pose);
+        } 
     }
-    std::cout<<"MPC拟合失败"<<std::endl;
-    return x;
+    point = C_C.abs2cam(point);
+    return std::atan2(point.z, sqrt(point.x*point.x+point.y*point.y));
 }
-
-
 

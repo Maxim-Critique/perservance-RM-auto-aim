@@ -1,5 +1,5 @@
 #include "find_armor.h"
-#include "Trichotomy.h"
+#include "Angle_Calculate.h"
 #include "AIM.h"
 #include <algorithm> 
 #include <sys/time.h>
@@ -27,7 +27,7 @@ private:
     //更新时间间隔
     void UpdateTimeInterval(uint64_t timestamp);
     //发送给电控
-    void Transmit(Armor armor,Mat &img,uint64_t timestamp);
+    void Transmit(const Gimbal_Angle &gimbal_angle);
     //读取配置文件
     YAML::Node readYAML(const std::string& filename);
     //发射间隔
@@ -42,7 +42,6 @@ private:
     uint64_t last_time;                               //上一次时间
     Rect roi;                                         //roi的区域
     Gimbal_Angle initial_abs;                         //相对于本车的世界系yaw角
-    Gimbal_Angle gimbal_angle;                        //发送给电控的云台角
     double compensate_pitch,compensate_yaw;           //pitch,yaw的补偿角 
     std::unique_ptr<Tradition> find_ptr;              //找灯条和装甲板的指针
     double m_next_shoot_time;                         //下一次开火时间

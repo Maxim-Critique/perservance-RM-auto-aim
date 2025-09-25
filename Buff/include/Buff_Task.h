@@ -9,6 +9,8 @@
 #include <condition_variable>
 #include "CAlphaEKF.h"
 #include "Buff_Predict.h"
+#include "SerialPort.h"
+#include "Base.h"
 using namespace cv;
 using namespace std;
 

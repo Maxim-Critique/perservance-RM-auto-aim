@@ -1,24 +1,24 @@
 #include "Buff_Predict.h"
-#include "camera_to_imu.h"
+#include "Coordinate.h"
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatrixXd;
 
 BigNewtonGauss::BigNewtonGauss() {
     fit_timestamps.clear();
     fit_speeds.clear();
 
-    // ³õÊ¼»¯²ÎÊýÎªÔÊÐí·¶Î§µÄÆ½¾ùÖµ
+    // ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î§ï¿½ï¿½Æ½ï¿½ï¿½Öµ
     a = (0.780 + 1.045) / 2.0;
     omega = (1.884 + 2.000) / 2.0;
-    phase = 0; // ÏàÎ»
-    b = 2.090 - a; // ¸ù¾ÝÔ¼Êø b=2.090-a
+    phase = 0; // ï¿½ï¿½Î»
+    b = 2.090 - a; // ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ b=2.090-a
 
-    // ±£´æ³õÊ¼ÖµÓÃÓÚ³Í·£¼ÆËã
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼Öµï¿½ï¿½ï¿½Ú³Í·ï¿½ï¿½ï¿½ï¿½ï¿½
     a_init = a;
     omega_init = omega;
     phase_init = phase;
     b_init = b;
 
-    // ³Í·£È¨ÖØ (ÐèÒª¸ù¾ÝÊµ¼ÊÇé¿öµ÷Õû)
+    // ï¿½Í·ï¿½È¨ï¿½ï¿½ (ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½Êµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
     lambda = 0.01;
 
     initialized = 0;
@@ -38,7 +38,7 @@ int BigNewtonGauss::fit(double angle,double speed,uint64_t timestamp){
     if (!initialized && fit_timestamps.size() > min_fit_samples) {
         initialized = true;
     }
-    // Ã»³õÊ¼»¯Ò²Ã»ÂË
+    // Ã»ï¿½ï¿½Ê¼ï¿½ï¿½Ò²Ã»ï¿½ï¿½
     if (!initialized) {
         return false;
     }
@@ -48,7 +48,7 @@ int BigNewtonGauss::fit(double angle,double speed,uint64_t timestamp){
         fit_speeds.pop_front();
     }
     
-    // Ðý×ª·½Ïò
+    // ï¿½ï¿½×ªï¿½ï¿½ï¿½ï¿½
     float speed_sum = 0;
     for (float spd: fit_speeds) {
         speed_sum += spd;
@@ -60,14 +60,14 @@ int BigNewtonGauss::fit(double angle,double speed,uint64_t timestamp){
         direction = -1.0;
     }
 
-    // µü´ú¼ÓÈ¨×îÐ¡¶þ³Ë·¨ÊµÏÖL1ÓÅ»¯
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¨ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½Ë·ï¿½Êµï¿½ï¿½L1ï¿½Å»ï¿½
     const int size = fit_timestamps.size();
-    MatrixXd J(size + 4, 4); // Ôö¼Ó4ÐÐÓÃÓÚ³Í·£Ïî
-    MatrixXd r(size + 4, 1); // Ôö¼Ó4ÐÐÓÃÓÚ³Í·£Ïî
-    MatrixXd W = MatrixXd::Identity(size + 4, size + 4); // È¨ÖØ¾ØÕó
+    MatrixXd J(size + 4, 4); // ï¿½ï¿½ï¿½ï¿½4ï¿½ï¿½ï¿½ï¿½ï¿½Ú³Í·ï¿½ï¿½ï¿½
+    MatrixXd r(size + 4, 1); // ï¿½ï¿½ï¿½ï¿½4ï¿½ï¿½ï¿½ï¿½ï¿½Ú³Í·ï¿½ï¿½ï¿½
+    MatrixXd W = MatrixXd::Identity(size + 4, size + 4); // È¨ï¿½Ø¾ï¿½ï¿½ï¿½
     MatrixXd p(4, 1);
 
-    // Êý¾ÝÄâºÏ²¿·Ö
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï²ï¿½ï¿½ï¿½
     for (int i = 0; i < size; i ++) {
         float curr_speed = fabs(fit_speeds.at(i));
         float curr_ts = fit_timestamps.at(i) / 1e8;
@@ -79,11 +79,11 @@ int BigNewtonGauss::fit(double angle,double speed,uint64_t timestamp){
         J(i, 2) = -a * cos_x;
         J(i, 3) = -1;
         
-        // L1·¶ÊýÈ¨ÖØ: 1/|r| (±ÜÃâ³ýÒÔÁã)
+        // L1ï¿½ï¿½ï¿½ï¿½È¨ï¿½ï¿½: 1/|r| (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
         W(i, i) = 1.0 / (fabs(r(i)) + 1e-6);
     }
-    // Ìí¼Ó³Í·£Ïî
-    // aµÄ³Í·£
+    // ï¿½ï¿½ï¿½Ó³Í·ï¿½ï¿½ï¿½
+    // aï¿½Ä³Í·ï¿½
     r(size) = lambda * (a - a_init);
     J(size, 0) = lambda;
     J(size, 1) = 0;
@@ -91,7 +91,7 @@ int BigNewtonGauss::fit(double angle,double speed,uint64_t timestamp){
     J(size, 3) = 0;
     W(size, size) = 1.0 / (fabs(r(size)) + 1e-6);
     
-    // omegaµÄ³Í·£
+    // omegaï¿½Ä³Í·ï¿½
     r(size+1) = lambda * (omega - omega_init);
     J(size+1, 0) = 0;
     J(size+1, 1) = lambda;
@@ -99,7 +99,7 @@ int BigNewtonGauss::fit(double angle,double speed,uint64_t timestamp){
     J(size+1, 3) = 0;
     W(size+1, size+1) = 1.0 / (fabs(r(size+1)) + 1e-6);
     
-    // phaseµÄ³Í·£
+    // phaseï¿½Ä³Í·ï¿½
     r(size+2) = lambda * (phase - phase_init);
     J(size+2, 0) = 0;
     J(size+2, 1) = 0;
@@ -107,7 +107,7 @@ int BigNewtonGauss::fit(double angle,double speed,uint64_t timestamp){
     J(size+2, 3) = 0;
     W(size+2, size+2) = 1.0 / (fabs(r(size+2)) + 1e-6);
     
-    // bµÄ³Í·£ (Í¬Ê±¿¼ÂÇÔ¼Êø b=2.090-a)
+    // bï¿½Ä³Í·ï¿½ (Í¬Ê±ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ b=2.090-a)
     r(size+3) = lambda * (b - b_init) + lambda * (a + b - 2.090);
     J(size+3, 0) = lambda;
     J(size+3, 1) = 0;
@@ -119,13 +119,13 @@ int BigNewtonGauss::fit(double angle,double speed,uint64_t timestamp){
     Eigen::Matrix<double, 4, 1> dp = (J.transpose() * W * J).inverse() * J.transpose() * W * r;
     p -= 0.05 * dp;
     
-    // ¸üÐÂ²ÎÊý
+    // ï¿½ï¿½ï¿½Â²ï¿½ï¿½ï¿½
     a = p(0);
     omega = p(1);
     phase = p(2);
     b = p(3);
     
-    // È·±£bÂú×ãÔ¼ÊøÌõ¼þ
+    // È·ï¿½ï¿½bï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     b = 2.090 - a;
     return true;
 }

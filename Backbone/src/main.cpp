@@ -10,15 +10,18 @@
 #include "Camera.h"
 #include "Base.h"
 #include <systemd/sd-daemon.h>
+#include "test.h"
 using namespace std;
 using namespace cv;
 
 int main()
 {
-    YAML::Node config = YAML::LoadFile(Yaml);
+
+    YAML::Node config = YAML::LoadFile(YamlPath);
     int is_test = config["test"].as<int>();
     if(is_test){
         Test();
+        // MPCTest();
     }else{
         // 开启相关线程
         ThreadControl ImageControl;

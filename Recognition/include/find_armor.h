@@ -20,14 +20,13 @@ class LightBlob
 {
 public:
     cv::RotatedRect rect; // 灯条位置
-    double area_ratio;
-    double length;      // 灯条长度
-    uint8_t blob_color; // 灯条颜色
-    int light_area;
+    double area_ratio;    // 与旋转矩形的占比
+    double length;        // 灯条长度
+    int blob_color;   // 灯条颜色
 
     cv::Point2f top, bottom, center;
-    LightBlob(cv::RotatedRect &r, double ratio, uint8_t color, int area)
-        : rect(r), area_ratio(ratio), blob_color(color), light_area(area)
+    LightBlob(cv::RotatedRect &r, double ratio, int color)
+        : rect(r), area_ratio(ratio), blob_color(color)
     {
         length = max(rect.size.height, rect.size.width);
 
@@ -42,7 +41,6 @@ public:
 };
 
 typedef std::vector<LightBlob> LightBlobs;
-static LightBlobs light_blobs;
 
 /******************* 装甲板ID类定义　**********************/
 
@@ -65,11 +63,9 @@ struct Armor
         this->center = (points[0]+points[2])/2;  
     }
 
-    // Light pairs part
-    LightBlob left_light, right_light;
     cv::Point2f center;
     double yaw;
-    double pridict_yaw;
+    double predict_yaw;
     // Number part
     cv::Mat number_img;
     std::string number;
@@ -79,23 +75,8 @@ struct Armor
     ArmorType type;
     Point3d cam_pose;
     Point3d abs_pose;
-    float area;
 };
 typedef vector<Armor> Armors;
-
-/******************* 装甲板类定义　**********************/
-class ArmorBox
-{
-public:
-    cv::Rect2d rect;
-    LightBlobs light_blobs;
-    int box_color;
-    ArmorType type;
-    explicit ArmorBox(const LightBlobs &blobs = LightBlobs(), int color = 0, const ArmorType &type = ArmorType());
-};
-typedef std::vector<ArmorBox> ArmorBoxes;
-
-static ArmorBoxes armor_boxes;
 
 class NumberClassifier
 {
@@ -128,18 +109,17 @@ public:
 
     Tradition();
     // 找灯条
-    Armors Find_light(Mat &src,const cv::Rect& roi);
+    LightBlobs FindLight(Mat &src);
     // 找装甲板
-    Armors Find_armor(cv::Mat &src, LightBlobs &light_blobs);
+    Armors FindArmor(Mat &src, LightBlobs &light_blobs);
 
-    YAML::Node readYAML(const std::string& filename);
 private:
-    bool is_get_from_ds;
-    int enemy_color;
+    bool is_get_from_ds;                  // 是否使用电控颜色
+    int enemy_color;                      // 敌方颜色
+    int light_threshold;                  // 二值化高阈值
+    int dim_threshold;                    // 二值化低阈值
 };
 
-
-
-#endif // FIND_ARMOR_H
+#endif 
 
 

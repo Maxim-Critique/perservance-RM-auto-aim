@@ -1,15 +1,27 @@
 #include "IAmFuture.h"
 
 Auto_aim::Auto_aim(){
-    readYAML(Yaml);
+    readYAML(YamlPath);
     find_ptr = std::make_unique<Tradition>();
 }
 
 int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
+   
     //尝试次数大于20重置
     if(try_times == 20){ReEKF();}
+    LightBlobs light_blobs = find_ptr->FindLight(img);
+    if(light_blobs.size()<2){
+        Reboot();
+        return 0;
+    }
     //传统找装甲板
-    Armors armors = find_ptr->Find_light(img,roi);
+    Armors armors = find_ptr->FindArmor(img,light_blobs);
+    for(auto armor : armors){
+        for(int i = 0; i < 4; i++) {
+            cv::line(img, armor.points[i],armor.points[(i+1)%4],cv::Scalar(125, 0, 125), 2);
+        }
+    }
+    
     //MLP神经网络
     classifier.extractNumbers(img,armors);
     classifier.classify(armors);
@@ -17,54 +29,42 @@ int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
         Reboot();
         return 0;
     }
-    
     armors = ChooseProcess(armors,img);
-    if(armors.size()){
+    if(armors.empty()){
         Reboot();
         return 0;
     }
-    
     UpdateTimeInterval(timestamp);
     if(time_interval == 0){
         Reboot();
         return 0;
     }
-    Armor armor = aim_ptr->Shoot(armors,img,time_interval);
-    Transmit(armor,img,timestamp);
-    CheckAimer(armor);
+    auto gimbal_angle = aim_ptr->Shoot(armors,img,time_interval);
+    Transmit(gimbal_angle);
 }
 
 void Auto_aim::UpdateTimeInterval(uint64_t timestamp){
     time_interval = (timestamp - last_time)/1e8;
     last_time = timestamp;
-    cout<<1/time_interval<<endl;
 }
 
-void Auto_aim::Transmit(Armor armor,Mat &img,uint64_t timestamp){
-    try_times = 0;
-    gimbal_angle = C_C.GetAngle(armor.cam_pose);
-    if(Protection()){
-        
-        int32_t yaw = (R2D(gimbal_angle.yaw) + compensate_yaw) * 1e4;
-        int32_t pitch = (R2D(gimbal_angle.pitch) + compensate_pitch) * 1e4;
+void Auto_aim::Transmit(const Gimbal_Angle &gimbal_angle){
+
+    if(abs(initial_abs.target_yaw-gimbal_angle.target_yaw)<PI/6){
+        int32_t yaw = (R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
+        int32_t pitch = (R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
         std::unique_lock<std::mutex> lock(ds_mutex);
-        bool yaw_delta = abs(R2D(gimbal_angle.yaw) + compensate_yaw - R2D(ds.camera_yaw_angle)) < 1;
-        bool pitch_delta = abs(R2D(gimbal_angle.pitch)  + compensate_pitch - R2D(ds.camera_pit_angle)) < 1.5;
+        bool yaw_delta = abs(R2D(gimbal_angle.target_yaw) + compensate_yaw - R2D(ds.camera_yaw_angle)) < 1;
+        bool pitch_delta = abs(R2D(gimbal_angle.target_pitch)  + compensate_pitch - R2D(ds.camera_pit_angle)) < 1;
         lock.unlock();
-        bool distance =  GetDistance(armor.cam_pose)>1.5&&GetDistance(armor.cam_pose)<4;
-        int distance_delta = distance*10 + aim_ptr->control_model;
-        if(aim_ptr->control_model == 3){
-            Gimbal_Angle center = C_C.GetAngle(C_C.abs2cam(aim_ptr->predict_point));
-            yaw = (R2D(center.yaw) + compensate_yaw) * 1e4;
-            pitch = (R2D(center.pitch) + compensate_pitch) * 1e4;
-        }
+
         if(yaw_delta && pitch_delta)
         {
-            dg.Vision2Control(yaw,pitch,aim_ptr->ui.x*100,aim_ptr->ui.y*100,distance_delta,1);
+            dg.Vision2Control(yaw,pitch,gimbal_angle.yaw_vel*1e4,0,1,1);
         }
         else
         {
-           dg.Vision2Control(yaw,pitch,aim_ptr->ui.x*100,aim_ptr->ui.y*100,distance_delta,0);
+           dg.Vision2Control(yaw,pitch,gimbal_angle.yaw_vel*1e4,0,1,0);
         }
     }
     else{
@@ -85,10 +85,11 @@ void SortArmors(Armors& armors) {
 Armors Auto_aim::ChooseProcess(Armors armors,Mat &img){
     Armors after_armors;
     SortArmors(armors);
+    std::unique_ptr<PNP> pnp = std::make_unique<PNP>();
     if(aim_id.empty()){
         for(auto armor : armors){
-            solveYawPnP(armor,img,initial_abs);
-            if(GetDistance(armor.cam_pose)<5){
+            pnp->Solve(armor, img, initial_abs);
+            if(cv::norm(armor.cam_pose)<5){
                 after_armors.push_back(armor); 
                 aim_id = armor.number;
                 aim_ptr = std::make_unique<Aim>(armor);
@@ -99,17 +100,16 @@ Armors Auto_aim::ChooseProcess(Armors armors,Mat &img){
         for(auto armor : armors){
             if(armor.number == aim_id){
                 if(after_armors.size()){
-                    cout<<" armors[0].center "<<armors[0].center<<"  ";
                     if(abs(armors[0].center.x-armor.center.x>(armor.points[3].x-armor.points[0].x)/2)){
-                        solveYawPnP(armor,img,initial_abs);
+                        pnp->Solve(armor, img, initial_abs);
                         after_armors.push_back(armor);
                     }
                 }else{
-                    solveYawPnP(armor,img,initial_abs);
+                    pnp->Solve(armor, img, initial_abs);
                     after_armors.push_back(armor);
                 }
             }
-            if(after_armors.size()>2){
+            if(after_armors.size()>1){
                 break;
             }
         }
@@ -118,12 +118,6 @@ Armors Auto_aim::ChooseProcess(Armors armors,Mat &img){
     return after_armors;
 }
 
-//防甩头
-bool Auto_aim::Protection(){
-    // cout<<R2D(initial_abs_yaw)<<"       "<<R2D(gimbal_angle.yaw)<<endl;
-    bool sign = abs(initial_abs.yaw - gimbal_angle.yaw) < PI/6;
-    return sign;
-}
 
 Rect Auto_aim::MakeROI(Point2d found_armor) {
     const int IMG_WIDTH = 1440;
@@ -143,15 +137,14 @@ Rect Auto_aim::MakeROI(Point2d found_armor) {
 }
 
 int Auto_aim::FoundID(string x) {
-    if (x == "1") {
-        return 1;
-    } else if (x == "3") {
-        return 3;
+    if (x == "outpost") {
+        return 6;
     } else if (x == "guard") {
         return 7;
+    } else if (x == "base") {
+        return 8;
     } else {
-        // 如果输入的字符串不匹配，可以返回一个默认值，比如 -1
-        return -1;
+        return std::stoi(x);
     }
 }
 
@@ -174,7 +167,7 @@ YAML::Node Auto_aim::readYAML(const std::string& filename){
         compensate_pitch = config["Transmit"]["compensate_pitch"].as<double>();
         compensate_yaw = config["Transmit"]["compensate_yaw"].as<double>();
     } catch (const YAML::Exception& e) {
-        throw std::runtime_error("YAML Error: " + std::string(e.what()));
+        throw std::runtime_error("YAML Error: " + std::string(e.what()) + "Auto_aim");
     }
     return YAML::LoadFile(filename);
 }

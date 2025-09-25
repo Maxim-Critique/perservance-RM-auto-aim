@@ -3,13 +3,9 @@
 #include <errno.h>   // ERROR Number Definitions
 #include <termios.h> // POSIX Terminal Control Definitions
 #include "SerialPort.h"
-#include "camera_to_imu.h"
+#include "Coordinate.h"
 std::mutex ds_mutex;
 Data_Save ds;
-void test(double a, double b);
-static double pit = 0.0, yaw = 0.0;
-static std::chrono::steady_clock::time_point last_time;
-bool DEBUG_SERIAL1 =true;
 Data_Get dg; // Serial_port
 
 SerialPort::SerialPort(const char *filename)
@@ -156,7 +152,6 @@ int SerialPort::read_data()
     if (bytes_read == -1 || bytes_read == 0)
     {
         restart_serial();
-        // cout<<"        串口未连接          "<<endl; 
     }
     else
     {
@@ -175,7 +170,7 @@ int SerialPort::read_data()
         }
         else
         {
-            if (DEBUG_SERIAL1 == true)
+            if (DEBUG_SERIAL == true)
             {
                 cout << "this is not the data I want ! " << endl;
             }
@@ -191,24 +186,21 @@ void SerialPort::send_data(const struct Data_Get &data)
     {
         open_name++;
 
-        if (DEBUG_SERIAL1 == true)
+        if (DEBUG_SERIAL == true)
         {
-            // cout << "!!! send data failure !!!" << fd << "restart fd" << fd << endl;
+            cout << "!!! send data failure !!!" << fd << "restart fd" << fd << endl;
         }
         restart_serial();
     }
     else
     {
-        if (DEBUG_SERIAL1 == true)
+        if (DEBUG_SERIAL == true)
         {
-            // cout << "!!! send data success !!!" << fd << endl;
+            cout << "!!! send data success !!!" << fd << endl;
         }
     }
 }
 
-extern int Turn_back;
-int DEDEDE(0);
-extern int TRACKING;
 void Data_Get::Vision2Control(int32_t x, int32_t y,int32_t ui_x, int32_t ui_y, uint8_t found, uint8_t fire)
 {
     size = 21;
@@ -234,60 +226,7 @@ void Data_Get::Vision2Control(int32_t x, int32_t y,int32_t ui_x, int32_t ui_y, u
     raw_data[18] = found;
     raw_data[19] = fire;
     raw_data[20] = 0xBB;
-    cout << " yaw : " << x*1e-4 << "    pit : " << y*1e-4 <<" ui_x : "<<ui_x<<"  ui_y : "<<ui_y<< " found : " << static_cast<int>(found) << "   fire: " << static_cast<int>(fire)<< endl;
+    // cout << " yaw : " << x*1e-4 << "    pit : " << y*1e-4 <<" ui_x : "<<ui_x<<"  ui_y : "<<ui_y<< " found : " << static_cast<int>(found) << "   fire: " << static_cast<int>(fire)<< endl;
     
 }
 
-// void Data_Get::Vision2Control()
-// {
-//     size = 21;
-//     MAI_raw_data[0] = 0xAA;
-//     MAI_raw_data[1] = 0xAA;
-//     MAI_raw_data[2] = 0xff;
-//     MAI_raw_data[3] = 0xff;
-//     MAI_raw_data[4] = 0xff;
-//     MAI_raw_data[5] = 0xff;
-//     MAI_raw_data[6] = 0xff;
-//     MAI_raw_data[7] = 0xff;
-//     MAI_raw_data[8] = 0xff;
-//     MAI_raw_data[9] = 0xff;
-//     MAI_raw_data[10] = 0xff;
-//     MAI_raw_data[11] = 0xff;
-//     MAI_raw_data[12] = 0xff;
-//     MAI_raw_data[13] = 0xff;
-//     MAI_raw_data[14] = 0xff;
-//     MAI_raw_data[15] = 0xff;
-//     MAI_raw_data[16] = 0xff;
-//     MAI_raw_data[17] = 0xff;
-//     MAI_raw_data[18] = 2;
-//     MAI_raw_data[19] = 0xff;
-//     MAI_raw_data[20] = 0xBB;
-// }
-
-void test(double a, double b)
-{
-    static int16_t pitch_connt, yaw_connt = 0;
-    static float pitch_angle, last_pitch_angle, yaw_angle, last_yaw_angle = 0;
-
-    // 陀螺仪原始数据被乘了100倍
-    pitch_angle = static_cast<float>(b) / 100;
-    yaw_angle = static_cast<float>(a) / 100;
-
-    // 将角度改成连续的，不是360°变回0°
-    if ((pitch_angle - last_pitch_angle) > 330)
-        pitch_connt--;
-    else if ((pitch_angle - last_pitch_angle) < -330)
-        pitch_connt++;
-
-    if ((yaw_angle - last_yaw_angle) > 330)
-        yaw_connt--;
-    else if ((yaw_angle - last_yaw_angle) < -330)
-        yaw_connt++;
-
-    pit = static_cast<double>(pitch_angle);
-    last_pitch_angle = pitch_angle;
-    yaw = static_cast<double>(yaw_angle + yaw_connt * 360);
-    last_yaw_angle = yaw_angle;
-
-    //    cout << yaw << "    " << pit << endl;
-}
