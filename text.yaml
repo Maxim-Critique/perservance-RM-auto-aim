@@ -6,7 +6,7 @@ CAMERA:
   show: 1
 Tradition:
   light_threshold: 180
-  light_threshold: 110
+  dim_threshold: 110
 AIM:
   predict_time: 0.06
   max_yaw_acc: 50
@@ -30,5 +30,5 @@ Buff:
   pitch: 9
   yaw: -0.8
 Find:
-  is_get_from_ds: 0 #是否由电控发颜色
+  is_get_from_ds: false #是否由电控发颜色
   enemy_color: 0  # 目标红色为1,蓝色为0

@@ -107,11 +107,13 @@ PNP::PNP()
 void PNP::Solve(Armor &armor, Mat &img, Gimbal_Angle &initial_abs){
     // 初始PNP解算
     cv::Mat rvec, tvec;
+    vector<Point3f>world_points;
     if(armor.type == ArmorType::LARGE){
-        cv::solvePnP(world_points_big, armor.points, Intrinsic_Matrix, Distortion, rvec, tvec, false, cv::SOLVEPNP_IPPE);
+        world_points = world_points_big;
     }else{
-        cv::solvePnP(world_points_small, armor.points, Intrinsic_Matrix, Distortion, rvec, tvec, false, cv::SOLVEPNP_IPPE);
+        world_points = world_points_small;
     }
+    cv::solvePnP(world_points, armor.points, Intrinsic_Matrix, Distortion, rvec, tvec, false, cv::SOLVEPNP_IPPE);
     
     // 获取初始位姿
     armor.cam_pose = {*tvec.ptr<double>(2), -*tvec.ptr<double>(0), -*tvec.ptr<double>(1)};
@@ -164,7 +166,6 @@ void PNP::Solve(Armor &armor, Mat &img, Gimbal_Angle &initial_abs){
         for (int j = 0; j < 4; j++) {
             error += sqrt(pow(armor.points[j].x - image_points[j].x, 2) + pow(armor.points[j].y - image_points[j].y, 2));
         }
-        cout<<" yaw "<<R2D(yaw)<<" error "<<error<<" min_error "<<min_error<<" best_yaw "<<R2D(best_yaw)<<endl;
         if(error<min_error){
             min_error = error;
             best_yaw = yaw;
@@ -217,7 +218,7 @@ void PNP::BuffPnP(vector<Point2f> Buff_points, Point3d &pose, Point3d &Rpose, Po
     cv::Rodrigues(rvec, R);
 
     static std::deque<double> distance_history;
-    double current_distance = *tvec.ptr<double>(2) - error_x;
+    double current_distance = *tvec.ptr<double>(2);
 
     distance_history.push_back(current_distance);
     if (distance_history.size() > 5)

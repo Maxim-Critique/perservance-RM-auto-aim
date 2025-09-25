@@ -42,7 +42,7 @@ double VectorizedVaneArctan2(Point3d point) {
 
 Buff_Task::Buff_Task() {
     // try {
-    //     YAML::Node config = YAML::LoadFile(Yaml);
+    //     YAML::Node config = YAML::LoadFile(YamlPath);
     //     compensate_pitch = config["Buff"]["pitch"].as<double>();
     //     compensate_yaw = config["Buff"]["yaw"].as<double>();
     //     show = config["CAMERA"]["show"].as<double>();

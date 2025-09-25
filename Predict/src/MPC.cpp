@@ -6,7 +6,7 @@ constexpr int horizon = half_horizon * 2;
 using trajectory = Eigen::Matrix<double, 2, horizon>; 
 MPC::MPC(){
 
-    YAML::Node config = YAML::LoadFile(Yaml);
+    YAML::Node config = YAML::LoadFile(YamlPath);
     predict_time = config["AIM"]["predict_time"].as<double>();
     max_yaw_acc = config["AIM"]["max_yaw_acc"].as<double>();
     Eigen::MatrixXd A{{1, dt}, {0, 1}};

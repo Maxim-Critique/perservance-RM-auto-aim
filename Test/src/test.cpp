@@ -184,7 +184,7 @@ Armors generateSimulatedArmors() {
 }
 
 int Test() {
-    YAML::Node config = YAML::LoadFile(Yaml);
+    YAML::Node config = YAML::LoadFile(YamlPath);
     double predict_time = config["AIM"]["predict_time"].as<double>();
     srand(time(nullptr));
     

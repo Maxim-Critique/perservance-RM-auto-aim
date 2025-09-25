@@ -5,7 +5,7 @@ std::atomic<unsigned int> produce_index(0);
 std::atomic<unsigned int> consumption_index(0);
 struct timespec start_time, end_time;
 Camera::HikCamera camera;
-
+std::string YamlPath = "/home/killer_machine/WRITE/text.yaml";
 void signal_handler(int signal) {
     try {
         if (signal == SIGINT) {
@@ -30,7 +30,7 @@ double m_next_shoot_time, elapsed_time_ms;
 
 ThreadControl::ThreadControl()
 {
-    readYAML(Yaml);
+    readYAML(YamlPath);
     cout << "THREAD TASK ON !!!" << endl;
     std::signal(SIGINT, signal_handler);
 }
@@ -190,7 +190,7 @@ void ThreadControl::ImageProcess()
         if(show){
             ShowYawPitchRoll(frame_to_process);
             imshow("Linux_ubuntu", frame_to_process);
-            cv::waitKey(WAITKEY_VALUE);
+            cv::waitKey(1);
         }
     }
 }

@@ -2,11 +2,16 @@
 #include <eigen3/Eigen/Dense>
 #include "find_armor.h"
 #include "Coordinate.h"
+#include <fstream>      // 文件流操作
+#include <sys/stat.h>   // 文件状态
+#include <unistd.h>     // 系统调用（getcwd）
+#include <iostream>     // 输入输出
+#include <string>
 // 判断装甲板倾斜度
 static bool AngleJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
 {
     cv::Point2f direction = light_blob_i.center - light_blob_j.center;
-    float angle = std::abs(std::atan2(direction.y, direction.x));
+    float angle = std::atan2(std::abs(direction.y), std::abs(direction.x));
     return angle<D2R(45);
 }
 // 判断装甲板的长宽比
@@ -17,7 +22,7 @@ static bool LengthWidthJudge(const LightBlob &light_blob_i, const LightBlob &lig
     // 获取两个灯条中较长的长度
     double max_length = std::max(light_blob_i.length, light_blob_j.length);
     // 检查距离与灯条长度的比例是否在合理范围内
-    return (max_length / side_length< 5.0 &&  max_length / side_length> 1.0);
+    return (side_length / max_length < 5.0 && side_length / max_length > 1.0);
 }
 // 判断两个灯条的长度比
 static bool LengthRatioJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
@@ -25,6 +30,7 @@ static bool LengthRatioJudge(const LightBlob &light_blob_i, const LightBlob &lig
     // 获取较长和较短的灯条长度
     double longer_length = std::max(light_blob_i.length, light_blob_j.length);
     double shorter_length = std::min(light_blob_i.length, light_blob_j.length);
+    
     // 判断较长灯条与较短灯条的比值是否在合理范围内
     return (longer_length / shorter_length < 2.5);
 }
@@ -152,8 +158,6 @@ Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
 {
     Armors armors;
     ArmorType type;
-    string big_or_small;
-
     for (size_t i = 0; i < light_blobs.size() - 1; ++i)
     {
         const auto& blob_i = light_blobs[i];
@@ -164,15 +168,12 @@ Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
             {
                 continue;
             }
-
+           
             if (ContainLight(blob_i, blob_j, light_blobs))
             {
                 continue;
             }
-
-            Judge_Type(blob_i, blob_j, type);
-            big_or_small = ARMOR_TYPE_STR[static_cast<int>(type)];
-            
+            Judge_Type(blob_i, blob_j, type);            
             std::vector<cv::Point2f> points = GetPoints(blob_i,blob_j,src);
             armors.emplace_back(points, enemy_color, type);
 
@@ -181,15 +182,17 @@ Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
     return armors;
 }
 
+
+
 Tradition::Tradition(){
     try {
-        YAML::Node config = YAML::LoadFile(Yaml);
-        enemy_color = config["Find"]["enemy_color"].as<double>();
-        is_get_from_ds = config["Find"]["is_get_from_ds"].as<double>();
+        YAML::Node config = YAML::LoadFile(YamlPath);
+        enemy_color = config["Find"]["enemy_color"].as<int>();
+        is_get_from_ds = config["Find"]["is_get_from_ds"].as<bool>();
         light_threshold = config["Tradition"]["light_threshold"].as<int>();
         dim_threshold = config["Tradition"]["dim_threshold"].as<int>();
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("YAML Error: " + std::string(e.what()) + "Tradition");
     }
-
+    
 }

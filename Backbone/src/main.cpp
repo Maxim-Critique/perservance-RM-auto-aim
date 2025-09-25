@@ -17,7 +17,7 @@ using namespace cv;
 int main()
 {
 
-    YAML::Node config = YAML::LoadFile(Yaml);
+    YAML::Node config = YAML::LoadFile(YamlPath);
     int is_test = config["test"].as<int>();
     if(is_test){
         Test();

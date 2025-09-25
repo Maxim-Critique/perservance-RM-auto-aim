@@ -16,8 +16,7 @@ static bool IsValidLightBlob(const cv::RotatedRect &rect) {
 }
 // 判断两个灯条区域是同一个灯条
 static bool IsSameBlob(LightBlob blob1, LightBlob blob2) {
-    auto dist = blob1.rect.center - blob2.rect.center;
-    return (dist.x * dist.x + dist.y * dist.y) < 16 ;
+    return cv::norm(blob1.rect.center-blob2.rect.center) < 4;
 }
 // 倾斜角度检查
 void SlopeValidation(LightBlobs &lightblobs)
@@ -46,8 +45,8 @@ static void ImagePreProcessDim(cv::Mat &src) {
     cv::morphologyEx(src, src, cv::MORPH_CLOSE, kernel_dilate);
 }
 
-static uint8_t get_blob_color(const cv::Mat &src, const cv::RotatedRect &blobPos) {
-    // 1. 计算 ROI 区域
+static int GetBlobColor(const cv::Mat &src, const cv::RotatedRect &blobPos) {
+    // 1. 计算ROI区域
     cv::Rect region = blobPos.boundingRect();
     int offset_x = std::max(3, static_cast<int>(region.width * 0.1));
     int offset_y = std::max(3, static_cast<int>(region.height * 0.05));
@@ -59,17 +58,22 @@ static uint8_t get_blob_color(const cv::Mat &src, const cv::RotatedRect &blobPos
     if (region.empty()) {
         return BLOB_BLUE; 
     }
-    // 2. 提取 ROI 并直接计算通道总和（避免内存拷贝）
+    
+    // 2. 提取ROI
     cv::Mat roi = src(region);
     
-    // 3. 使用 cv::sum() 直接计算 B 和 R 通道的总和
-    cv::Scalar sum_b = cv::sum(roi.col(0)); // B 通道
-    cv::Scalar sum_r = cv::sum(roi.col(2)); // R 通道
-
-    return (sum_r[0] > sum_b[0]) ? BLOB_RED : BLOB_BLUE;
+    // 3. 使用split分离通道并计算总和
+    std::vector<cv::Mat> channels;
+    cv::split(roi, channels);  // 分离为B,G,R通道
+    
+    // 4. 计算B和R通道的总和
+    double sum_b = cv::sum(channels[0])[0]; // B通道总和
+    double sum_r = cv::sum(channels[2])[0]; // R通道总和
+    
+    return (sum_r > sum_b) ? BLOB_RED : BLOB_BLUE;
 }
 
-LightBlobs Tradition::FindLight(Mat &src) { // 默认参数为空ROI
+LightBlobs Tradition::FindLight(Mat &src) { 
     LightBlobs light_blobs;
     if(is_get_from_ds){
         std::unique_lock<std::mutex> lock(ds_mutex);
@@ -109,7 +113,7 @@ LightBlobs Tradition::FindLight(Mat &src) { // 默认参数为空ROI
             cv::RotatedRect rect = cv::minAreaRect(light_contours_light[i]);
             if (IsValidLightBlob(rect)) {
                 light_blobs_light.emplace_back(
-                    rect, areaRatio(light_contours_light[i], rect), get_blob_color(src, rect)
+                    rect, areaRatio(light_contours_light[i], rect), GetBlobColor(src, rect)
                 );
             }
         }
@@ -121,7 +125,7 @@ LightBlobs Tradition::FindLight(Mat &src) { // 默认参数为空ROI
             cv::RotatedRect rect = cv::minAreaRect(light_contours_dim[i]);
             if (IsValidLightBlob(rect)) {
                 light_blobs_dim.emplace_back(
-                    rect, areaRatio(light_contours_dim[i], rect), get_blob_color(src, rect)
+                    rect, areaRatio(light_contours_dim[i], rect), GetBlobColor(src, rect)
                 );
             }
         }
@@ -163,7 +167,6 @@ LightBlobs Tradition::FindLight(Mat &src) { // 默认参数为空ROI
             light_blobs.emplace_back(light_blobs_dim[d]);
         }
     }
-
     SlopeValidation(light_blobs);
     return light_blobs;
 }

@@ -22,10 +22,10 @@ public:
     cv::RotatedRect rect; // 灯条位置
     double area_ratio;    // 与旋转矩形的占比
     double length;        // 灯条长度
-    uint8_t blob_color;   // 灯条颜色
+    int blob_color;   // 灯条颜色
 
     cv::Point2f top, bottom, center;
-    LightBlob(cv::RotatedRect &r, double ratio, uint8_t color)
+    LightBlob(cv::RotatedRect &r, double ratio, int color)
         : rect(r), area_ratio(ratio), blob_color(color)
     {
         length = max(rect.size.height, rect.size.width);
@@ -120,8 +120,6 @@ private:
     int dim_threshold;                    // 二值化低阈值
 };
 
-
-
-#endif // FIND_ARMOR_H
+#endif 
 
 

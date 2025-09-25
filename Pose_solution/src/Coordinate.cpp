@@ -52,20 +52,6 @@ void Coordinate_converter::GetTFMat(const double &x, const double &y, const doub
                     cosy*sinz,           cosx*cosz + sinx*siny*sinz,          -cosz*sinx + cosx*siny*sinz,
                         -siny,                      cosy*sinx,                                  cosx*cosy;
 }
-    
-// 三分法工具函数
-Matrix4d Coordinate_converter::GetTrichMat(double yaw,Point3d point){
-    Matrix4d TrichMat;
-    double cosy = cos(PI/12);
-    double siny = sin(PI/12);
-    double cosz = cos(yaw);
-    double sinz = -sin(yaw);
-    TrichMat << cosz*cosy,sinz,-cosz*siny,  point.x,
-               -sinz*cosy,cosz, sinz*siny,  point.y,
-                     siny,   0,      cosy,  point.z,
-                        0,   0,         0,        1;
-    return TrichMat;
-}
 
 Matrix3d GetRotMatX(double x)
 {

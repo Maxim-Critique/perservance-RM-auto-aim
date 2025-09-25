@@ -23,7 +23,6 @@ public:
     cv::Point3f changeCoor(cv::Point3f point);                       // 相机转枪管
     Gimbal_Angle GetAngle(cv::Point3f position);                     // 计算云台角度
     void GetTFMat(const double &x, const double &y, const double &z);// 获取相机转绝对的矩阵
-    Matrix4d GetTrichMat(double yaw,Point3d point);                  // 获取三分法转坐标系矩阵
     Matrix3d tf_mat;                                                 // 相机转绝对的矩阵
     Eigen::Vector3d camera_gimbal;
 };

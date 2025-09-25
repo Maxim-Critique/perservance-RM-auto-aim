@@ -1,7 +1,7 @@
 #include "IAmFuture.h"
 
 Auto_aim::Auto_aim(){
-    readYAML(Yaml);
+    readYAML(YamlPath);
     find_ptr = std::make_unique<Tradition>();
 }
 
@@ -10,12 +10,18 @@ int Auto_aim::IAmFuture(Mat &img,uint64_t timestamp){
     //尝试次数大于20重置
     if(try_times == 20){ReEKF();}
     LightBlobs light_blobs = find_ptr->FindLight(img);
-    if(light_blobs.size()>=2){
+    if(light_blobs.size()<2){
         Reboot();
         return 0;
     }
     //传统找装甲板
     Armors armors = find_ptr->FindArmor(img,light_blobs);
+    for(auto armor : armors){
+        for(int i = 0; i < 4; i++) {
+            cv::line(img, armor.points[i],armor.points[(i+1)%4],cv::Scalar(125, 0, 125), 2);
+        }
+    }
+    
     //MLP神经网络
     classifier.extractNumbers(img,armors);
     classifier.classify(armors);

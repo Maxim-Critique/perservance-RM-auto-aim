@@ -2,7 +2,7 @@
 
 Aim::Aim(Armor armor){
     try {
-        YAML::Node config = YAML::LoadFile(Yaml);
+        YAML::Node config = YAML::LoadFile(YamlPath);
         predict_time = config["AIM"]["predict_time"].as<double>();
         show = config["CAMERA"]["show"].as<int>();
     } catch (const YAML::Exception& e) {

@@ -178,7 +178,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const Eigen::VectorXd& initial_state)
     P_post(Eigen::MatrixXd::Identity(10, 10) * 1e-5),
     I(Eigen::MatrixXd::Identity(10, 10)),
     is_stable(false), high_times(0) {
-        loadConfig(Yaml);
+        loadConfig(YamlPath);
     }
 
 void ExtendedKalmanFilter::loadConfig(const std::string& filename) {
@@ -203,9 +203,23 @@ void ExtendedKalmanFilter::loadConfig(const std::string& filename) {
 
 Eigen::MatrixXd ExtendedKalmanFilter::computeProcessNoise() const {
     Eigen::MatrixXd Q(10, 10);
-    double t4 = pow(dt_, 3)/3;
-    double t3 = pow(dt_, 2)/2;
-    double t2 = dt_;
+    // double t4 = pow(dt_, 3)/3;
+    // double t3 = pow(dt_, 2)/2;
+    // double t2 = dt_;
+    // double da = is_stable ? da_low : da_high;
+    // Q << t4*dd, t3*dd, 0,     0,     0,   0, 0,   0, 0,     0,
+    //      t3*dd, t2*dd, 0,     0,     0,   0, 0,   0, 0,     0,
+    //      0,     0,     t4*dd, t3*dd, 0,   0, 0,   0, 0,     0,
+    //      0,     0,     t3*dd, t2*dd, 0,   0, 0,   0, 0,     0,
+    //      0,     0,     0,     0,     dz,  0, 0,   0, 0,     0,
+    //      0,     0,     0,     0,     0,  dz, 0,   0, 0,     0,
+    //      0,     0,     0,     0,     0,   0, dr,  0, 0,     0,
+    //      0,     0,     0,     0,     0,   0, 0,  dr, 0,     0,
+    //      0,     0,     0,     0,     0,   0, 0,   0, t4*da, t3*da,
+    //      0,     0,     0,     0,     0,   0, 0,   0, t3*da, t2*da;
+    double t4 = pow(dt_, 4)/4;
+    double t3 = pow(dt_, 3)/2;
+    double t2 = pow(dt_, 2);
     double da = is_stable ? da_low : da_high;
     Q << t4*dd, t3*dd, 0,     0,     0,   0, 0,   0, 0,     0,
          t3*dd, t2*dd, 0,     0,     0,   0, 0,   0, 0,     0,
