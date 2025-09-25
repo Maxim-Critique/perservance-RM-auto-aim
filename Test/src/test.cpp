@@ -27,7 +27,7 @@ float palstance = 4;       // 角速度
 float scaling = 100;       // 放大比例
 double angle = 0;          // 起始角度
 float dt = 1e-2;           // 每帧时间
-float sigma = 0.02;        // 噪声大小
+float sigma = 0.04;        // 噪声大小
 std::default_random_engine rng;
 
 // 路径点定义
@@ -113,23 +113,23 @@ Armors generateSimulatedArmors() {
     Armors armors;
     armors.resize(4);
     
-    // // 更新中心位置（在四个顶点之间移动）
-    // cv::Point2f target = waypoints[current_target_index];
-    // cv::Point2f direction = target - center;
-    // float distance = cv::norm(direction);
+    // 更新中心位置（在四个顶点之间移动）
+    cv::Point2f target = waypoints[current_target_index];
+    cv::Point2f direction = target - center;
+    float distance = cv::norm(direction);
     
-    // if (distance < 0.1f) {
-    //     // 到达目标点，切换到下一个点
-    //     current_target_index = (current_target_index + 1) % waypoints.size();
-    //     target = waypoints[current_target_index];
-    //     direction = target - center;
-    // }
+    if (distance < 0.1f) {
+        // 到达目标点，切换到下一个点
+        current_target_index = (current_target_index + 1) % waypoints.size();
+        target = waypoints[current_target_index];
+        direction = target - center;
+    }
     
-    // // 标准化方向向量并乘以速度
-    // if (distance > 0) {
-    //     direction = (direction / distance) * movement_speed * dt;
-    //     center += direction;
-    // }
+    // 标准化方向向量并乘以速度
+    if (distance > 0) {
+        direction = (direction / distance) * movement_speed * dt;
+        center += direction;
+    }
     
     // 更新角度（保持旋转）
     angle += PI * dt * palstance;

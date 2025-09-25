@@ -30,8 +30,7 @@ private:
     
     // 噪声参数
     double dd;      // 平面距离过程噪声
-    double da_high; // 角度过程噪声(高)
-    double da_low;  // 角度过程噪声(低) 
+    double da;      // 角度过程噪声
     double dz;      // 高度过程噪声
     double dr;      // 半径过程噪声
 

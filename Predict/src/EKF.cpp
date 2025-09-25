@@ -169,19 +169,20 @@ ExtendedKalmanFilter::DualArmorStrategy::compute() {
 // ExtendedKalmanFilter 成员函数实现
 ExtendedKalmanFilter::ExtendedKalmanFilter(const Eigen::VectorXd& initial_state) :
     x_pri(initial_state), x_post(initial_state),
-    P_pri(Eigen::MatrixXd::Identity(10, 10) * 1e-5),
-    P_post(Eigen::MatrixXd::Identity(10, 10) * 1e-5),
     I(Eigen::MatrixXd::Identity(10, 10)),
     is_stable(false), high_times(0) {
         loadConfig(YamlPath);
+        Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 1, 1, 1, 0.4, 100}};
+        P_pri = P0_dig.asDiagonal();
+        P_post = P0_dig.asDiagonal();
+        
     }
 
 void ExtendedKalmanFilter::loadConfig(const std::string& filename) {
     try {
         YAML::Node config = YAML::LoadFile(filename);
         dd = config["EKF"]["ProcessNoise"]["dd"].as<double>();
-        da_high = config["EKF"]["ProcessNoise"]["dahigh"].as<double>();
-        da_low = config["EKF"]["ProcessNoise"]["dalow"].as<double>();
+        da = config["EKF"]["ProcessNoise"]["da"].as<double>();
         dz = config["EKF"]["ProcessNoise"]["dz"].as<double>();
         dr = config["EKF"]["ProcessNoise"]["dr"].as<double>();
 
@@ -198,13 +199,10 @@ void ExtendedKalmanFilter::loadConfig(const std::string& filename) {
 
 Eigen::MatrixXd ExtendedKalmanFilter::computeProcessNoise() const {
     Eigen::MatrixXd Q(10, 10);
-    double t4 = pow(dt_, 3)/3;
-    double t3 = pow(dt_, 2)/2;
-    double t2 = dt_;
-    double da = is_stable ? da_low : da_high;
-    // double t4 = pow(dt_, 4)/4;
-    // double t3 = pow(dt_, 3)/2;
-    // double t2 = pow(dt_, 2);
+    double t4 = pow(dt_, 4)/4;
+    double t3 = pow(dt_, 3)/2;
+    double t2 = pow(dt_, 2);
+ 
     Q << t4*dd, t3*dd, 0,     0,     0,   0, 0,   0, 0,     0,
          t3*dd, t2*dd, 0,     0,     0,   0, 0,   0, 0,     0,
          0,     0,     t4*dd, t3*dd, 0,   0, 0,   0, 0,     0,
@@ -267,18 +265,7 @@ Eigen::VectorXd ExtendedKalmanFilter::update(const Armors& armors, const std::ve
     
     // 状态约束
     constrainState(x_post);
-    NIS(strategy->compute());
-    // 检查是否稳定
-    if(!is_stable){
-        if (high_times > 80) {
-            is_stable = true;
-        }else{
-            high_times++;
-        }
-
-    }
-
-    
+    NIS(strategy->compute());    
     return x_post;
 }
 

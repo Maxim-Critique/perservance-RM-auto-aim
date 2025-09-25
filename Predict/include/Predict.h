@@ -24,8 +24,8 @@ public:
 public:
     cv::Point2d center;             // 旋转中心位置
     cv::Point2d velocity;
-    std::vector<double> height;     // 装甲高度。0对应索引0、2，1对应索引1、3
-    std::vector<double> radius;     // 旋转半径。0对应索引0、2，1对应索引1、3
+    std::vector<double> height;     // 装甲高度：0对应索引0、2，1对应索引1、3
+    std::vector<double> radius;     // 旋转半径：0对应索引0、2，1对应索引1、3
     double phase;                   // 角度（并非定值）
     double palstance;               // 角速度
    
