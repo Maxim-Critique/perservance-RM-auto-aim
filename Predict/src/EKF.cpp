@@ -9,25 +9,20 @@ double ExtendedKalmanFilter::UpdateStrategy::rz = 0.0;
 double ExtendedKalmanFilter::UpdateStrategy::ra = 0.0;
 double ExtendedKalmanFilter::UpdateStrategy::m_gain = 0.0;
 double ExtendedKalmanFilter::UpdateStrategy::rr = 0.0;
-
-Eigen::Vector2d ComputeArmorCenter(const Armor& armor1, const Armor& armor2) {
-    Eigen::Vector2d p1(armor1.abs_pose.x, armor1.abs_pose.y);
-    Eigen::Vector2d p2(armor2.abs_pose.x, armor2.abs_pose.y);
+// 选择单双装甲板
+std::unique_ptr<ExtendedKalmanFilter::UpdateStrategy> 
+ExtendedKalmanFilter::createStrategy(const UpdateStrategy::Data& data) {
+    size_t n = data.match_indices.size();
     
-    Eigen::Vector2d d1(std::cos(armor1.yaw), std::sin(armor1.yaw));
-    Eigen::Vector2d d2(std::cos(armor2.yaw), std::sin(armor2.yaw));
+    if (n == 1) {
+        return std::make_unique<SingleArmorStrategy>();
+    }
     
-    // 使用叉积计算交点（最优雅的方法）
-    // 两条直线的参数方程：p1 + t*d1 和 p2 + s*d2
-    // 交点满足：p1 + t*d1 = p2 + s*d2
-    // 整理得：t*d1 - s*d2 = p2 - p1
+    if (n == 2) {
+        return std::make_unique<DualArmorStrategy>();
+    }
     
-    // 使用叉积求解：t = (p2 - p1) × d2 / (d1 × d2)
-    double denominator = d1.x() * d2.y() - d1.y() * d2.x();    
-    Eigen::Vector2d p2_minus_p1 = p2 - p1;
-    double t = (p2_minus_p1.x() * d2.y() - p2_minus_p1.y() * d2.x()) / denominator;
-    
-    return p1 + t * d1;
+    return nullptr;
 }
 
 // 单装甲板策略实现
@@ -48,7 +43,7 @@ ExtendedKalmanFilter::SingleArmorStrategy::compute() {
     Eigen::Vector4d h;
     h << x(0) + radius*cos(angle),
          x(2) + radius*sin(angle),
-         x(4 + index%2),
+         x(4  + index % 2),
          x(8) + index*PI/2;
     // 实际观测
     Eigen::Vector4d z;
@@ -203,24 +198,13 @@ void ExtendedKalmanFilter::loadConfig(const std::string& filename) {
 
 Eigen::MatrixXd ExtendedKalmanFilter::computeProcessNoise() const {
     Eigen::MatrixXd Q(10, 10);
-    // double t4 = pow(dt_, 3)/3;
-    // double t3 = pow(dt_, 2)/2;
-    // double t2 = dt_;
-    // double da = is_stable ? da_low : da_high;
-    // Q << t4*dd, t3*dd, 0,     0,     0,   0, 0,   0, 0,     0,
-    //      t3*dd, t2*dd, 0,     0,     0,   0, 0,   0, 0,     0,
-    //      0,     0,     t4*dd, t3*dd, 0,   0, 0,   0, 0,     0,
-    //      0,     0,     t3*dd, t2*dd, 0,   0, 0,   0, 0,     0,
-    //      0,     0,     0,     0,     dz,  0, 0,   0, 0,     0,
-    //      0,     0,     0,     0,     0,  dz, 0,   0, 0,     0,
-    //      0,     0,     0,     0,     0,   0, dr,  0, 0,     0,
-    //      0,     0,     0,     0,     0,   0, 0,  dr, 0,     0,
-    //      0,     0,     0,     0,     0,   0, 0,   0, t4*da, t3*da,
-    //      0,     0,     0,     0,     0,   0, 0,   0, t3*da, t2*da;
-    double t4 = pow(dt_, 4)/4;
-    double t3 = pow(dt_, 3)/2;
-    double t2 = pow(dt_, 2);
+    double t4 = pow(dt_, 3)/3;
+    double t3 = pow(dt_, 2)/2;
+    double t2 = dt_;
     double da = is_stable ? da_low : da_high;
+    // double t4 = pow(dt_, 4)/4;
+    // double t3 = pow(dt_, 3)/2;
+    // double t2 = pow(dt_, 2);
     Q << t4*dd, t3*dd, 0,     0,     0,   0, 0,   0, 0,     0,
          t3*dd, t2*dd, 0,     0,     0,   0, 0,   0, 0,     0,
          0,     0,     t4*dd, t3*dd, 0,   0, 0,   0, 0,     0,
@@ -280,9 +264,10 @@ Eigen::VectorXd ExtendedKalmanFilter::update(const Armors& armors, const std::ve
     // 状态更新
     x_post = x_pri + K * residual;
     P_post = (I - K * H) * P_pri;
+    
     // 状态约束
     constrainState(x_post);
-    
+    NIS(strategy->compute());
     // 检查是否稳定
     if(!is_stable){
         if (high_times > 80) {
@@ -297,20 +282,17 @@ Eigen::VectorXd ExtendedKalmanFilter::update(const Armors& armors, const std::ve
     return x_post;
 }
 
-std::unique_ptr<ExtendedKalmanFilter::UpdateStrategy> 
-ExtendedKalmanFilter::createStrategy(const UpdateStrategy::Data& data) {
-    size_t n = data.match_indices.size();
-    
-    if (n == 1) {
-        return std::make_unique<SingleArmorStrategy>();
-    }
-    
-    if (n == 2) {
-        return std::make_unique<DualArmorStrategy>();
-    }
-    
-    return nullptr;
+// NIS检验，新息卡方检验
+void ExtendedKalmanFilter::NIS(std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> compute){
+    auto [residual, H, V, R] = compute;
+    Eigen::MatrixXd S = H * P_post * H.transpose() + V * R * V.transpose();
+    double nis = residual.transpose() * S.inverse() * residual;
+    double nees = (x_pri - x_post).transpose() * P_post.inverse() * (x_pri - x_post);
+    constexpr double nis_threshold = 0.711;
+    cout<<" nis "<<nis<<" if good "<<(nis<nis_threshold)<<" nees "<<nees<<endl;
 }
+
+
 
 void ExtendedKalmanFilter::constrainState(Eigen::VectorXd& state) {
     // 半径约束

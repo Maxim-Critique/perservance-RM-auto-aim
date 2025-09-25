@@ -17,7 +17,8 @@ public:
     
     // 配置加载
     void loadConfig(const std::string& filename);
-
+    // NIS检验，新息卡方检验
+    void NIS(std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> compute);
 private:
     // 状态变量
     Eigen::VectorXd x_pri;  // 先验状态

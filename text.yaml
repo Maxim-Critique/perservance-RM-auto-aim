@@ -1,4 +1,4 @@
-test: 0
+test: 1
 CAMERA:
   video_write_enable: 0
   exposure_time_aim: 1000
