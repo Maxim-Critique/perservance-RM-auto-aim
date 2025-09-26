@@ -27,7 +27,7 @@ float palstance = 4;       // 角速度
 float scaling = 100;       // 放大比例
 double angle = 0;          // 起始角度
 float dt = 1e-2;           // 每帧时间
-float sigma = 0.04;        // 噪声大小
+float sigma = 0.025;        // 噪声大小
 std::default_random_engine rng;
 
 // 路径点定义

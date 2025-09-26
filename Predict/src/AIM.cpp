@@ -89,9 +89,15 @@ void Aim::DraftingSoftware(Mat &img) {
     // 实现三维重投影绘制
     // TODO: 根据实际需求实现
 }
-
+int PAJDS = 0;
 std::shared_ptr<KinematicModel> Aim::Resolve(const Armors &armors, double time)
 {   
+    if(m_model_observer->is_lost){
+        cout<<"   触发nis重置   "<<" 次数 "<<PAJDS<<endl;
+        InitEKF(armors[0]);
+        m_model_observer = std::make_shared<ExtendedKalmanFilter>(target_state);
+        PAJDS++;
+    }
     target_state = m_model_observer->predict(time);
     std::shared_ptr<KinematicModel> prior_status = std::make_shared<StandardModel>(target_state);
     Eigen::MatrixXd score = GetScoreMat(armors, prior_status->GetArmors(0));

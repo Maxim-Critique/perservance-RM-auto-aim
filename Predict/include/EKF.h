@@ -19,6 +19,7 @@ public:
     void loadConfig(const std::string& filename);
     // NIS检验，新息卡方检验
     void NIS(std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd, Eigen::MatrixXd> compute);
+    bool is_lost = false;
 private:
     // 状态变量
     Eigen::VectorXd x_pri;  // 先验状态
@@ -35,8 +36,10 @@ private:
     double dr;      // 半径过程噪声
 
     double dt_;     // 时间步长
-    bool is_stable; // 是否稳定状态
-    double high_times; // 高da次数
+    std::deque<bool> nis_history_;                  // NIS历史记录队列
+    static constexpr size_t nis_window = 15;        // 历史窗口大小
+    static constexpr size_t nis_threshold_count = 7;// 触发阈值次数
+    static constexpr double nis_threshold = 0.711;  // 卡方检验阈值
 
     // 策略基类
     class UpdateStrategy {

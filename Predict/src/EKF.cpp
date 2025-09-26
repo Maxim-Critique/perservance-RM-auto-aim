@@ -68,11 +68,7 @@ ExtendedKalmanFilter::SingleArmorStrategy::compute() {
           0,                        d * cos(phi),            sin(phi),            0,
           0,                        0,                       0,                   1;
     Eigen::Matrix4d R = Eigen::Matrix4d::Zero();
-    
-    R << rd, 0,                  0, 0,
-          0,rd,                  0, 0,
-          0, 0,                 rz, 0,
-          0, 0,                  0, ra;  // 直接使用继承的噪声参数
+    R.diagonal() << rd, rd, rz, ra;  // 直接使用继承的噪声参数
 
     return {residual, H, V, R};
 }
@@ -169,13 +165,12 @@ ExtendedKalmanFilter::DualArmorStrategy::compute() {
 // ExtendedKalmanFilter 成员函数实现
 ExtendedKalmanFilter::ExtendedKalmanFilter(const Eigen::VectorXd& initial_state) :
     x_pri(initial_state), x_post(initial_state),
-    I(Eigen::MatrixXd::Identity(10, 10)),
-    is_stable(false), high_times(0) {
+    I(Eigen::MatrixXd::Identity(10, 10)){
         loadConfig(YamlPath);
         Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 1, 1, 1, 0.4, 100}};
         P_pri = P0_dig.asDiagonal();
         P_post = P0_dig.asDiagonal();
-        
+        nis_history_.clear();
     }
 
 void ExtendedKalmanFilter::loadConfig(const std::string& filename) {
@@ -275,8 +270,23 @@ void ExtendedKalmanFilter::NIS(std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eige
     Eigen::MatrixXd S = H * P_post * H.transpose() + V * R * V.transpose();
     double nis = residual.transpose() * S.inverse() * residual;
     double nees = (x_pri - x_post).transpose() * P_post.inverse() * (x_pri - x_post);
-    constexpr double nis_threshold = 0.711;
-    cout<<" nis "<<nis<<" if good "<<(nis<nis_threshold)<<" nees "<<nees<<endl;
+    bool exceeded = nis > nis_threshold;
+    // 更新历史记录
+    nis_history_.push_back(exceeded);
+    if (nis_history_.size() > nis_window) {
+        nis_history_.pop_front();
+    }
+    
+    // 快速统计超过次数
+    size_t exceed_count = 0;
+    for (bool result : nis_history_) {
+        exceed_count += result ? 1 : 0;
+        if (exceed_count >= nis_threshold_count) {
+            is_lost = true;
+            break;
+        }
+        
+    }
 }
 
 
