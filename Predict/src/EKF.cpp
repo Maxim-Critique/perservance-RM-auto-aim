@@ -256,7 +256,7 @@ Eigen::VectorXd ExtendedKalmanFilter::update(const Armors& armors, const std::ve
     K = P_pri * H.transpose() * (H * P_pri * H.transpose() + V * R * V.transpose()).inverse();
     // 状态更新
     x_post = x_pri + K * residual;
-    P_post = (I - K * H) * P_pri;
+    P_post = (I - K * H) * P_pri * (I - K * H).transpose() + K * V * R * V.transpose() * K.transpose();
     
     // 状态约束
     constrainState(x_post);
