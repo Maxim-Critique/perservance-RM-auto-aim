@@ -75,6 +75,7 @@ struct Armor
     ArmorType type;
     Point3d cam_pose;
     Point3d abs_pose;
+    Eigen::Vector3d abs_ypd;
 };
 typedef vector<Armor> Armors;
 

@@ -12,6 +12,7 @@ struct Gimbal_Angle
     double target_pitch;      // 目标pitch
     double manage_yaw;        // 控制yaw
     double yaw_vel;           // 控制yaw的速度
+    double yaw_acc;           // 控制yaw的加速度
 };
 
 class Coordinate_converter
@@ -25,6 +26,8 @@ public:
     void GetTFMat(const double &x, const double &y, const double &z);// 获取相机转绝对的矩阵
     Matrix3d tf_mat;                                                 // 相机转绝对的矩阵
     Eigen::Vector3d camera_gimbal;
+    Eigen::Matrix4d xyz2ypd_jacobian(const Point3d & xyz);           // 笛卡尔转球雅可比
+    Eigen::Vector3d xyz2ypd(const Point3d & xyz);                    // 笛卡尔转球
 };
 
 // 旋转矩阵生成函数

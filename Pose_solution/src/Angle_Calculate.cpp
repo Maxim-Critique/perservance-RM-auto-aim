@@ -118,6 +118,7 @@ void PNP::Solve(Armor &armor, Mat &img, Gimbal_Angle &initial_abs){
     // 获取初始位姿
     armor.cam_pose = {*tvec.ptr<double>(2), -*tvec.ptr<double>(0), -*tvec.ptr<double>(1)};
     armor.abs_pose = C_C.cam2abs(armor.cam_pose);
+    armor.abs_ypd = C_C.xyz2ypd(armor.abs_pose);
     initial_abs = C_C.GetAngle(armor.cam_pose);
     
     // 装甲板在相机系下坐标，相机在云台系下坐标,装甲板在世界系下坐标
