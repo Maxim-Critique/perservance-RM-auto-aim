@@ -36,7 +36,6 @@ void NumberClassifier::extractNumbers(const cv::Mat &src, std::vector<Armor> &ar
     // Number ROI size
     const cv::Size roi_size(28, 28);
     const cv::Size input_size(28, 28);
-    int i = 0;
     for (auto &armor : armors)
     {
 

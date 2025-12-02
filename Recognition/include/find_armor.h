@@ -10,6 +10,7 @@
 #include <cmath>      // fmax
 #include <yaml-cpp/yaml.h>
 #include "SerialPort.h"
+#include <vector>
 using namespace cv;
 using namespace std;
 
@@ -56,11 +57,10 @@ const std::string ARMOR_TYPE_STR[3] = {"small", "large", "invalid"};
 struct Armor
 {
     Armor() = default;
-    Armor(const std::vector<cv::Point2f>& points, int index, ArmorType type)
+    Armor(const std::vector<cv::Point2f>& points, ArmorType type)
     {
         this->points = points;
         this->type = type;
-        this->center = (points[0]+points[2])/2;  
     }
 
     cv::Point2f center;
@@ -72,9 +72,10 @@ struct Armor
     float confidence;
     std::string classfication_result;
     vector<Point2f> points;
+    vector<Point2f> re_points;
     ArmorType type;
-    Point3d cam_pose;
-    Point3d abs_pose;
+    Eigen::Vector3d cam_pose;
+    Eigen::Vector3d abs_pose;
     Eigen::Vector3d abs_ypd;
 };
 typedef vector<Armor> Armors;
@@ -110,15 +111,15 @@ public:
 
     Tradition();
     // 找灯条
-    LightBlobs FindLight(Mat &src);
+    LightBlobs FindLight(Mat &src,int enemy_color);
     // 找装甲板
     Armors FindArmor(Mat &src, LightBlobs &light_blobs);
 
 private:
-    bool is_get_from_ds;                  // 是否使用电控颜色
-    int enemy_color;                      // 敌方颜色
-    int light_threshold;                  // 二值化高阈值
-    int dim_threshold;                    // 二值化低阈值
+    bool is_get_from_ds_;                  // 是否使用电控颜色
+    int enemy_color_;                      // 敌方颜色
+    int light_threshold_;                  // 二值化高阈值
+    int dim_threshold_;                    // 二值化低阈值
 };
 
 #endif 

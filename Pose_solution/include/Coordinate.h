@@ -3,6 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include <eigen3/Eigen/Dense>
 #include <opencv2/core/eigen.hpp>
+#include "Base.h"
 using namespace std;
 using namespace cv;
 using namespace Eigen;
@@ -19,27 +20,20 @@ class Coordinate_converter
 {
 public:
     Coordinate_converter();
-    cv::Point3d cam2abs(cv::Point3d position);                       // 相机转绝对
-    cv::Point3d abs2cam(cv::Point3d position);                       // 绝对转相机
-    cv::Point3f changeCoor(cv::Point3f point);                       // 相机转枪管
-    Gimbal_Angle GetAngle(cv::Point3f position);                     // 计算云台角度
+    Eigen::Vector3d cam2abs(Eigen::Vector3d position);               // 相机转绝对
+    Eigen::Vector3d abs2cam(Eigen::Vector3d position);               // 绝对转相机
+    cv::Point3f changeCoor(Eigen::Vector3d point);                   // 相机转枪管
+    Gimbal_Angle GetAngle(Eigen::Vector3d position);                     // 计算云台角度
     void GetTFMat(const double &x, const double &y, const double &z);// 获取相机转绝对的矩阵
     Matrix3d tf_mat;                                                 // 相机转绝对的矩阵
     Eigen::Vector3d camera_gimbal;
-    Eigen::Matrix4d xyz2ypd_jacobian(const Point3d & xyz);           // 笛卡尔转球雅可比
-    Eigen::Vector3d xyz2ypd(const Point3d & xyz);                    // 笛卡尔转球
+    Eigen::Matrix4d xyz2ypd_jacobian(const Eigen::Vector3d & xyz);           // 笛卡尔转球雅可比
+    Eigen::Vector3d xyz2ypd(const Eigen::Vector3d & xyz);                    // 笛卡尔转球
 };
-
-// 旋转矩阵生成函数
-Matrix3d GetRotMatX(double x);
-Matrix3d GetRotMatY(double y);
-Matrix3d GetRotMatZ(double z);
-Matrix3d GetRotMatXYZ(double x, double y, double z);
 
 // 工具函数
 double R2D(double rad);
 double D2R(double degree);
-double GetDistance(cv::Point3d p);
 double GetDistance(cv::Point2d p,cv::Point2d q);
 extern Coordinate_converter C_C;
 

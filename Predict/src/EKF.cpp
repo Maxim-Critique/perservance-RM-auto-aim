@@ -33,7 +33,7 @@ ExtendedKalmanFilter::SingleArmorStrategy::compute() {
     // 预测观测
     double angle = _std_radian(x(8) + index * PI/2);
     double radius = x(6 + index%2);
-    Point3d armor_xyz = Point3d(x(0) + radius*cos(angle),x(2) + radius*sin(angle),x(4  + index % 2));
+    Eigen::Vector3d armor_xyz = {x(0) + radius*cos(angle),x(2) + radius*sin(angle),x(4  + index % 2)};
     Eigen::Vector4d h;
     Eigen::Vector3d armor_pyd = C_C.xyz2ypd(armor_xyz);
     h << armor_pyd,x(8) + index*PI/2;
@@ -45,16 +45,16 @@ ExtendedKalmanFilter::SingleArmorStrategy::compute() {
     residual(3) = _std_radian(residual(3));
     // 雅可比矩阵
     Eigen::Matrix<double, 4, 10> H_armor_xyza;
-    H_armor_xyza << 1, 0, 0, 0,           0,       0, ((index+1)%2)*cos(angle), (index%2)*cos(angle), -radius*sin(angle), 0,
+    H_armor_xyza <<  1, 0, 0, 0,           0,       0, ((index+1)%2)*cos(angle), (index%2)*cos(angle), -radius*sin(angle), 0,
                      0, 0, 1, 0,           0,       0, ((index+1)%2)*sin(angle), (index%2)*sin(angle),  radius*cos(angle), 0,
                      0, 0, 0, 0, (index+1)%2, index%2,                        0,                    0,                  0, 0,
                      0, 0, 0, 0,           0,       0,                        0,                    0,                  1, 0;
     Eigen::Matrix4d H_armor_ypda = C_C.xyz2ypd_jacobian(armor_xyz);
     Eigen::Matrix<double, 4, 10> H = H_armor_ypda * H_armor_xyza;
     Eigen::Matrix4d R = Eigen::Matrix4d::Zero();
-    double delta_angle = _std_radian(armor.abs_ypd[0]-atan2(armor.abs_pose.y, armor.abs_pose.x));
+    double delta_angle = _std_radian(armor.abs_ypd[0]-atan2(armor.abs_pose.y(), armor.abs_pose.x()));
     R.diagonal() << 4e-3, 4e-3, log(std::abs(delta_angle) + 1) + 1,
-     log(std::abs(armor.abs_ypd[2]) + 1) / 200 + 9e-2;  
+     log(std::abs(armor.abs_ypd[2]) + 1) / 200 + 9e-1;  
 
     return {residual, H, R};
 }
@@ -77,21 +77,21 @@ ExtendedKalmanFilter::DualArmorStrategy::compute() {
     // 第一块装甲板
     double angle1 = _std_radian(x(8) + index1*PI/2);
     double radius1 = x(6 + index1%2);
-    Point3d armor1_xyz = Point3d(x(0) + radius1*cos(angle1),x(2) + radius1*sin(angle1),x(4 + index1%2));
+    Eigen::Vector3d armor1_xyz = {x(0) + radius1*cos(angle1),x(2) + radius1*sin(angle1),x(4 + index1%2)};
     Eigen::Vector3d armor1_pyd = C_C.xyz2ypd(armor1_xyz);
     h.segment<4>(0) << armor1_pyd,angle1;
     
     // 第二块装甲板
     double angle2 = _std_radian(x(8) + index2*PI/2);
     double radius2 = x(6 + index2%2);
-    Point3d armor2_xyz = Point3d(x(0) + radius2*cos(angle2),x(2) + radius2*sin(angle2),x(4 + index2%2));
+    Eigen::Vector3d armor2_xyz = {x(0) + radius2*cos(angle2),x(2) + radius2*sin(angle2),x(4 + index2%2)};
     Eigen::Vector3d armor2_pyd = C_C.xyz2ypd(armor2_xyz);
     h.segment<4>(4) << armor2_pyd,angle2;
 
     // 实际观测
     Eigen::Matrix<double, 8, 1> z;
     z << armor1.abs_ypd.x(), armor1.abs_ypd.y(), armor1.abs_ypd.z(), armor1.yaw,
-         armor2.abs_ypd.x(), armor2.abs_ypd.y(), armor2.abs_ypd.z(), armor2.yaw;  // 修正：应该是armor2
+         armor2.abs_ypd.x(), armor2.abs_ypd.y(), armor2.abs_ypd.z(), armor2.yaw;
 
     // 残差
     Eigen::Matrix<double, 8, 1> residual = z - h;
@@ -123,12 +123,12 @@ ExtendedKalmanFilter::DualArmorStrategy::compute() {
     H.block<4,10>(4,0) = H_armor2_ypda * H_armor2_xyza;
     
     Eigen::Matrix<double, 8, 8> R = Eigen::Matrix<double, 8, 8>::Zero();
-    double delta_angle1 = _std_radian(armor1.abs_ypd[0]-atan2(armor1.abs_pose.y, armor1.abs_pose.x));
-    double delta_angle2 = _std_radian(armor2.abs_ypd[0]-atan2(armor2.abs_pose.y, armor2.abs_pose.x));
+    double delta_angle1 = _std_radian(armor1.abs_ypd[0]-atan2(armor1.abs_pose.y(), armor1.abs_pose.x()));
+    double delta_angle2 = _std_radian(armor2.abs_ypd[0]-atan2(armor2.abs_pose.y(), armor2.abs_pose.x()));
     R.diagonal() << 4e-3, 4e-3, log(std::abs(delta_angle1) + 1) + 1,
-     log(std::abs(armor1.abs_ypd[2]) + 1) / 200 + 9e-2,
+     log(std::abs(armor1.abs_ypd[2]) + 1) / 200 + 9e-1,
                     4e-3, 4e-3, log(std::abs(delta_angle2) + 1) + 1,
-     log(std::abs(armor2.abs_ypd[2]) + 1) / 200 + 9e-2;
+     log(std::abs(armor2.abs_ypd[2]) + 1) / 200 + 9e-1;
 
     return std::make_tuple(residual, H, R);  
 }
@@ -201,8 +201,11 @@ Eigen::VectorXd ExtendedKalmanFilter::predict(double dt) {
 }
 
 Eigen::VectorXd ExtendedKalmanFilter::update(const Armors& armors, const std::vector<int>& match_indices) {
-    if (match_indices.empty()) return x_pri;
     
+    if (match_indices.empty()) {
+        is_lost = true;
+        return x_pri;
+    }
     // 准备策略数据
     UpdateStrategy::Data data{armors, match_indices};
     
@@ -215,7 +218,6 @@ Eigen::VectorXd ExtendedKalmanFilter::update(const Armors& armors, const std::ve
     
     // 计算更新组件
     auto [residual, H, R] = strategy->compute();
-    
     // 卡尔曼增益
     K = P_pri * H.transpose() * (H * P_pri * H.transpose() + R ).inverse();
     // 状态更新
@@ -224,7 +226,7 @@ Eigen::VectorXd ExtendedKalmanFilter::update(const Armors& armors, const std::ve
     
     // 状态约束
     constrainState(x_post);
-    NIS(strategy->compute());    
+    NIS(strategy->compute());   
     return x_post;
 }
 
@@ -233,14 +235,12 @@ void ExtendedKalmanFilter::NIS(std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eige
     auto [residual, H, R] = compute;
     Eigen::MatrixXd S = H * P_post * H.transpose() + R;
     double nis = residual.transpose() * S.inverse() * residual;
-    double nees = (x_pri - x_post).transpose() * P_post.inverse() * (x_pri - x_post);
     bool exceeded = nis > nis_threshold;
     // 更新历史记录
     nis_history_.push_back(exceeded);
     if (nis_history_.size() > nis_window) {
         nis_history_.pop_front();
     }
-    
     // 快速统计超过次数
     size_t exceed_count = 0;
     for (bool result : nis_history_) {

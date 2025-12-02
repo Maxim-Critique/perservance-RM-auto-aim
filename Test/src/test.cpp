@@ -27,7 +27,7 @@ float palstance = 4;       // 角速度
 float scaling = 100;       // 放大比例
 double angle = 0;          // 起始角度
 float dt = 1e-2;           // 每帧时间
-float sigma = 0.01;        // 噪声大小
+float sigma = 0.03;        // 噪声大小
 std::default_random_engine rng;
 
 // 路径点定义
@@ -118,42 +118,39 @@ Armors generateSimulatedArmors() {
     cv::Point2f direction = target - center;
     float distance = cv::norm(direction);
     
-    // if (distance < 0.1f) {
-    //     // 到达目标点，切换到下一个点
-    //     current_target_index = (current_target_index + 1) % waypoints.size();
-    //     target = waypoints[current_target_index];
-    //     direction = target - center;
-    // }
-    
-    // // 标准化方向向量并乘以速度
-    // if (distance > 0) {
-    //     direction = (direction / distance) * movement_speed * dt;
-    //     center += direction;
-    // }
+    if (distance < 0.1f) {
+        // 到达目标点，切换到下一个点
+        current_target_index = (current_target_index + 1) % waypoints.size();
+        target = waypoints[current_target_index];
+        direction = target - center;
+    }
+
+    // 标准化方向向量并乘以速度
+    if (distance > 0) {
+        direction = (direction / distance) * movement_speed * dt;
+        center += direction;
+    }
     
     // 更新角度（保持旋转）
     angle += PI * dt * palstance;
     
     // 生成4个装甲板
-    for (int i = 0; i < armors.size(); i++) {
+    for (size_t i = 0; i < armors.size(); i++) {
         // 添加高斯噪声
-        std::normal_distribution<double> dist_pos(0, sigma);
-        std::normal_distribution<double> dist_angle(0, sigma * 10);
+        std::normal_distribution<float> dist_pos(0, sigma);
+        std::normal_distribution<float> dist_angle(0, sigma * 10);
         
         // 计算装甲板位置
-        double armor_r = r[i % 2];
-        double armor_z = z[i % 2];
-        double armor_angle = angle + 0.5 * i * PI;
+        float armor_r = r[i % 2];
+        float armor_z = z[i % 2];
+        float armor_angle = angle + 0.5 * i * PI;
         
-        armors[i].abs_pose = Point3d(
-            center.x + armor_r * cos(armor_angle) ,
-            center.y + armor_r * sin(armor_angle) ,
-            armor_z 
-        );
+        armors[i].abs_pose = {
+            center.x + armor_r * cos(armor_angle) + dist_pos(rng),
+            center.y + armor_r * sin(armor_angle) + dist_pos(rng),
+            armor_z + dist_pos(rng)
+        };
         armors[i].abs_ypd = C_C.xyz2ypd(armors[i].abs_pose);
-        armors[i].abs_ypd[0] += dist_pos(rng);
-        armors[i].abs_ypd[1] += dist_pos(rng);
-        armors[i].abs_ypd[2] += dist_angle(rng);
         // 计算装甲板朝向角
         armors[i].yaw = normalizeAngle(armor_angle + dist_angle(rng));
     }
@@ -161,7 +158,7 @@ Armors generateSimulatedArmors() {
     // 按距离观察点的距离排序（从近到远）
     std::sort(armors.begin(), armors.end(), 
         [](const Armor& a, const Armor& b) {
-            return getDistance(a.abs_pose) < getDistance(b.abs_pose);
+            return a.abs_pose.norm() < b.abs_pose.norm();
         });
     
     // 只保留距离最近的1个装甲板
@@ -170,11 +167,11 @@ Armors generateSimulatedArmors() {
     // 在仿真图上绘制装甲板
     for (const auto& armor : armors) {
         cv::circle(background, 
-                  base_point + cv::Point2f(armor.abs_pose.x, armor.abs_pose.y) * scaling, 
+                  base_point + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scaling, 
                   3, cv::Scalar(255, 0, 0), -1, 8);
         cv::line(background,
-                base_point + cv::Point2f(armor.abs_pose.x, armor.abs_pose.y) * scaling,
-                base_point + cv::Point2f(armor.abs_pose.x, armor.abs_pose.y) * scaling + 
+                base_point + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scaling,
+                base_point + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scaling + 
                     cv::Point2f(10 * cos(armor.yaw), 10 * sin(armor.yaw)),
                 cv::Scalar(255, 0, 0), 2, 8);
     }
@@ -187,8 +184,6 @@ Armors generateSimulatedArmors() {
 }
 
 int Test() {
-    YAML::Node config = YAML::LoadFile(YamlPath);
-    double predict_time = config["AIM"]["predict_time"].as<double>();
     srand(time(nullptr));
     
     // 初始化随机数生成器
@@ -197,12 +192,9 @@ int Test() {
     // 初始化预测器和模型
     std::unique_ptr<Aim> aim_ptr;
     std::shared_ptr<KinematicModel> m_status;
-    
-    // 跟踪变量
-    int last_index = 0;
-    int frames_since_last_switch = 0;
     std::unique_ptr<MPC> mpc = std::make_unique<MPC>();
-    
+    io::SerialPort serial_("/dev/ttyACM0");
+    Data_Get dg;
     while (true) {
         // 清空背景
         background = cv::Mat(cv::Size(1024, 1024), CV_8UC3, cv::Scalar(255, 255, 255));
@@ -220,30 +212,19 @@ int Test() {
         m_status = aim_ptr->Resolve(armors, dt);
         // 获取当前状态估计
         Armors filter_armors = m_status->GetArmors(0);
-        double hit_time = cv::norm(Point3d(m_status->center.x,m_status->center.y,(m_status->height[0]+m_status->height[1])/2))/ (bullet_speed) + predict_time;
-        
-        // 获取预测装甲板
-        Armors predict_armors = m_status->GetArmors(hit_time);
-        Point3d point;
-        Armor target_armor = m_status->GetClosestArmor(hit_time, last_index, frames_since_last_switch);
-        point = C_C.abs2cam(target_armor.abs_pose);
-        double yaw = std::atan2(point.y, point.x);
-        
         // MPC轨迹规划
         auto target = mpc->TrajectoryPlanning(*m_status);
-        dg.Vision2Control((target.manage_yaw+ds.camera_yaw_angle)*1e4,target.target_pitch*1e4,target.yaw_vel*1e4,target.yaw_acc*1e4,1,0);
-
-        serial_.send_data(dg);
+        dg.Vision2Control((target.manage_yaw)*1e4,target.target_pitch*1e4,target.yaw_vel*1e4,target.yaw_acc*1e4,1,0);
+        serial_.SendData(dg);
         // 绘制状态估计和预测结果
-        for (int i = 0; i < filter_armors.size(); i++) {
+        for (size_t i = 0; i < filter_armors.size(); i++) {
             // 当前状态估计量（红色）
             cv::circle(background, 
-                    base_point + cv::Point2f(filter_armors[i].abs_pose.x, filter_armors[i].abs_pose.y) * scaling, 
+                    base_point + cv::Point2f(filter_armors[i].abs_pose.x(), filter_armors[i].abs_pose.y()) * scaling, 
                     3, cv::Scalar(0, 0, 255), -1, 8);
             
             // 计算无噪声的理想装甲板位置（绿色）
             float armor_r = r[i % 2];
-            float armor_z = z[i % 2];
             float armor_angle = angle + 0.5 * i * PI;
             
             cv::Point2f ideal_position(

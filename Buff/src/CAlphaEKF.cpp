@@ -1,101 +1,101 @@
-#include "CAlphaEKF.h"
-#include <cmath>
-#include "iostream"
-using namespace std;
-// ¹¹Ôìº¯ÊýÊµÏÖ - ÐÞÕý³õÊ¼»¯Ë³Ðò
-CAlphaEKF::CAlphaEKF(double angle) :
-    x_pri_(Eigen::Vector4d::Zero()),  // ÏÈ³õÊ¼»¯ÎªÁã
-    x_post_(Eigen::Vector4d::Zero()), // ÏÈ³õÊ¼»¯ÎªÁã
-    P_pri_(Eigen::Matrix4d::Identity() * 1e-5),
-    P_post_(Eigen::Matrix4d::Identity() * 1e-5),
-    I_(Eigen::Matrix4d::Identity()),
-    dt_(0.01),
-    R_(10)
-{
-    // ÔÚ¹¹Ôìº¯ÊýÌåÄÚ³õÊ¼»¯×´Ì¬ÏòÁ¿
-    x_pri_ << angle, 0, 0, 0;
-    x_post_ << angle, 0, 0, 0;
-}
+// #include "CAlphaEKF.h"
+// #include <cmath>
+// #include "iostream"
+// using namespace std;
+// // ï¿½ï¿½ï¿½ìº¯ï¿½ï¿½Êµï¿½ï¿½ - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½Ë³ï¿½ï¿½
+// CAlphaEKF::CAlphaEKF(double angle) :
+//     x_pri_(Eigen::Vector4d::Zero()),  // ï¿½È³ï¿½Ê¼ï¿½ï¿½Îªï¿½ï¿½
+//     x_post_(Eigen::Vector4d::Zero()), // ï¿½È³ï¿½Ê¼ï¿½ï¿½Îªï¿½ï¿½
+//     P_pri_(Eigen::Matrix4d::Identity() * 1e-5),
+//     P_post_(Eigen::Matrix4d::Identity() * 1e-5),
+//     I_(Eigen::Matrix4d::Identity()),
+//     dt_(0.01),
+//     R_(10)
+// {
+//     // ï¿½Ú¹ï¿½ï¿½ìº¯ï¿½ï¿½ï¿½ï¿½ï¿½Ú³ï¿½Ê¼ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½
+//     x_pri_ << angle, 0, 0, 0;
+//     x_post_ << angle, 0, 0, 0;
+// }
 
-// ½Ç¶È¹éÒ»»¯ÊµÏÖ (0, 2¦Ð)
-double CAlphaEKF::normalizeAngle(double angle) {
-    angle = fmod(angle, 2*M_PI);
-    if (angle > M_PI) angle -= 2*M_PI;
-    if (angle <= -M_PI) angle += 2*M_PI;
-    return angle;
-}
+// // ï¿½Ç¶È¹ï¿½Ò»ï¿½ï¿½Êµï¿½ï¿½ (0, 2ï¿½ï¿½)
+// double CAlphaEKF::normalizeAngle(double angle) {
+//     angle = fmod(angle, 2*M_PI);
+//     if (angle > M_PI) angle -= 2*M_PI;
+//     if (angle <= -M_PI) angle += 2*M_PI;
+//     return angle;
+// }
 
-// Ô¤²â²½ÖèÊµÏÖ - ÐÞÕý²ÎÊýÆ¥Åä
-void CAlphaEKF::predict(double dt) {
-    dt_ = dt;
-    F_ = computeJacobianF();
-    Q_ = computeProcessNoise();
+// // Ô¤ï¿½â²½ï¿½ï¿½Êµï¿½ï¿½ - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¥ï¿½ï¿½
+// void CAlphaEKF::predict(double dt) {
+//     dt_ = dt;
+//     F_ = computeJacobianF();
+//     Q_ = computeProcessNoise();
     
-    x_pri_ = F_ * x_post_;
-    P_pri_ = F_ * P_post_ * F_.transpose() + Q_;
+//     x_pri_ = F_ * x_post_;
+//     P_pri_ = F_ * P_post_ * F_.transpose() + Q_;
     
-    x_pri_[0] = normalizeAngle(x_pri_[0]);
-}
+//     x_pri_[0] = normalizeAngle(x_pri_[0]);
+// }
 
-double angleDifference(double a, double b) {
-    double diff = a - b;
-    // Normalize to [-¦Ð, ¦Ð)
-    diff = fmod(diff + M_PI, 2*M_PI);
-    if (diff < 0) diff += 2*M_PI;
-    diff -= M_PI;
-    return diff;
-}
+// double angleDifference(double a, double b) {
+//     double diff = a - b;
+//     // Normalize to [-ï¿½ï¿½, ï¿½ï¿½)
+//     diff = fmod(diff + M_PI, 2*M_PI);
+//     if (diff < 0) diff += 2*M_PI;
+//     diff -= M_PI;
+//     return diff;
+// }
 
-// ¸üÐÂ²½ÖèÊµÏÖ - ÐÞÕý¾ØÕóÔËËã
-Eigen::Vector4d CAlphaEKF::update(double measurement) {
-    H_ = computeJacobianH();  
-    double S = (H_ * P_pri_ * H_.transpose())(0,0) + R_;
+// // ï¿½ï¿½ï¿½Â²ï¿½ï¿½ï¿½Êµï¿½ï¿½ - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+// Eigen::Vector4d CAlphaEKF::update(double measurement) {
+//     H_ = computeJacobianH();  
+//     double S = (H_ * P_pri_ * H_.transpose())(0,0) + R_;
     
-    K_ = P_pri_ * H_.transpose() / S;
+//     K_ = P_pri_ * H_.transpose() / S;
     
-    // Use proper angle difference calculation
-    double residual = angleDifference(measurement, x_pri_[0]);
+//     // Use proper angle difference calculation
+//     double residual = angleDifference(measurement, x_pri_[0]);
     
-    x_post_ = x_pri_ + K_ * residual;
-    P_post_ = (I_ - K_ * H_) * P_pri_;
-    x_post_[0] = normalizeAngle(x_post_[0]);
-    return x_post_;
-}
+//     x_post_ = x_pri_ + K_ * residual;
+//     P_post_ = (I_ - K_ * H_) * P_pri_;
+//     x_post_[0] = normalizeAngle(x_post_[0]);
+//     return x_post_;
+// }
 
-// ¼ÆËã×´Ì¬×ªÒÆÑÅ¿É±È¾ØÕóÊµÏÖ
-Eigen::Matrix4d CAlphaEKF::computeJacobianF() {
-    Eigen::Matrix4d F;
-    F << 1,   dt_,    0.5*dt_*dt_,   (1.0/6.0)*dt_*dt_*dt_,
-         0,   1,      dt_,           0.5*dt_*dt_,
-         0,   0,      1,             dt_,
-         0,   0,      0,             1;
-    return F;
-}
+// // ï¿½ï¿½ï¿½ï¿½×´Ì¬×ªï¿½ï¿½ï¿½Å¿É±È¾ï¿½ï¿½ï¿½Êµï¿½ï¿½
+// Eigen::Matrix4d CAlphaEKF::computeJacobianF() {
+//     Eigen::Matrix4d F;
+//     F << 1,   dt_,    0.5*dt_*dt_,   (1.0/6.0)*dt_*dt_*dt_,
+//          0,   1,      dt_,           0.5*dt_*dt_,
+//          0,   0,      1,             dt_,
+//          0,   0,      0,             1;
+//     return F;
+// }
 
-// ¼ÆËã²âÁ¿ÑÅ¿É±È¾ØÕóÊµÏÖ
-Eigen::RowVector4d CAlphaEKF::computeJacobianH() {
-    return Eigen::RowVector4d(1, 0, 0, 0);
-}
+// // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å¿É±È¾ï¿½ï¿½ï¿½Êµï¿½ï¿½
+// Eigen::RowVector4d CAlphaEKF::computeJacobianH() {
+//     return Eigen::RowVector4d(1, 0, 0, 0);
+// }
 
-// ¼ÆËã¹ý³ÌÔëÉùÊµÏÖ
-Eigen::Matrix4d CAlphaEKF::computeProcessNoise() {
-    Eigen::Matrix4d Q;
-    double t4 = pow(dt_, 3) / 3;
-    double t3 = pow(dt_, 2) / 2;
-    double t2 = dt_;
-    double q = 100;
-    double q_angle = 0.1*q;
-    double q_vel = 1.0*q;
-    double q_acce = 10*q;
-    double q_alpha = 100*q;
+// // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½ï¿½
+// Eigen::Matrix4d CAlphaEKF::computeProcessNoise() {
+//     Eigen::Matrix4d Q;
+//     double t4 = pow(dt_, 3) / 3;
+//     double t3 = pow(dt_, 2) / 2;
+//     double t2 = dt_;
+//     double q = 100;
+//     double q_angle = 0.1*q;
+//     double q_vel = 1.0*q;
+//     double q_acce = 10*q;
+//     double q_alpha = 100*q;
     
-    Q << t4*q_angle, t3*q_angle, 0,        0,
-         t3*q_angle, t2*q_angle, 0,        0,
-         0,         0,          t4*q_vel, t3*q_vel,
-         0,         0,          t3*q_vel, t2*q_vel;
+//     Q << t4*q_angle, t3*q_angle, 0,        0,
+//          t3*q_angle, t2*q_angle, 0,        0,
+//          0,         0,          t4*q_vel, t3*q_vel,
+//          0,         0,          t3*q_vel, t2*q_vel;
     
-    Q(2,2) += t4*q_acce;
-    Q(3,3) += t2*q_alpha;
+//     Q(2,2) += t4*q_acce;
+//     Q(3,3) += t2*q_alpha;
     
-    return Q;
-}
+//     return Q;
+// }

@@ -1,41 +1,28 @@
-#include <opencv2/opencv.hpp>
 #include <unistd.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <linux/videodev2.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <string.h>
-#include <ThreadControl.h>
-#include "Camera.h"
-#include "Base.h"
 #include <systemd/sd-daemon.h>
 #include "test.h"
-using namespace std;
-using namespace cv;
+#include "AutoArmor.h"
+#include "hikrobot.hpp" 
+#include "exiter.hpp"
+#include "SerialPort.h"
 
 int main()
 {
-
-    YAML::Node config = YAML::LoadFile(YamlPath);
-    int is_test = config["test"].as<int>();
-    if(is_test){
-        Test();
-        // MPCTest();
-    }else{
-        // 开启相关线程
-        ThreadControl ImageControl;
-        // 图像生成线程
-        std::thread produce_task(&ThreadControl::ImageProduce, std::ref(ImageControl));
-        // 图像处理线程
-        std::thread process_task(&ThreadControl::ImageProcess, std::ref(ImageControl));
-        
-        std::thread stm32_task(&ThreadControl::GetSTM32,std::ref(ImageControl));
-
-        stm32_task.detach();
-        produce_task.join();
-        process_task.join();
+    tools::Exiter exiter;
+    std::unique_ptr<io::HikRobot> camera_ = std::make_unique<io::HikRobot>(1000, 0, "2bdf:0001");
+    std::unique_ptr<io::SerialPort> serial_ = std::make_unique<io::SerialPort>("/dev/ttyACM0");
+    std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>();
+    Mat img;time_point t;Data_Save ds;Data_Get dg;
+    while(!exiter.exit()){
+        camera_->Query(img,t);
+        serial_->Query(ds,t);
+        armor_->AutoAim(img,ds,dg);
+        serial_->SendData(dg);
+        // imshow("image",img);
+        // waitKey(1);
     }
-    
+ 
     return 0;
 }

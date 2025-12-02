@@ -12,12 +12,9 @@ static double areaRatio(const std::vector<cv::Point> &contour, const cv::Rotated
 }
 // 判断轮廓是否为一个灯条
 static bool IsValidLightBlob(const cv::RotatedRect &rect) {
-    return (1.5 < lw_rate(rect) && lw_rate(rect) < 40 && rect.size.area() > 20 && rect.size.area() < 1500);
+    return (1.5 < lw_rate(rect) && lw_rate(rect) < 40 && rect.size.area() < 6000 && rect.size.area() > 100);
 }
-// 判断两个灯条区域是同一个灯条
-static bool IsSameBlob(LightBlob blob1, LightBlob blob2) {
-    return cv::norm(blob1.rect.center-blob2.rect.center) < 4;
-}
+
 // 倾斜角度检查
 void SlopeValidation(LightBlobs &lightblobs)
 {
@@ -30,13 +27,6 @@ void SlopeValidation(LightBlobs &lightblobs)
             ++it;
         }
     }
-}
-
-// 开闭运算
-static void ImagePreProcessLight(cv::Mat &src) {
-
-    static cv::Mat kernel_dilate = getStructuringElement(cv::MORPH_RECT, cv::Size(3, 5));
-    cv::morphologyEx(src, src, cv::MORPH_CLOSE, kernel_dilate);
 }
 
 static void ImagePreProcessDim(cv::Mat &src) {
@@ -73,17 +63,16 @@ static int GetBlobColor(const cv::Mat &src, const cv::RotatedRect &blobPos) {
     return (sum_r > sum_b) ? BLOB_RED : BLOB_BLUE;
 }
 
-LightBlobs Tradition::FindLight(Mat &src) { 
+LightBlobs Tradition::FindLight(Mat &src, int enemy_color) { 
     LightBlobs light_blobs;
-    if(is_get_from_ds){
-        std::unique_lock<std::mutex> lock(ds_mutex);
-        enemy_color = ds.color;
+    if (is_get_from_ds_) {
+        enemy_color_ = enemy_color;
     }
 
     cv::Mat color_channel;
-    cv::Mat src_bin_light, src_bin_dim;
-    std::vector<cv::Mat> channels;       // 通道拆分
-    cv::split(src, channels); // 处理ROI子图像或原图
+    cv::Mat src_bin;  // 只需要一个二值图像
+    std::vector<cv::Mat> channels;
+    cv::split(src, channels);
 
     if (enemy_color == ENEMY_BLUE) {         
         color_channel = channels[0];        
@@ -91,82 +80,25 @@ LightBlobs Tradition::FindLight(Mat &src) {
         color_channel = channels[2];        
     }
 
-    cv::threshold(color_channel, src_bin_light, light_threshold, 255, THRESH_BINARY);
-    ImagePreProcessLight(src_bin_light);                                  
+    cv::threshold(color_channel, src_bin, dim_threshold_, 255, THRESH_BINARY);
+    ImagePreProcessDim(src_bin); 
+    // imshow("src_bin",src_bin);
+    std::vector<std::vector<cv::Point>> light_contours;
+    std::vector<cv::Vec4i> hierarchy;
 
-    cv::threshold(color_channel, src_bin_dim, dim_threshold, 255, THRESH_BINARY); 
-    ImagePreProcessDim(src_bin_dim);                                  
+    cv::findContours(src_bin, light_contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
     
-    // imshow("light",src_bin_light);
-    // imshow("dim",src_bin_dim);
-
-    std::vector<std::vector<cv::Point>> light_contours_light, light_contours_dim;
-    LightBlobs light_blobs_light, light_blobs_dim;
-    std::vector<cv::Vec4i> hierarchy_light, hierarchy_dim;
-
-    cv::findContours(src_bin_light, light_contours_light, hierarchy_light, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
-    cv::findContours(src_bin_dim, light_contours_dim, hierarchy_dim, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
-    
-    // 处理light_contours_light中的轮廓
-    for (size_t i = 0; i < light_contours_light.size(); i++) {
-        if (hierarchy_light[i][2] == -1) {
-            cv::RotatedRect rect = cv::minAreaRect(light_contours_light[i]);
+    for (size_t i = 0; i < light_contours.size(); i++) {
+        if (hierarchy[i][2] == -1) {
+            cv::RotatedRect rect = cv::minAreaRect(light_contours[i]);
             if (IsValidLightBlob(rect)) {
-                light_blobs_light.emplace_back(
-                    rect, areaRatio(light_contours_light[i], rect), GetBlobColor(src, rect)
+                light_blobs.emplace_back(
+                    rect, areaRatio(light_contours[i], rect), GetBlobColor(src, rect)
                 );
             }
         }
     }
 
-    // 处理light_contours_dim中的轮廓
-    for (size_t i = 0; i < light_contours_dim.size(); i++) {
-        if (hierarchy_dim[i][2] == -1) {
-            cv::RotatedRect rect = cv::minAreaRect(light_contours_dim[i]);
-            if (IsValidLightBlob(rect)) {
-                light_blobs_dim.emplace_back(
-                    rect, areaRatio(light_contours_dim[i], rect), GetBlobColor(src, rect)
-                );
-            }
-        }
-    }
-
-    std::vector<int> light_to_merge, dim_to_merge;
-    for (size_t l = 0; l != light_blobs_light.size(); l++) {
-        for (size_t d = 0; d != light_blobs_dim.size(); d++) {
-            if (IsSameBlob(light_blobs_light[l], light_blobs_dim[d])) {
-                bool keep_light = false;
-                keep_light = light_blobs_light[l].area_ratio >= light_blobs_dim[d].area_ratio;
-                if (keep_light) {
-                    light_to_merge.emplace_back(l);
-                } else {
-                    dim_to_merge.emplace_back(d);
-                }
-            }
-        }
-    }
-
-    // 标记需要合并的元素
-    std::vector<bool> light_blobs_light_to_merge(light_blobs_light.size(), false);
-    std::vector<bool> light_blobs_dim_to_merge(light_blobs_dim.size(), false);
-    for (auto x : light_to_merge) {
-        light_blobs_light_to_merge[x] = true;
-    }
-    for (auto x : dim_to_merge) {
-        light_blobs_dim_to_merge[x] = true;
-    }
-
-    // 合并结果
-    for (size_t l = 0; l < light_blobs_light.size(); l++) {
-        if (light_blobs_light_to_merge[l]) {
-            light_blobs.emplace_back(light_blobs_light[l]);
-        }
-    }
-    for (size_t d = 0; d < light_blobs_dim.size(); d++) {
-        if (light_blobs_dim_to_merge[d]) {
-            light_blobs.emplace_back(light_blobs_dim[d]);
-        }
-    }
     SlopeValidation(light_blobs);
     return light_blobs;
 }

@@ -1,41 +1,41 @@
-#include <queue>
-#include <cstdint>
-#include <Eigen/Dense>
-class BigNewtonGauss {
-public:
-    BigNewtonGauss();
-    ~BigNewtonGauss() = default;
+// #include <queue>
+// #include <cstdint>
+// #include <Eigen/Dense>
+// class BigNewtonGauss {
+// public:
+//     BigNewtonGauss();
+//     ~BigNewtonGauss() = default;
 
-    void reset(); // Ä£Ê½ÇÐ»»µÄÊ±ºòÐèÒªÖØÖÃ
+//     void reset(); // Ä£Ê½ï¿½Ð»ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½
 
-    // ·µ»ØÊÇ·ñÄÜÔ¤²â
-    int fit(double angle,double speed,uint64_t timestamp);
-    // µ½ timestamp Ê±´ó·ç³µµÄ½Ç¶È
-    double getAngle(uint64_t timestamp);
+//     // ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½Ô¤ï¿½ï¿½
+//     int fit(double angle,double speed,time_point timestamp);
+//     // ï¿½ï¿½ timestamp Ê±ï¿½ï¿½ç³µï¿½Ä½Ç¶ï¿½
+//     double getAngle(time_point timestamp);
 
-private:
-    std::deque<uint64_t> fit_timestamps;
-    std::deque<double> fit_speeds;
+// private:
+//     std::deque<time_point> fit_timestamps;
+//     std::deque<double> fit_speeds;
 
-    int min_fit_samples = 10; // ×î¿ì¿ÉÒÔ¿ªÊ¼ÄâºÏµÄÖ¡Êý
-    int max_fit_samples = 100; // ÄâºÏËùÐèµÄ×î¸ßÖ¡Êý
+//     int min_fit_samples = 10; // ï¿½ï¿½ï¿½ï¿½ï¿½Ô¿ï¿½Ê¼ï¿½ï¿½Ïµï¿½Ö¡ï¿½ï¿½
+//     int max_fit_samples = 100; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¡ï¿½ï¿½
 
-    double a = 0.8;
-    double omega = 1.9;
-    double phase = 0; // ÏàÎ»
-    double b = 1.0;
+//     double a = 0.8;
+//     double omega = 1.9;
+//     double phase = 0; // ï¿½ï¿½Î»
+//     double b = 1.0;
 
-    int initialized = 0;
-    double direction = 0.0; // 1.0 or -1.0;
+//     int initialized = 0;
+//     double direction = 0.0; // 1.0 or -1.0;
 
-    uint64_t last_time = 0;
-    double last_angle = 0;
+//     time_point last_time = 0;
+//     double last_angle = 0;
 
-    double a_init;      // aµÄ³õÊ¼Öµ
-    double omega_init;  // omegaµÄ³õÊ¼Öµ
-    double phase_init;  // phaseµÄ³õÊ¼Öµ
-    double b_init;      // bµÄ³õÊ¼Öµ
-    double lambda;      // ³Í·£È¨ÖØ
-    double lambda_a;
-};
+//     double a_init;      // aï¿½Ä³ï¿½Ê¼Öµ
+//     double omega_init;  // omegaï¿½Ä³ï¿½Ê¼Öµ
+//     double phase_init;  // phaseï¿½Ä³ï¿½Ê¼Öµ
+//     double b_init;      // bï¿½Ä³ï¿½Ê¼Öµ
+//     double lambda;      // ï¿½Í·ï¿½È¨ï¿½ï¿½
+//     double lambda_a;
+// };
 

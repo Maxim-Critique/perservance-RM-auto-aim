@@ -164,7 +164,7 @@ Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
         for (size_t j = i + 1; j < light_blobs.size(); ++j)
         {
             const auto& blob_j = light_blobs[j];
-            if (!IsCoupleLight(blob_i, blob_j, enemy_color))
+            if (!IsCoupleLight(blob_i, blob_j, enemy_color_))
             {
                 continue;
             }
@@ -175,7 +175,7 @@ Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
             }
             Judge_Type(blob_i, blob_j, type);            
             std::vector<cv::Point2f> points = GetPoints(blob_i,blob_j,src);
-            armors.emplace_back(points, enemy_color, type);
+            armors.emplace_back(points,type);
 
         }
     }
@@ -187,10 +187,10 @@ Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
 Tradition::Tradition(){
     try {
         YAML::Node config = YAML::LoadFile(YamlPath);
-        enemy_color = config["Find"]["enemy_color"].as<int>();
-        is_get_from_ds = config["Find"]["is_get_from_ds"].as<bool>();
-        light_threshold = config["Tradition"]["light_threshold"].as<int>();
-        dim_threshold = config["Tradition"]["dim_threshold"].as<int>();
+        enemy_color_ = config["Find"]["enemy_color"].as<int>();
+        is_get_from_ds_ = config["Find"]["is_get_from_ds"].as<bool>();
+        light_threshold_ = config["Tradition"]["light_threshold"].as<int>();
+        dim_threshold_ = config["Tradition"]["dim_threshold"].as<int>();
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("YAML Error: " + std::string(e.what()) + "Tradition");
     }

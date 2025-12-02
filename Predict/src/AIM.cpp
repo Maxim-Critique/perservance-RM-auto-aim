@@ -1,78 +1,16 @@
 #include "AIM.h"
 
 Aim::Aim(Armor armor){
-    try {
-        YAML::Node config = YAML::LoadFile(YamlPath);
-        predict_time = config["AIM"]["predict_time"].as<double>();
-        show = config["CAMERA"]["show"].as<int>();
-    } catch (const YAML::Exception& e) {
-        throw std::runtime_error("YAML Error: " + std::string(e.what()) + "Aim");
-    }
+    aim_id = armor.number;
     target_state = Eigen::VectorXd::Zero(10);
-    translation_state = Eigen::VectorXd::Zero(7);
     InitEKF(armor);
     m_model_observer = std::make_shared<ExtendedKalmanFilter>(target_state);
-    m_model_translation = std::make_shared<CAEKF>(translation_state);
-    mpc = std::make_unique<MPC>();
-    ca_yaw = armor.yaw;
-    control_model = 1;
-    ca_try_times = 0;
 }
 
-Gimbal_Angle Aim::Shoot(const Armors &armors, Mat &img, double &time){
-    
-    m_status = std::make_shared<StandardModel>(target_state);         
-    // 反小陀螺模型
+std::shared_ptr<KinematicModel> Aim::Estimate(const Armors &armors, double &time){
+    m_status = std::make_shared<StandardModel>(target_state);
     m_status = Resolve(armors, time);
-    ChooseFireModel();
-    double hit_time = cv::norm(Point3d(m_status->center.x, m_status->center.y, (m_status->height[0] + m_status->height[1]) / 2)) / (bullet_speed) + predict_time;
-    Armor armor;
-    switch (control_model) {
-        case 1:  // 低速模式
-            // 平移模型
-            SloveCA(armors, time);
-            armor.abs_pose = m_model_translation->GetArmor(hit_time);
-            break;
-            
-        case 2:  // 不锁中心模式
-            armor = m_status->GetClosestArmor(hit_time, this->last_index, this->frames_since_last_switch);
-            break;
-            
-        case 3:  // 锁中心模式
-            armor = m_status->GetFacingArmor(hit_time, this->last_index, 
-                                            this->frames_since_last_switch, this->predict_point);
-            break;
-            
-        default:
-            cout << "瞄准模式选择ERROR" << endl;
-            break;
-    }
-    armor.cam_pose = C_C.abs2cam(armor.abs_pose);
-    // 简单方法
-    // Gimbal_Angle gimbal_angle = C_C.GetAngle(armor.cam_pose);
-    // MPC方法
-    Gimbal_Angle gimbal_angle = mpc->TrajectoryPlanning(*m_status);
-    return gimbal_angle;
-} 
-
-void Aim::SloveCA(const Armors armors, double time){
-    Armor ca_armor;
-    for(auto armor : armors){
-        if(abs(armor.yaw - ca_yaw) < D2R(30)){
-            ca_yaw = armor.yaw;
-            ca_armor = armor;
-        }
-    } 
-    if(ca_armor.points.empty()){
-        ca_try_times++;
-    } else {
-        m_model_translation->predict(time);
-        m_model_translation->update(ca_armor.abs_pose);
-    }
-    if(ca_try_times > 5){
-        InitEKF(armors[0]);
-        m_model_translation = std::make_shared<CAEKF>(translation_state);
-    }
+    return m_status;
 }
 
 double Aim::Homogeneity(double new_value) {
@@ -85,18 +23,11 @@ double Aim::Homogeneity(double new_value) {
     return sum / buffer.size();
 }
 
-void Aim::DraftingSoftware(Mat &img) {
-    // 实现三维重投影绘制
-    // TODO: 根据实际需求实现
-}
-int PAJDS = 0;
 std::shared_ptr<KinematicModel> Aim::Resolve(const Armors &armors, double time)
 {   
     if(m_model_observer->is_lost){
-        cout<<"   触发nis重置   "<<" 次数 "<<PAJDS<<endl;
         InitEKF(armors[0]);
         m_model_observer = std::make_shared<ExtendedKalmanFilter>(target_state);
-        PAJDS++;
     }
     target_state = m_model_observer->predict(time);
     std::shared_ptr<KinematicModel> prior_status = std::make_shared<StandardModel>(target_state);
@@ -108,59 +39,23 @@ std::shared_ptr<KinematicModel> Aim::Resolve(const Armors &armors, double time)
     }
     target_state = m_model_observer->update(armors, match);
     Eigen::VectorXd after_change = target_state;  
-    after_change[9] = Homogeneity(after_change[9]);
+    // after_change[9] = Homogeneity(after_change[9]);
     std::shared_ptr<KinematicModel> posterior_status = std::make_shared<StandardModel>(after_change);
     return posterior_status;
 }
 
 void Aim::InitEKF(Armor armor){
     // 初始半径设置为0.25
-    target_state << armor.abs_pose.x - 0.25 * cos(armor.yaw),   // xc
+    target_state << armor.abs_pose.x() - 0.25 * cos(armor.yaw),   // xc
                    0,                                           // vx
-                   armor.abs_pose.y - 0.25 * sin(armor.yaw),    // yc
+                   armor.abs_pose.y() - 0.25 * sin(armor.yaw),    // yc
                    0,                                           // vy
-                   armor.abs_pose.z,                            // z1
-                   armor.abs_pose.z,                            // z2        
+                   armor.abs_pose.z(),                            // z1
+                   armor.abs_pose.z(),                            // z2        
                    0.25,                                        // r1
                    0.25,                                        // r2
                    armor.yaw,                                   // yaw
                    0;                                           // vyaw
-    translation_state << armor.abs_pose.x,
-                         0,
-                         0,
-                         armor.abs_pose.y,
-                         0,
-                         0,
-                         armor.abs_pose.z;
-}
-
-void Aim::ChooseFireModel() {
-    double palstance = abs(m_status->palstance);
-    switch (control_model) {
-        case 1:  // 低速模式 → 切换到不锁中心模式的条件
-            if (palstance > PI / 3) {
-                control_model = 2;
-            }
-            break;
-            
-        case 2:  // 不锁中心模式 → 切换条件
-            if (palstance < PI / 6) {
-                control_model = 1;  // 切回低速模式
-            } else if (palstance > 2.5 * PI) {
-                control_model = 3;  // 切换到锁中心模式
-            }
-            break;
-            
-        case 3:  // 锁中心模式 → 切回不锁中心模式的条件
-            if (palstance < 1.5 * PI) {
-                control_model = 2;
-            }
-            break;
-            
-        default:
-            // 可选：添加错误处理或日志记录
-            break;
-    }
 }
 
 Eigen::MatrixXd Aim::GetScoreMat(const Armors &detect_armors, const Armors &standard_armors)
@@ -177,9 +72,9 @@ Eigen::MatrixXd Aim::GetScoreMat(const Armors &detect_armors, const Armors &stan
             const auto &detect = detect_armors[i].abs_pose;
             const auto &standard = standard_armors[j].abs_pose;
             // xy平面距离
-            negative_score(i * n + j, 0) = std::hypot(detect.x - standard.x, detect.y - standard.y);
+            negative_score(i * n + j, 0) = std::hypot(detect.x() - standard.x(), detect.y() - standard.y());
             // z轴距离
-            negative_score(i * n + j, 1) = std::abs(detect.z - standard.z);
+            negative_score(i * n + j, 1) = std::abs(detect.z() - standard.z());
             // 角度差
             negative_score(i * n + j, 2) = std::abs(_std_radian(detect_armors[i].yaw - standard_armors[j].predict_yaw));
         }

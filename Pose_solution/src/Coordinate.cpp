@@ -23,21 +23,15 @@ Coordinate_converter::Coordinate_converter(){
 
 
 // 将装甲板坐标从相对坐标转化为绝对坐标
-cv::Point3d Coordinate_converter::cam2abs(cv::Point3d position)
+Eigen::Vector3d Coordinate_converter::cam2abs(Eigen::Vector3d position)
 {
-    Vector3d target(position.x, position.y, position.z);
-    std::unique_lock<std::mutex> lock(ds_mutex); 
-    Vector3d abs_target = this->tf_mat * target + camera_gimbal;
-    return cv::Point3d(abs_target(0), abs_target(1), abs_target(2));
+    return this->tf_mat * position + camera_gimbal;
 }
 
 // 将装甲板坐标从绝对坐标转化为相对坐标
-cv::Point3d Coordinate_converter::abs2cam(cv::Point3d position)
+Eigen::Vector3d Coordinate_converter::abs2cam(Eigen::Vector3d position)
 {
-    Vector3d target(position.x, position.y, position.z);
-    std::unique_lock<std::mutex> lock(ds_mutex); 
-    Vector3d cam_target = this->tf_mat.inverse() * target - camera_gimbal;
-    return cv::Point3d(cam_target(0), cam_target(1), cam_target(2));
+    return this->tf_mat.inverse() * position - camera_gimbal;
 }
  
 // 更新此刻的云台位资
@@ -53,18 +47,18 @@ void Coordinate_converter::GetTFMat(const double &x, const double &y, const doub
                         -siny,                      cosy*sinx,                                  cosx*cosy;
 }
 
-Eigen::Vector3d Coordinate_converter::xyz2ypd(const Point3d & xyz)
+Eigen::Vector3d Coordinate_converter::xyz2ypd(const Eigen::Vector3d& xyz)
 {
-  auto x = xyz.x, y = xyz.y, z = xyz.z;
+  auto x = xyz.x(), y = xyz.y(), z = xyz.z();
   auto yaw = std::atan2(y, x);
   auto pitch = std::atan2(z, std::sqrt(x * x + y * y));
   auto distance = std::sqrt(x * x + y * y + z * z);
   return {yaw, pitch, distance};
 }
 
-Eigen::Matrix4d Coordinate_converter::xyz2ypd_jacobian(const Point3d & xyz)
+Eigen::Matrix4d Coordinate_converter::xyz2ypd_jacobian(const Eigen::Vector3d& xyz)
 {
-  auto x = xyz.x, y = xyz.y, z = xyz.z;
+  auto x = xyz.x(), y = xyz.y(), z = xyz.z();
 
   auto dyaw_dx = -y / (x * x + y * y);
   auto dyaw_dy = x / (x * x + y * y);
@@ -90,60 +84,22 @@ Eigen::Matrix4d Coordinate_converter::xyz2ypd_jacobian(const Point3d & xyz)
   return J;
 }
 
-Matrix3d GetRotMatX(double x)
-{
-    Matrix3d MatX;
-    MatX << 1,      0,       0, 
-            0, cos(x), -sin(x), 
-            0, sin(x),  cos(x);
-           
-    return MatX;
-}
-
-Matrix3d GetRotMatY(double y)
-{
-    Matrix3d MatY;
-    MatY << cos(y), 0, sin(y),
-                 0, 1,      0,
-           -sin(y), 0, cos(y);
-        
-    return MatY;
-}
-
-Matrix3d GetRotMatZ(double z)
-{
-    Matrix3d MatZ;
-    MatZ << cos(z), -sin(z), 0, 
-            sin(z),  cos(z), 0, 
-                0,       0,  1;
- 
-    return MatZ;
-}
-
-Matrix3d GetRotMatXYZ(double x, double y, double z)
-{
-    return GetRotMatZ(z) * GetRotMatY(y) * GetRotMatX(x);
-}
-
-cv::Point3f Coordinate_converter::changeCoor(cv::Point3f point)
+cv::Point3f Coordinate_converter::changeCoor(Eigen::Vector3d point)
 {
     Vector3d trans_mat;
     trans_mat<< 0, 0, 0.03;
-    Vector3d target(point.x, point.y, point.z);
-    Vector3d target_in_base = trans_mat + target;
+    Vector3d target_in_base = trans_mat + point;
     return cv::Point3f(target_in_base(0), target_in_base(1), target_in_base(2));
 }
 
-Gimbal_Angle Coordinate_converter::GetAngle(cv::Point3f position)
+Gimbal_Angle Coordinate_converter::GetAngle(Eigen::Vector3d position)
 {
     Gimbal_Angle solve_angle;
     cv::Point3f gun_base = changeCoor(position);
     double pitch_in_camera = std::atan2(gun_base.z, std::sqrt(gun_base.x * gun_base.x + gun_base.y * gun_base.y));
     double yaw_in_camera = std::atan2(gun_base.y, gun_base.x);
-    std::unique_lock<std::mutex> lock(ds_mutex);  
-    solve_angle.target_pitch = pitch_in_camera + ds.camera_pit_angle;
-    solve_angle.target_yaw = yaw_in_camera + ds.camera_yaw_angle;
-    lock.unlock();
+    solve_angle.target_pitch = pitch_in_camera;
+    solve_angle.target_yaw = yaw_in_camera;
     double dis = std::sqrt(gun_base.x * gun_base.x + gun_base.z * gun_base.z);
     double angle_fix = 0;
     if (std::abs(9.8 * dis * std::pow(std::cos(solve_angle.target_pitch), 2)) / std::pow(bullet_speed, 2) - std::sin(solve_angle.target_pitch) <= 1)
@@ -155,11 +111,6 @@ Gimbal_Angle Coordinate_converter::GetAngle(cv::Point3f position)
         std::cout << "[AngleSolver] Wrong distance in angle_fix" << std::endl;
     }
     return solve_angle;
-}
-
-double GetDistance(cv::Point3d p)
-{
-    return std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
 }
 
 double GetDistance(cv::Point2d p, cv::Point2d q) {

@@ -26,7 +26,7 @@ public:
     // 初始化
     Aim(Armor armor);
     // 主接口
-    Gimbal_Angle Shoot(const Armors &armors, Mat &img, double &time);
+    std::shared_ptr<KinematicModel> Estimate(const Armors &armors, double &time);
     // EKF的主要部分
     std::shared_ptr<KinematicModel> Resolve(const Armors &armors, double time);
     // 匹配装甲板
@@ -35,30 +35,15 @@ public:
     void InitEKF(Armor armor);
     // 计算得分，匹配装甲板
     Eigen::MatrixXd GetScoreMat(const Armors &detect_armors, const Armors &standard_armors);
-    // 绘制三维重投影
-    void DraftingSoftware(Mat &img);
     // 均值滤波，过滤角速度
     double Homogeneity(double new_value);
-    // 选择瞄准模式
-    void ChooseFireModel();
-    // CA的主要部分 
-    void SloveCA(const Armors armors, double time);
     
     ///////////////////////////          变量               ////////////////////////////////////////////
     double m_score_tolerance;                                    // 装甲板匹配得分最大值
     std::shared_ptr<KinematicModel> m_status;                    // 当前状态。为了保留最佳目标装甲板，必须声明为类成员变量以保留其索引值
     std::shared_ptr<ExtendedKalmanFilter> m_model_observer;      // 状态观测器
-    std::shared_ptr<CAEKF> m_model_translation;                  // 平移观测器
-    std::unique_ptr<MPC> mpc;                                    // MPC规划器
     Eigen::VectorXd target_state;                                // EKF状态量
-    Eigen::VectorXd translation_state;                           // 平移状态量
-    double ca_yaw;                                               // 平移模型中朝向角
-    int ca_try_times;                                            // ca模型的换板
-    Point2d ui;
-    double predict_time;                                         // 预测时长
-    Point3d predict_point;                                       // 预测点俯视图
-    bool show;
-    int control_model;
+    string aim_id;                                               // 瞄准对象
     std::deque<double> buffer;
     double sum = 0;
     const size_t window_size = 40;
