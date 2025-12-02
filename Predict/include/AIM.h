@@ -11,11 +11,9 @@
 #include "find_armor.h"
 #include "EKF.h"
 #include "MPC.h"
-#include "Coordinate.h"
+
 #include "SerialPort.h"
 #include "Angle_Calculate.h"
-#include "CA.h"
-
 using namespace cv;
 using namespace std;
 

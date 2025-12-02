@@ -1,7 +1,7 @@
 #include <opencv2/highgui.hpp>
 #include <eigen3/Eigen/Dense>
 #include "find_armor.h"
-#include "Coordinate.h"
+
 #include <fstream>      // 文件流操作
 #include <sys/stat.h>   // 文件状态
 #include <unistd.h>     // 系统调用（getcwd）
@@ -12,7 +12,7 @@ static bool AngleJudge(const LightBlob &light_blob_i, const LightBlob &light_blo
 {
     cv::Point2f direction = light_blob_i.center - light_blob_j.center;
     float angle = std::atan2(std::abs(direction.y), std::abs(direction.x));
-    return angle<D2R(45);
+    return angle<tools::D2R(45);
 }
 // 判断装甲板的长宽比
 static bool LengthWidthJudge(const LightBlob &light_blob_i, const LightBlob &light_blob_j)
@@ -182,15 +182,12 @@ Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
     return armors;
 }
 
-
-
 Tradition::Tradition(){
     try {
         YAML::Node config = YAML::LoadFile(YamlPath);
         enemy_color_ = config["Find"]["enemy_color"].as<int>();
         is_get_from_ds_ = config["Find"]["is_get_from_ds"].as<bool>();
-        light_threshold_ = config["Tradition"]["light_threshold"].as<int>();
-        dim_threshold_ = config["Tradition"]["dim_threshold"].as<int>();
+        threshold_ = config["Tradition"]["threshold"].as<int>();
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("YAML Error: " + std::string(e.what()) + "Tradition");
     }

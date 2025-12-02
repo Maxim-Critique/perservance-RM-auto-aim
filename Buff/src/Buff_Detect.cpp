@@ -369,7 +369,7 @@
 
 // Buff_Discover::Buff_Discover(){
     
-//     // show = config["CAMERA"]["show"].as<int>();
+//     // show = config["Camera"]["show"].as<int>();
 //     show = 1;
 // }
 

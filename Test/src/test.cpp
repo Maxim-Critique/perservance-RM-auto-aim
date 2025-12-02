@@ -150,7 +150,7 @@ Armors generateSimulatedArmors() {
             center.y + armor_r * sin(armor_angle) + dist_pos(rng),
             armor_z + dist_pos(rng)
         };
-        armors[i].abs_ypd = C_C.xyz2ypd(armors[i].abs_pose);
+        armors[i].abs_ypd = tools::xyz2ypd(armors[i].abs_pose);
         // 计算装甲板朝向角
         armors[i].yaw = normalizeAngle(armor_angle + dist_angle(rng));
     }

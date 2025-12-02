@@ -22,6 +22,7 @@ private:
     double time_interval;                             // 两次时间间隔
     std::unique_ptr<Aim> aim_ptr;                     // 整车观测的指针
     std::unique_ptr<MPC> planner_ptr;                 // 轨迹规划指针
+    std::unique_ptr<Slover> solve_ptr;                // 姿态解算指针
     time_point last_time;                             // 上一次时间
     double compensate_pitch,compensate_yaw;           // pitch,yaw的补偿角 
     std::unique_ptr<Tradition> find_ptr;              // 找灯条和装甲板的指针

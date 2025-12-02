@@ -1,5 +1,5 @@
 #include "find_armor.h"
-#include "Coordinate.h"
+
 // 旋转矩形的长宽比
 static double lw_rate(const cv::RotatedRect &rect) {
     return rect.size.height > rect.size.width ?
@@ -21,7 +21,7 @@ void SlopeValidation(LightBlobs &lightblobs)
     for (auto it = lightblobs.begin(); it != lightblobs.end(); ) {
         cv::Point2f direction = it->top - it->bottom;
         float tilt_angle = std::atan2(std::abs(direction.x), std::abs(direction.y));
-        if (tilt_angle > D2R(45)) {
+        if (tilt_angle > tools::D2R(45)) {
             it = lightblobs.erase(it); // 删除并获取下一个迭代器
         } else {
             ++it;
@@ -80,7 +80,7 @@ LightBlobs Tradition::FindLight(Mat &src, int enemy_color) {
         color_channel = channels[2];        
     }
 
-    cv::threshold(color_channel, src_bin, dim_threshold_, 255, THRESH_BINARY);
+    cv::threshold(color_channel, src_bin, threshold_, 255, THRESH_BINARY);
     ImagePreProcessDim(src_bin); 
     // imshow("src_bin",src_bin);
     std::vector<std::vector<cv::Point>> light_contours;

@@ -4,6 +4,7 @@ AutoArmor::AutoArmor(){
     readYAML(YamlPath);
     find_ptr = std::make_unique<Tradition>();
     planner_ptr = std::make_unique<MPC>();
+    solve_ptr = std::make_unique<Slover>();
     last_time = std::chrono::steady_clock::now()-std::chrono::seconds(4);
 }
 void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
@@ -16,7 +17,7 @@ void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     if(armors.empty())return;
     auto armors_ = ChooseProcess(armors,ds);
     if(armors_.empty())return;
-    // ShowArmors(armors_,img);
+    ShowArmors(armors_,img);
     UpdateTimeInterval(ds.timestamp);
     if(time_interval == 0)return;
     auto status = aim_ptr->Estimate(armors_, time_interval);
@@ -32,10 +33,10 @@ void AutoArmor::UpdateTimeInterval(time_point timestamp){
 }
 
 void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,Data_Get &dg){
-    int32_t yaw = (R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
-    int32_t pitch = (R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
-    bool yaw_delta = abs(R2D(gimbal_angle.target_yaw) + compensate_yaw ) < 1;
-    bool pitch_delta = abs(R2D(gimbal_angle.target_pitch)  + compensate_pitch ) < 1;
+    int32_t yaw = (tools::R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
+    int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw ) < 1;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch)  + compensate_pitch ) < 1;
     bool fire_delta = (yaw_delta && pitch_delta);
     dg.Vision2Control(yaw,pitch,gimbal_angle.yaw_vel*1e4,0,1,fire_delta);
 }
@@ -52,11 +53,11 @@ void SortArmors(Armors& armors) {
 Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
     Armors armors_;
     SortArmors(armors);
-    std::unique_ptr<PNP> pnp = std::make_unique<PNP>(ds);
+    solve_ptr->UpdateStatus(ds);
     if(ds.timestamp-last_time>std::chrono::seconds(2)){
         for(auto armor : armors){
-            pnp->Solve(armor);
-            if(armor.cam_pose.norm()<5){
+            solve_ptr->Solve(armor);
+            if(armor.gim_pose.norm()<5){
                 armors_.push_back(armor); 
                 aim_ptr = std::make_unique<Aim>(armor);
                 break;
@@ -67,11 +68,11 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
             if(armor.number == aim_ptr->aim_id){
                 if(armors_.size()){
                     if(abs(armors[0].center.x-armor.center.x>(armor.points[3].x-armor.points[0].x)/2)){
-                        pnp->Solve(armor);
+                        solve_ptr->Solve(armor);
                         armors_.push_back(armor);
                     }
                 }else{
-                    pnp->Solve(armor);
+                    solve_ptr->Solve(armor);
                     armors_.push_back(armor);
                 }
             }
@@ -80,7 +81,6 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
             }
         }
     }
-
     return armors_;
 }
 
@@ -101,7 +101,7 @@ YAML::Node AutoArmor::readYAML(const std::string& filename){
         YAML::Node config = YAML::LoadFile(filename);
         compensate_pitch = config["Transmit"]["compensate_pitch"].as<double>();
         compensate_yaw = config["Transmit"]["compensate_yaw"].as<double>();
-        show = config["CAMERA"]["show"].as<int>();
+        show = config["Camera"]["show"].as<int>();
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("YAML Error: " + std::string(e.what()) + "AutoArmor");
     }

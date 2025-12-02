@@ -69,7 +69,7 @@ Armor StandardModel::GetClosestArmor(double predict_time,int &last_index,int &fr
     //     double angle = _std_radian(armors[i].predict_yaw - PI - yaw);
     //     if (abs(angle) <= PI/4) 
     //     {
-    //         if(abs(angle) > D2R(30)){
+    //         if(abs(angle) > tools::D2R(30)){
     //             if(angle > 0 && (abs(palstance) / palstance) == 1){
     //                 if(i == 0){
     //                     index = 3;
@@ -134,7 +134,7 @@ Armor StandardModel::GetFacingArmor(double predict_time,int &last_index,int &fra
     //     double angle = _std_radian(armors[i].predict_yaw - PI - yaw);
     //     if (abs(angle) <= PI/4) 
     //     {
-    //         if(abs(angle) > D2R(30)){
+    //         if(abs(angle) > tools::D2R(30)){
     //             if(angle > 0 && (abs(palstance) / palstance) == 1){
     //                 if(i == 0){
     //                     index = 3;

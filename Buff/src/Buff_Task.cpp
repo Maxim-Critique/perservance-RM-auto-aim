@@ -1,7 +1,7 @@
 // #include "Buff_Task.h"
 // #include "Base.h"
 // #include <Eigen/Dense>
-// #include "Coordinate.h"
+// #include "math.hpp"
 // #include <thread>
 // #include <mutex>
 // #include <deque>
@@ -45,7 +45,7 @@
 //     //     YAML::Node config = YAML::LoadFile(YamlPath);
 //     //     compensate_pitch = config["Buff"]["pitch"].as<double>();
 //     //     compensate_yaw = config["Buff"]["yaw"].as<double>();
-//     //     show = config["CAMERA"]["show"].as<double>();
+//     //     show = config["Camera"]["show"].as<double>();
 //     // } catch (const YAML::Exception& e) {
 //     //     throw std::runtime_error("YAML Error: " + std::string(e.what()));
 //     // }
@@ -101,17 +101,17 @@
 //     //         // Eigen::Vector4d state = EKF->update(this->theta-PI);
 //     //         // state[0]+=PI;
             
-//     //         // // painting.KF_Curve(R2D(theta),R2D(state[0]));
+//     //         // // painting.KF_Curve(tools::R2D(theta),tools::R2D(state[0]));
 //     //         // painting.Speed_Curve(state[1]*50);
 //     //         // Gauss->fit(state[0],state[1],time);
 //     //         // double znacun = theta;
 //     //         // theta = Gauss->getAngle(time+0.5*1e8);
-//     //         // painting.KF_Curve(R2D(znacun),R2D(theta));
+//     //         // painting.KF_Curve(tools::R2D(znacun),tools::R2D(theta));
 //     //         // std::ofstream out("ekf_data.txt", std::ios::app);  // ׷��ģʽ
 //     //         // out << time*1e-8 << " "<<state[1]<<"\n";
-//     //         theta -= D2R(30);
+//     //         theta -= tools::D2R(30);
 //     //     }else{
-//     //         theta += D2R(30);
+//     //         theta += tools::D2R(30);
 //     //     }
 //     //     Point2d prediction = Point2d(0.65 * cos(theta),0.65 * sin(theta));
 //     //     Buff_discover->Rpose = last_center *0.9+Buff_discover->Rpose*0.1;
@@ -119,7 +119,7 @@
 
 //     //     Point3d predict_pose = Point3d(Buff_discover->Rpose.x+prediction.x*sin(phi),Buff_discover->Rpose.y+prediction.x*cos(phi),Buff_discover->Rpose.z+prediction.y);
 //     //     // Point3d predict_pose = Buff_discover->Rpose;
-//     //     predict_pose = C_C.abs2cam(predict_pose);
+//     //     predict_pose = tools::abs2cam(predict_pose);
 //     //     // Point2d zi = pnp_armor.ProjectTo2D(Point3d(-predict_pose.y,-predict_pose.z,predict_pose.x+error_x));
 //     //     // cv::circle(src, zi, 40, cv::Scalar(0, 0, 255), -1); 
 //     //     Transmit(predict_pose);
@@ -129,12 +129,12 @@
 // }
 
 // void Buff_Task::Transmit(Point3d Aim){
-//     Gimbal_Angle angle = C_C.GetAngle(Aim);
-//     int32_t yaw = (R2D(angle.target_yaw) + compensate_yaw) * 1e4;
-//     int32_t pitch = (R2D(angle.target_pitch) + compensate_pitch) * 1e4;
+//     Gimbal_Angle angle = tools::GetAngle(Aim);
+//     int32_t yaw = (tools::R2D(angle.target_yaw) + compensate_yaw) * 1e4;
+//     int32_t pitch = (tools::R2D(angle.target_pitch) + compensate_pitch) * 1e4;
 //     // Point2d zi = pnp_armor.ProjectTo2D(Point3d(-Aim.y,-Aim.z,Aim.x+error_x));
-//     bool yaw_delta = abs(R2D(angle.target_yaw) - R2D(ds.camera_yaw_angle)) < 20;
-//     bool pitch_delta = abs(R2D(angle.target_pitch)  + compensate_pitch - R2D(ds.camera_pitch_angle) -1) < 1.5;
+//     bool yaw_delta = abs(tools::R2D(angle.target_yaw) - tools::R2D(ds.camera_yaw_angle)) < 20;
+//     bool pitch_delta = abs(tools::R2D(angle.target_pitch)  + compensate_pitch - tools::R2D(ds.camera_pitch_angle) -1) < 1.5;
 //     if(yaw_delta)
 //     {
 //         dg.Vision2Control(yaw,pitch,0,0,3,0);

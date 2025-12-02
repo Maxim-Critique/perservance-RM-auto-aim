@@ -11,6 +11,7 @@
 #include <yaml-cpp/yaml.h>
 #include "SerialPort.h"
 #include <vector>
+#include "math.hpp"
 using namespace cv;
 using namespace std;
 
@@ -74,7 +75,7 @@ struct Armor
     vector<Point2f> points;
     vector<Point2f> re_points;
     ArmorType type;
-    Eigen::Vector3d cam_pose;
+    Eigen::Vector3d gim_pose;
     Eigen::Vector3d abs_pose;
     Eigen::Vector3d abs_ypd;
 };
@@ -118,8 +119,7 @@ public:
 private:
     bool is_get_from_ds_;                  // 是否使用电控颜色
     int enemy_color_;                      // 敌方颜色
-    int light_threshold_;                  // 二值化高阈值
-    int dim_threshold_;                    // 二值化低阈值
+    int threshold_;                        // 二值化阈值
 };
 
 #endif 

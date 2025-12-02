@@ -74,7 +74,6 @@ double MPC::GetGimbalYaw(KinematicModel& m_status,double time){
             min_distance = armor.abs_pose.norm();
         } 
     }
-    point = C_C.abs2cam(point);
     return std::atan2(point.y(), point.x());
 }
 
@@ -88,7 +87,6 @@ tools::Trajectory MPC::GetTrajectory(KinematicModel& m_status){
             min_distance = armor.abs_pose.norm();
         } 
     }
-    point = C_C.abs2cam(point);
     auto distance = sqrt(point.x()*point.x()+point.y()*point.y());
     return tools::Trajectory(bullet_speed,distance,point.z());
 }

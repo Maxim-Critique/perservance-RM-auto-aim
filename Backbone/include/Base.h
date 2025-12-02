@@ -34,5 +34,15 @@ struct Data_Get
     }
     void Vision2Control(int32_t x=0, int32_t y=0, int32_t ui_x=0, int32_t ui_y=0, uint8_t found=0, uint8_t fire=0);
 };
+
+struct Gimbal_Angle
+{
+    double target_yaw;        // 目标yaw 
+    double target_pitch;      // 目标pitch
+    double manage_yaw;        // 控制yaw
+    double yaw_vel;           // 控制yaw的速度
+    double yaw_acc;           // 控制yaw的加速度
+};
+
 static const std::string YamlPath = "/home/killer_machine/WRITE/text.yaml";
 #endif
