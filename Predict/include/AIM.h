@@ -24,30 +24,21 @@ public:
     // 初始化
     Aim(Armor armor);
     // 主接口
-    std::shared_ptr<KinematicModel> Estimate(const Armors &armors, double &time);
+    Eigen::VectorXd Estimate(const Armors &armors, double &time);
     // EKF的主要部分
-    std::shared_ptr<KinematicModel> Resolve(const Armors &armors, double time);
+    void Resolve(const Armors &armors, double time);
     // 匹配装甲板
     std::map<int, int> Match(const Eigen::MatrixXd &score);
     // 初始化状态量
     void InitEKF(Armor armor);
     // 计算得分，匹配装甲板
     Eigen::MatrixXd GetScoreMat(const Armors &detect_armors, const Armors &standard_armors);
-    // 均值滤波，过滤角速度
-    double Homogeneity(double new_value);
     
     ///////////////////////////          变量               ////////////////////////////////////////////
     double m_score_tolerance;                                    // 装甲板匹配得分最大值
-    std::shared_ptr<KinematicModel> m_status;                    // 当前状态。为了保留最佳目标装甲板，必须声明为类成员变量以保留其索引值
     std::shared_ptr<ExtendedKalmanFilter> m_model_observer;      // 状态观测器
     Eigen::VectorXd target_state;                                // EKF状态量
     string aim_id;                                               // 瞄准对象
-    std::deque<double> buffer;
-    double sum = 0;
-    const size_t window_size = 40;
-    int last_index = 0;
-    int frames_since_last_switch = 0;
-
 private:
     class Match {
     public:

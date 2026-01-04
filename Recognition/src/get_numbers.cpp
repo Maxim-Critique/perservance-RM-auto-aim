@@ -182,10 +182,6 @@ void NumberClassifier::classify(std::vector<Armor> &armors)
                     mismatch_armor_type = armor.number == "1" || armor.number == "base";
                 }
 #endif
-                // if (armor.number != "3") {
-                //         return true;
-                //     }
-
                 return mismatch_armor_type;
             }),
         armors.end());

@@ -149,8 +149,6 @@ void ExtendedKalmanFilter::loadConfig(const std::string& filename) {
         YAML::Node config = YAML::LoadFile(filename);
         dd = config["EKF"]["ProcessNoise"]["dd"].as<double>();
         da = config["EKF"]["ProcessNoise"]["da"].as<double>();
-        dz = config["EKF"]["ProcessNoise"]["dz"].as<double>();
-        dr = config["EKF"]["ProcessNoise"]["dr"].as<double>();
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("YAML Error: " + std::string(e.what()) + "EKF");
     }
@@ -162,16 +160,16 @@ Eigen::MatrixXd ExtendedKalmanFilter::computeProcessNoise() const {
     double t3 = pow(dt_, 3)/2;
     double t2 = pow(dt_, 2);
  
-    Q << t4*dd, t3*dd, 0,     0,     0,   0, 0,   0, 0,     0,
-         t3*dd, t2*dd, 0,     0,     0,   0, 0,   0, 0,     0,
-         0,     0,     t4*dd, t3*dd, 0,   0, 0,   0, 0,     0,
-         0,     0,     t3*dd, t2*dd, 0,   0, 0,   0, 0,     0,
-         0,     0,     0,     0,     dz,  0, 0,   0, 0,     0,
-         0,     0,     0,     0,     0,  dz, 0,   0, 0,     0,
-         0,     0,     0,     0,     0,   0, dr,  0, 0,     0,
-         0,     0,     0,     0,     0,   0, 0,  dr, 0,     0,
-         0,     0,     0,     0,     0,   0, 0,   0, t4*da, t3*da,
-         0,     0,     0,     0,     0,   0, 0,   0, t3*da, t2*da;
+    Q << t4*dd, t3*dd, 0,     0,     0, 0, 0, 0, 0,     0,
+         t3*dd, t2*dd, 0,     0,     0, 0, 0, 0, 0,     0,
+         0,     0,     t4*dd, t3*dd, 0, 0, 0, 0, 0,     0,
+         0,     0,     t3*dd, t2*dd, 0, 0, 0, 0, 0,     0,
+         0,     0,     0,     0,     0, 0, 0, 0, 0,     0,
+         0,     0,     0,     0,     0, 0, 0, 0, 0,     0,
+         0,     0,     0,     0,     0, 0, 0, 0, 0,     0,
+         0,     0,     0,     0,     0, 0, 0, 0, 0,     0,
+         0,     0,     0,     0,     0, 0, 0, 0, t4*da, t3*da,
+         0,     0,     0,     0,     0, 0, 0, 0, t3*da, t2*da;
 
     return Q;
 }

@@ -5,7 +5,8 @@
 #include "SerialPort.h"
 #include <algorithm> 
 #include "math.hpp"
-
+#ifndef PREDICT_H
+#define PREDICT_H
 
 /**
  * @brief 运动学状态
@@ -69,3 +70,4 @@ public:
     
     
 };
+#endif

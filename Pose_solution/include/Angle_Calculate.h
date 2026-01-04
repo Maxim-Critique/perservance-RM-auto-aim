@@ -31,9 +31,10 @@ private:
     Eigen::Vector3d t_camera2gimbal_;                                    // 相机系->云台系平移向量
     Eigen::Matrix3d R_gimbal2world_;                                     // 云台系->世界系旋转矩阵
     double sys_yaw;                                                      // 云台yaw角
+    cv::Mat rvec, tvec;                                                  // 旋转与平移向量  
     Eigen::Vector3d p_t_camera2gimbal_;                                  // PNP系下相机系->云台系平移向量
-    Eigen::Matrix3d p_R_armor2world_;                                  // PNP系下相机系->世界系旋转矩阵
-    Eigen::Vector3d p_t_armor2world_;                                  // PNP系下相机系->世界系旋转矩阵
+    Eigen::Matrix3d p_R_armor2world_;                                    // PNP系下相机系->世界系旋转矩阵
+    Eigen::Vector3d p_t_armor2world_;                                    // PNP系下相机系->世界系旋转矩阵
 
 };
 

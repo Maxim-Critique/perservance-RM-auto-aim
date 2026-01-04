@@ -13,7 +13,7 @@ MPC::MPC(){
     Eigen::MatrixXd B{{0}, {dt}};
     Eigen::VectorXd f{{0, 0}};
     Eigen::Matrix<double, 2, 1> Q(9e6,0);
-    Eigen::Matrix<double, 1, 1> R(5e-1);
+    Eigen::Matrix<double, 1, 1> R(10);
     tiny_setup(&yaw_solver, A, B, f, Q.asDiagonal(), R.asDiagonal(), 1.0, 2, 1, horizon, 0);
 
     Eigen::MatrixXd x_min = Eigen::MatrixXd::Constant(2, horizon, -1e17);
@@ -25,19 +25,20 @@ MPC::MPC(){
     tiny_set_bound_constraints(yaw_solver, x_min, x_max, u_min, u_max);
 }
 
-Gimbal_Angle MPC::TrajectoryPlanning(KinematicModel& m_status){
-
-    auto trajectory_ = GetTrajectory(m_status);
+Gimbal_Angle MPC::TrajectoryPlanning(Eigen::VectorXd states){
+    
+    m_status = std::make_shared<StandardModel>(states);
+    auto trajectory_ = GetTrajectory();
     auto hit_time = trajectory_.fly_time + predict_time;
     double counter =  -(half_horizon + 1);
-    double yaw_last = GetGimbalYaw(m_status,hit_time+dt*(counter));
+    double yaw_last = GetGimbalYaw(hit_time+dt*(counter));
     counter++;
-    double yaw_now = GetGimbalYaw(m_status,hit_time+dt*(counter));
-    double yaw0 = GetGimbalYaw(m_status,hit_time);
+    double yaw_now = GetGimbalYaw(hit_time+dt*(counter));
+    double yaw0 = GetGimbalYaw(hit_time);
     trajectory traj;
     for (int col = 0; counter < half_horizon; col++) {
         counter++;
-        double yaw_next = GetGimbalYaw(m_status, hit_time+dt * counter);
+        double yaw_next = GetGimbalYaw( hit_time+dt * counter);
         double yaw_vel = _std_radian(yaw_next - yaw_last) / (2 * dt);
         traj.col(col) << yaw_now-yaw0, yaw_vel;
         yaw_last = yaw_now;
@@ -58,14 +59,13 @@ Gimbal_Angle MPC::TrajectoryPlanning(KinematicModel& m_status){
     gimbal_angle.yaw_acc = target_acc;
     gimbal_angle.target_yaw = yaw0;
     gimbal_angle.target_pitch = trajectory_.pitch;
-    std::ofstream out("mpc_log.txt", std::ios::app); 
-    out << yaw0 << " " << target_yaw << "\n";
+    
     return gimbal_angle;
 
 }
 
-double MPC::GetGimbalYaw(KinematicModel& m_status,double time){
-    Armors armors = m_status.GetArmors(time);
+double MPC::GetGimbalYaw(double time){
+    Armors armors = m_status->GetArmors(time);
     double min_distance = 100;
     Eigen::Vector3d point;
     for(auto armor : armors){
@@ -77,8 +77,8 @@ double MPC::GetGimbalYaw(KinematicModel& m_status,double time){
     return std::atan2(point.y(), point.x());
 }
 
-tools::Trajectory MPC::GetTrajectory(KinematicModel& m_status){
-    Armors armors = m_status.GetArmors(0);
+tools::Trajectory MPC::GetTrajectory(){
+    Armors armors = m_status->GetArmors(0);
     double min_distance = 100;
     Eigen::Vector3d point;
     for(auto armor : armors){

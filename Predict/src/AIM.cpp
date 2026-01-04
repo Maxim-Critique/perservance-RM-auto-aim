@@ -7,23 +7,12 @@ Aim::Aim(Armor armor){
     m_model_observer = std::make_shared<ExtendedKalmanFilter>(target_state);
 }
 
-std::shared_ptr<KinematicModel> Aim::Estimate(const Armors &armors, double &time){
-    m_status = std::make_shared<StandardModel>(target_state);
-    m_status = Resolve(armors, time);
-    return m_status;
+Eigen::VectorXd Aim::Estimate(const Armors &armors, double &time){
+    Resolve(armors, time);
+    return target_state;
 }
 
-double Aim::Homogeneity(double new_value) {
-    if (buffer.size() >= window_size) {
-        sum -= buffer.front();
-        buffer.pop_front();
-    }
-    buffer.push_back(new_value);
-    sum += new_value;
-    return sum / buffer.size();
-}
-
-std::shared_ptr<KinematicModel> Aim::Resolve(const Armors &armors, double time)
+void Aim::Resolve(const Armors &armors, double time)
 {   
     if(m_model_observer->is_lost){
         InitEKF(armors[0]);
@@ -38,10 +27,6 @@ std::shared_ptr<KinematicModel> Aim::Resolve(const Armors &armors, double time)
         match.push_back(value);
     }
     target_state = m_model_observer->update(armors, match);
-    Eigen::VectorXd after_change = target_state;  
-    // after_change[9] = Homogeneity(after_change[9]);
-    std::shared_ptr<KinematicModel> posterior_status = std::make_shared<StandardModel>(after_change);
-    return posterior_status;
 }
 
 void Aim::InitEKF(Armor armor){

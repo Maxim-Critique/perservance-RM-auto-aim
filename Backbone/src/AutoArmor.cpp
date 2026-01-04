@@ -3,7 +3,7 @@
 AutoArmor::AutoArmor(){
     readYAML(YamlPath);
     find_ptr = std::make_unique<Tradition>();
-    planner_ptr = std::make_unique<MPC>();
+    planner_ptr = std::make_unique<Planner>();
     solve_ptr = std::make_unique<Slover>();
     last_time = std::chrono::steady_clock::now()-std::chrono::seconds(4);
 }
@@ -18,27 +18,19 @@ void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     auto armors_ = ChooseProcess(armors,ds);
     if(armors_.empty())return;
     ShowArmors(armors_,img);
-    UpdateTimeInterval(ds.timestamp);
-    if(time_interval == 0)return;
-    auto status = aim_ptr->Estimate(armors_, time_interval);
-    auto gimbal_angle = planner_ptr->TrajectoryPlanning(*status);
-    Transmit(gimbal_angle,dg);
+    auto target_state = aim_ptr->Estimate(armors_, time_interval);
+    auto gimbal_angle = planner_ptr->TrajectoryPlanning(target_state);
+    Transmit(gimbal_angle,ds,dg);
 }
 
-void AutoArmor::UpdateTimeInterval(time_point timestamp){
-    auto duration = timestamp - last_time;
-    time_interval = duration.count() / 1e9;
-    cout<<time_interval<<endl;
-    last_time = timestamp;
-}
-
-void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,Data_Get &dg){
+void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg){
     int32_t yaw = (tools::R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
-    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw ) < 1;
-    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch)  + compensate_pitch ) < 1;
+    int32_t yaw_val = tools::R2D(gimbal_angle.yaw_vel)*1e4;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 1;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 1;
     bool fire_delta = (yaw_delta && pitch_delta);
-    dg.Vision2Control(yaw,pitch,gimbal_angle.yaw_vel*1e4,0,1,fire_delta);
+    dg.Vision2Control(yaw,pitch,yaw_val,0,1,fire_delta);
 }
 
 // 处理倒影
@@ -51,13 +43,19 @@ void SortArmors(Armors& armors) {
 
 // 从多个装甲板中按照ID选择进整车观测的装甲板
 Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
+
     Armors armors_;
+    time_interval = (ds.timestamp-last_time).count() / 1e9;
+    last_time = ds.timestamp;
+    if(time_interval==0)return armors_;
+
     SortArmors(armors);
     solve_ptr->UpdateStatus(ds);
-    if(ds.timestamp-last_time>std::chrono::seconds(2)){
+
+    if(time_interval>2){
         for(auto armor : armors){
             solve_ptr->Solve(armor);
-            if(armor.gim_pose.norm()<5){
+            if(armor.gim_pose.norm()<6){
                 armors_.push_back(armor); 
                 aim_ptr = std::make_unique<Aim>(armor);
                 break;
@@ -66,13 +64,8 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
     }else{
         for(auto armor : armors){
             if(armor.number == aim_ptr->aim_id){
-                if(armors_.size()){
-                    if(abs(armors[0].center.x-armor.center.x>(armor.points[3].x-armor.points[0].x)/2)){
-                        solve_ptr->Solve(armor);
-                        armors_.push_back(armor);
-                    }
-                }else{
-                    solve_ptr->Solve(armor);
+                solve_ptr->Solve(armor);
+                if(armor.gim_pose.norm()<6){
                     armors_.push_back(armor);
                 }
             }
@@ -81,6 +74,7 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
             }
         }
     }
+        
     return armors_;
 }
 
@@ -122,5 +116,12 @@ void AutoArmor::ShowArmors(const Armors &armors,Mat &img){
                 }  
             }
         }
+        cv::putText(img, cv::format("X:%.2f Y:%.2f Z:%.2f,Yaw:%.1f", 
+            armor.abs_pose.x(), 
+            armor.abs_pose.y(), 
+            armor.abs_pose.z(),
+            tools::R2D(armor.yaw-armor.predict_yaw)),
+            armor.points[1], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
     }
+    
 }

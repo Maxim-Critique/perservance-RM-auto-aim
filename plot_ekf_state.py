@@ -4,8 +4,8 @@ import os
 import shutil
 
 # 文件路径配置
-file_path = "/home/zhbit/WRITE/build/ekf_data.txt"
-output_dir = "/home/zhbit/WRITE/build/plots"  # 图片输出目录
+file_path = "build/ekf_data.txt"
+output_dir = "build/plots"  # 图片输出目录
 
 # 清空plots目录
 if os.path.exists(output_dir):

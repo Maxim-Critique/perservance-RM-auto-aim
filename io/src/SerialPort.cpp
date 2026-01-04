@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <termios.h>
 #include "SerialPort.h"
+#include "math.hpp"
 #include <poll.h>
 
 namespace io
@@ -146,8 +147,8 @@ void SerialPort::Query(Data_Save &ds,const time_point &t){
     ds.camera_yaw_angle = (data_behind_.camera_yaw_angle+data_ahead_.camera_yaw_angle)/2;
     ds.camera_pitch_angle = (data_behind_.camera_pitch_angle+data_ahead_.camera_pitch_angle)/2;
     ds.camera_roll_angle = (data_behind_.camera_roll_angle+data_ahead_.camera_yaw_angle)/2;  
-    ds.camera_roll_angle = 0;  
-    
+    ds.camera_roll_angle = 0;
+
 }
 
 void SerialPort::SendData(const struct Data_Get &data)
@@ -190,4 +191,5 @@ void Data_Get::Vision2Control(int32_t x, int32_t y, int32_t ui_x, int32_t ui_y, 
     raw_data[17] = (ui_y >> 0) & 0xff;
     raw_data[18] = found;
     raw_data[19] = fire;
+    std::cout<<"x "<<x*1e-4<<"y "<<y*1e-4<<"vx "<<ui_x*1e-4<<"found "<<static_cast<int>(found)<<" fire "<<static_cast<int>(fire)<<std::endl;
 }

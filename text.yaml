@@ -12,19 +12,17 @@ Tradition:
   threshold: 180
 
 Planer:
-  predict_time: 0.06
-  max_yaw_acc: 50
+  predict_time: 0.08
+  max_yaw_acc: 20
 
 EKF:
   ProcessNoise:
     dd: 100
     da: 400
-    dz: 0
-    dr: 0
 
 Transmit:
-  compensate_pitch: 2
-  compensate_yaw: -1.2
+  compensate_pitch: 1.2
+  compensate_yaw: -0.9
 
 Buff:
   pitch: 9

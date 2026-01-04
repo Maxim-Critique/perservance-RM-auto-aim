@@ -59,7 +59,7 @@ void Slover::Solve(Armor &armor){
     }else{
         world_points = world_points_small;
     }
-    cv::Mat rvec, tvec;// 旋转与平移向量  
+    
     cv::solvePnP(world_points, armor.points, camera_matrix_, distort_coeffs_, rvec, tvec, false, cv::SOLVEPNP_IPPE);
     Eigen::Vector3d xyz_in_camera;
     cv::cv2eigen(tvec, xyz_in_camera);
@@ -70,7 +70,7 @@ void Slover::Solve(Armor &armor){
     p_t_armor2world_ = p_R_armor2world_ * xyz_in_camera + p_t_camera2gimbal_;
     double min_error = 1e10;
     double best_yaw = 0;
-    for(int i=-70;i<70;i+=2){
+    for(int i=-70;i<70;i+=1){
         double yaw = sys_yaw + tools::D2R(i);
         auto image_points = Reprojection(yaw);
         double error = 0.0;
@@ -82,7 +82,9 @@ void Slover::Solve(Armor &armor){
             best_yaw = yaw;
         }  
     }
-    armor.yaw = best_yaw;
+    
+    armor.yaw = best_yaw+PI;
+    armor.predict_yaw = sys_yaw+PI;
     armor.re_points = Reprojection(best_yaw);
 }
 
@@ -95,15 +97,12 @@ vector<Point2f> Slover::Reprojection(const double &yaw){
     _p_R_armor2world_ << cos_yaw,   sin_yaw * sin_pitch,   -sin_yaw * cos_pitch,
                                0,             cos_pitch,              sin_pitch,
                          sin_yaw,  -cos_yaw * sin_pitch,    cos_yaw * cos_pitch;
-     
     Eigen::Matrix3d _R_armor2camera = p_R_armor2world_.transpose() * _p_R_armor2world_;
-    Eigen::Vector3d t_armor2camera = p_R_armor2world_.transpose() * p_t_armor2world_ - p_t_camera2gimbal_; 
     cv::Vec3d _rvec;
     cv::Mat R_armor2camera_cv;
     cv::eigen2cv(_R_armor2camera, R_armor2camera_cv);
     cv::Rodrigues(R_armor2camera_cv, _rvec);
-    cv::Vec3d _tvec(t_armor2camera[0], t_armor2camera[1], t_armor2camera[2]);
     std::vector<cv::Point2f> image_points;
-    cv::projectPoints(world_points, _rvec, _tvec, camera_matrix_,  distort_coeffs_, image_points);
+    cv::projectPoints(world_points, _rvec, tvec, camera_matrix_,  distort_coeffs_, image_points);
     return image_points;
 }

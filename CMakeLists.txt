@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.0)
 
 project(VISION)
 
-# 设置构建类型为 Debug
-set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
+# 设置构建类型为 Release
+set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
@@ -75,12 +75,13 @@ target_link_libraries(action
     ${LIBUSB_LIBRARIES}  
 )
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -Wall")
+# 设置Release模式的编译选项，使用-O2优化
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2 -Wall")
 
 # 输出包含目录的路径
 message(STATUS "OpenCV include directories: ${OpenCV_INCLUDE_DIRS}")
 message(STATUS "Eigen include directories: ${EIGEN3_INCLUDE_DIR}")
 message(STATUS "Ceres include directories: ${CERES_INCLUDE_DIRS}")
 message(STATUS "yaml-cpp include directories: ${YAML_CPP_INCLUDE_DIRS}")
-message(STATUS "libusb libraries: ${LIBUSB_LIBRARIES}")  # 添加调试信息
+message(STATUS "libusb libraries: ${LIBUSB_LIBRARIES}")
 message(STATUS "libusb include dirs: ${LIBUSB_INCLUDE_DIRS}")

@@ -12,7 +12,7 @@ static double areaRatio(const std::vector<cv::Point> &contour, const cv::Rotated
 }
 // 判断轮廓是否为一个灯条
 static bool IsValidLightBlob(const cv::RotatedRect &rect) {
-    return (1.5 < lw_rate(rect) && lw_rate(rect) < 40 && rect.size.area() < 6000 && rect.size.area() > 100);
+    return (1.5 < lw_rate(rect) && lw_rate(rect) < 40 && rect.size.area() < 6000 && rect.size.area() > 18);
 }
 
 // 倾斜角度检查
@@ -98,7 +98,6 @@ LightBlobs Tradition::FindLight(Mat &src, int enemy_color) {
             }
         }
     }
-
     SlopeValidation(light_blobs);
     return light_blobs;
 }

@@ -8,11 +8,12 @@ class MPC
 {
 public:
     MPC();
-    Gimbal_Angle TrajectoryPlanning(KinematicModel& m_status);
+    Gimbal_Angle TrajectoryPlanning(Eigen::VectorXd states);
     
 private:
-    double GetGimbalYaw(KinematicModel& m_status,double time);
-    tools::Trajectory GetTrajectory(KinematicModel& m_status);
+    double GetGimbalYaw(double time);
+    tools::Trajectory GetTrajectory();
+    std::shared_ptr<KinematicModel> m_status;
     TinySolver *yaw_solver;
     double predict_time;
     double max_yaw_acc;      // 最大角加速度

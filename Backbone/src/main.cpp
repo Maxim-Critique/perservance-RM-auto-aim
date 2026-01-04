@@ -8,6 +8,14 @@
 #include "exiter.hpp"
 #include "SerialPort.h"
 
+void drawAngleInfo(cv::Mat& img, const Data_Save& data) {
+    cv::putText(img, cv::format("Y:%.1f P:%.1f R:%.1f", 
+                tools::R2D(data.camera_yaw_angle), 
+                tools::R2D(data.camera_pitch_angle), 
+                tools::R2D(data.camera_roll_angle)),
+                cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+}
+
 auto yaml = YAML::LoadFile(YamlPath);
 auto exposure_time = yaml["Camera"]["exposure_time"].as<double>();
 int main()
@@ -22,9 +30,15 @@ int main()
         serial_->Query(ds,t);
         armor_->AutoAim(img,ds,dg);
         serial_->SendData(dg);
-        imshow("image",img);
-        waitKey(1);
+        // drawAngleInfo(img,ds);
+        // imshow("image",img);
+        // waitKey(1);
     }
- 
     return 0;
 }
+
+// int main(){
+//     Test();
+//     // MPCTest();
+//     return 0;
+// }

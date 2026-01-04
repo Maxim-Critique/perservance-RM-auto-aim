@@ -32,9 +32,6 @@ private:
     // 噪声参数
     double dd;      // 平面距离过程噪声
     double da;      // 角度过程噪声
-    double dz;      // 高度过程噪声
-    double dr;      // 半径过程噪声
-
     double dt_;     // 时间步长
     std::deque<bool> nis_history_;                  // NIS历史记录队列
     static constexpr size_t nis_window = 15;        // 历史窗口大小
