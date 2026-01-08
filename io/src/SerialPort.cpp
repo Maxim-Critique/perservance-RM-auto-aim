@@ -125,7 +125,7 @@ void SerialPort::read_data()
                 ds.camera_pitch_angle = pit_ * SCALE;
                 ds.camera_roll_angle = _std_radian(roll_ * SCALE - PI);
                 ds.color = read_buffer[15];
-                ds.Buff_or_Armor = read_buffer[16];
+                ds.armor_or_buff = read_buffer[16];
                 queue_.push(ds);
             }
             
@@ -190,4 +190,5 @@ void Data_Get::Vision2Control(int32_t x, int32_t y, int32_t ui_x, int32_t ui_y, 
     raw_data[17] = (ui_y >> 0) & 0xff;
     raw_data[18] = found;
     raw_data[19] = fire;
+    std::cout<<x*1e-4<<"  "<<y*1e-4<<std::endl;
 }

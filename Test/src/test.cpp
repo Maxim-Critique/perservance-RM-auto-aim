@@ -238,9 +238,8 @@ int Test() {
         }
         
         // 显示目标装甲板（紫色圆圈）
-        cv::circle(background, 
-                  base_point + cv::Point2f(m_status->center.x, m_status->center.y) * scaling, 
-                  10, cv::Scalar(255, 0, 255), 2, 8);
+        cv::circle(background, base_point + cv::Point2f(m_status->center.x, m_status->center.y) * scaling, 
+            10, cv::Scalar(255, 0, 255), 2, 8);
         
         // 显示结果
         cv::imshow("background", background);

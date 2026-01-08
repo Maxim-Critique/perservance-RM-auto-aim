@@ -4,6 +4,7 @@
 #include <string>
 #include <chrono>
 #include <cstring>
+#include <memory> 
 #pragma once 
 
 #define PI 3.1415926
@@ -17,7 +18,7 @@ struct Data_Save {
     double camera_yaw_angle;
     double camera_pitch_angle;  
     double camera_roll_angle;
-    int Buff_or_Armor;       // 自瞄或大符
+    int armor_or_buff;       // 自瞄或大符
     int color;               // 敌方颜色
 };
 
@@ -34,5 +35,15 @@ struct Data_Get
     }
     void Vision2Control(int32_t x=0, int32_t y=0, int32_t ui_x=0, int32_t ui_y=0, uint8_t found=0, uint8_t fire=0);
 };
-static const std::string YamlPath = "/home/killer_machine/WRITE/text.yaml";
+
+struct Gimbal_Angle
+{
+    double target_yaw;        // 目标yaw 
+    double target_pitch;      // 目标pitch
+    double manage_yaw;        // 控制yaw
+    double yaw_vel;           // 控制yaw的速度
+    double yaw_acc;           // 控制yaw的加速度
+};
+
+static const std::string YamlPath = "/home/nav4/auto-aim/text.yaml";
 #endif

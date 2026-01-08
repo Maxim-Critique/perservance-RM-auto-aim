@@ -7,14 +7,6 @@
 using namespace std;
 using namespace cv;
 using namespace Eigen;
-struct Gimbal_Angle
-{
-    double target_yaw;        // 目标yaw 
-    double target_pitch;      // 目标pitch
-    double manage_yaw;        // 控制yaw
-    double yaw_vel;           // 控制yaw的速度
-    double yaw_acc;           // 控制yaw的加速度
-};
 
 class Coordinate_converter
 {
