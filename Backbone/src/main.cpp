@@ -29,21 +29,18 @@
 
 int main(){
     Mat img;time_point t;Data_Save ds;Data_Get dg;
-    std::string video_source = "/home/nav4/leaf/4.avi"; 
-    cv::VideoCapture cap(video_source);
+    // std::string video_source = "/home/nav4/leaf/4.avi"; 
+    // cv::VideoCapture cap(video_source);
+    tools::Exiter exiter;
     std::unique_ptr<AutoBuff>buffer_ = std::make_unique<AutoBuff>();
-    if (!cap.isOpened()) {
-        std::cerr << "无法打开视频源: " << video_source << std::endl;
-        return -1;
-    }
-    while (cap.read(img)) {
-        if (img.empty()) {
-            std::cerr << "读取到空帧，可能视频已结束。" << std::endl;
-            break;
-        }
+    std::unique_ptr<io::HikRobot> camera_ = std::make_unique<io::HikRobot>(1000, 0, "2bdf:0001");
+    
+    while (!exiter.exit()) {
+        camera_->Query(img,t);
+        ds.timestamp = t;
         buffer_->AutoAim(img,ds,dg);
         imshow("image",img);
-        waitKey(100);
+        waitKey(1);
     }
     // TestBuff();
 

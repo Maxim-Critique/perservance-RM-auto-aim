@@ -18,7 +18,7 @@ struct Data_Save {
     double camera_yaw_angle;
     double camera_pitch_angle;  
     double camera_roll_angle;
-    int armor_or_buff;       // 自瞄或大符
+    int armor_or_buff = 1;       // 自瞄或大符
     int color;               // 敌方颜色
 };
 

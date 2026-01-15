@@ -187,9 +187,6 @@ void NumberClassifier::classify(std::vector<Armor> &armors)
             }),
         armors.end());
 
-    // for (auto &armor : armors) {
-    //     armor.number_img = cv::Mat(); // 将 number_img 置为空矩阵
-    // }
 
     // 保存图像
     //  for (auto &armor : armors) {

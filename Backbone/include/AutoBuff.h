@@ -9,9 +9,11 @@ public:
 
 private:
     void Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg);
+    void Show(cv::Mat &img);
     std::unique_ptr<auto_buff::BuffDetector> discover_;
     std::unique_ptr<auto_buff::Solver> slover_;
     std::unique_ptr<auto_buff::Target>target_;
     std::unique_ptr<auto_buff::Planner>planner_;
     int last_mode = 1;
 };
+

@@ -28,6 +28,9 @@ private:
     bool Verify(cv::Point2f points[4]);
     // 是否丢失
     void Lose();
+    // 可视化
+    void Show(PowerRune &P);
+
     cv::dnn::Net net_;
     std::vector<std::vector<cv::Point>> contours;        // 存放二值化轮廓
     Track_status status_;                                // 状态

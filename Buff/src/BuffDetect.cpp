@@ -7,7 +7,7 @@ std::mutex mutex_bh;
 namespace auto_buff{
 
 BuffDetector::BuffDetector(){
-    net_ = cv::dnn::readNetFromONNX("/home/nav4/auto-aim/model/mlp_bh.onnx");
+    net_ = cv::dnn::readNetFromONNX("/home/nav4/auto-aim/model/mlp_bh1.onnx");
 }
 
 void BuffDetector::HandleImg(){
@@ -19,6 +19,9 @@ void BuffDetector::HandleImg(){
     // cv::imshow("gray", gray_img_);
     // 找轮廓
     cv::findContours(gray_img_, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    auto it = std::remove_if(contours.begin(), contours.end(),
+        [](const std::vector<cv::Point>& c) { return c.size() < 30; });
+    contours.erase(it, contours.end());
 }
 
 void BuffDetector::Lose()
@@ -54,22 +57,33 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     // 获得流水灯
     GetLightBars(fanblades,rects);
     /// 生成PowerRune
-    auto r_center = GetR(fanblades);
+    auto r_center = GetR(fanblades);    
     PowerRune powerrune(fanblades, r_center, last_powerrune_);
-    // circle(img_,r_center,2,Scalar(0,200,0),-1);
-    // putText(img_, std::to_string(6), r_center, FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0,200,0), 0.2);
-    /// handle error
     if (powerrune.is_unsolve()) {
         Lose();
         return std::nullopt;
     }
     status_ = TRACK;
     lose_ = 0;
+
+    if(show_)Show(powerrune);
+
     std::optional<PowerRune> P;
     P.emplace(std::move(powerrune));
     last_powerrune_ = P;
-    
     return P;
+    
+}
+
+void BuffDetector::Show(PowerRune &P){
+    for(auto &fan : P.fanblades){
+        for(int i=0;i<6;i++){
+            circle(img_,fan.points[i],2,Scalar(0,200,0),-1);
+            putText(img_, std::to_string(i), fan.points[i], FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0,200,0), 0.2);
+        }
+    }    
+    circle(img_,P.r_center,2,Scalar(0,200,0),-1);
+    putText(img_, std::to_string(6), P.r_center, FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0,200,0), 0.2);    
     
 }
 
@@ -77,7 +91,6 @@ cv::Point2f BuffDetector::GetR(std::vector<FanBlade> & fanblades)
 {
 
     /// 算出大概位置
-    // 从点5（扇叶中心）出发，向点6方向延伸1.4倍距离
     cv::Point2f r_center_t = {0, 0};
     for (auto & fanblade : fanblades) {
         r_center_t += (fanblade.points[5]-fanblade.points[4])+fanblade.points[5];  // TODO
@@ -88,7 +101,7 @@ cv::Point2f BuffDetector::GetR(std::vector<FanBlade> & fanblades)
     double radius = cv::norm(fanblades[0].points[2] - fanblades[0].center) * 0.8;
     cv::Mat mask = cv::Mat::zeros(gray_img_.size(), CV_8U);  // mask
     circle(mask, r_center_t, radius, cv::Scalar(255), -1);
-    bitwise_and(gray_img_, mask, gray_img_);               // 将遮罩应用于二值化图像
+    bitwise_and(gray_img_, mask, gray_img_);                 // 将遮罩应用于二值化图像
     // cv::imshow("Dilated Image", gray_img_);               // 调试用
 
     std::vector<std::vector<cv::Point>> contours;
@@ -109,11 +122,24 @@ cv::Point2f BuffDetector::GetR(std::vector<FanBlade> & fanblades)
     return r_center;
 }
 
+void SaveImg(Mat &input_image){
+    if (input_image.empty()) cout << "warpPerspective失败，图像为空!" << endl;
+    static int number = 0;
+    number++;
+    if(number%5==0){
+        string filename = "/home/nav4/auto-aim/photos/" + to_string(number) + ".png";
+        imwrite(filename, input_image); 
+    }
+    
+    
+}
+
 bool BuffDetector::Verify(cv::Point2f points[4]) {
     cv::Point2f target_vertices[4] = {cv::Point2f(0, 0), cv::Point2f(0, 27), cv::Point2f(27, 27), cv::Point2f(27, 0)};
     auto rotation_matrix = cv::getPerspectiveTransform(points, target_vertices);
     cv::Mat input_image;
     cv::warpPerspective(gray_img_, input_image, rotation_matrix, cv::Size(28, 28));
+    // SaveImg(input_image);
     input_image /= 255;
     cv::Mat blob;
     cv::dnn::blobFromImage(input_image, blob);
@@ -128,10 +154,10 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
-    double min_ratio = 0.65;
-    double max_ratio = 0.95;
-    int min_area = 1500;
-    int max_area = 6000;
+    double min_ratio = 0.15;
+    double max_ratio = 0.5;
+    int min_area = 800;
+    int max_area = 1600;
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
         cv::Point2f center;float radius;
@@ -154,7 +180,7 @@ void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2
     float min_area = 500;
     float max_area = 3000;
     float min_aspect = 0.05f;
-    float max_aspect = 0.3f;
+    float max_aspect = 0.35f;
     for (const auto& contour : contours) {
         cv::RotatedRect rect = cv::minAreaRect(contour);
         cv::Point2f vertices[4];
@@ -217,10 +243,7 @@ void BuffDetector::GetLightBars(vector<FanBlade>& fanblades, std::vector<std::pa
             float r = fan.radius - 2;
             std::vector<cv::Point2f> all_points = GetPoints(fan.center, r, ref_point);
             fan.points = all_points;
-            for(int i=0;i<6;i++){
-                circle(img_,fan.points[i],2,Scalar(0,200,0),-1);
-                putText(img_, std::to_string(i), fan.points[i], FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0,200,0), 0.2);
-            }
+
         }
     }
 }
