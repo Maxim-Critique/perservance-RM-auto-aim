@@ -1,5 +1,5 @@
 #include "AutoBuff.h"
-
+#include <fstream>
 AutoBuff::AutoBuff(){
     discover_ = std::make_unique<auto_buff::BuffDetector>();
     slover_ = std::make_unique<auto_buff::Solver>();
@@ -17,6 +17,16 @@ void AutoBuff::AutoAim(cv::Mat &img,const Data_Save &ds,Data_Get &dg){
     auto power_runes = discover_->Detect(img);
     slover_->UpdateStatus(ds);
     slover_->Solve(power_runes);
+
+    if (!power_runes.has_value()) return;
+    const auto& p = power_runes.value();
+    if(p.light_num ==2){
+        auto points = slover_->reproject_buff(p.xyz_in_world,p.ypr_in_world.x(),p.ypr_in_world.z());
+        cv::circle(img, points[4], 8, cv::Scalar(0, 0, 255), -1);
+        auto points1 = slover_->reproject_buff(p.xyz_in_world,p.ypr_in_world.x(),p.ypr_in_world.z()-4*PI/5);
+        cv::circle(img, points1[4], 8, cv::Scalar(0, 255, 0), -1);
+    }
+
     target_->get_target(power_runes,ds.timestamp);
     auto target_copy =  target_->clone();
     auto gimbal_angle = planner_->Plan(*target_copy,ds.timestamp);

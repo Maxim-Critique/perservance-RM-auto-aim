@@ -21,8 +21,8 @@ cv::Point2f base_point = cv::Point2f(512, 512);
 
 // 仿真参数
 cv::Point2f center(3, 0);  // 中心点初始位置
-float z[2] = {0.15, 0.1};  // 装甲板高度
-float r[2] = {0.2, 0.3};   // 装甲板旋转半径
+float z[2] = {0.25, 0.1};  // 装甲板高度
+float r[2] = {0.2, 0.4};   // 装甲板旋转半径
 float palstance = 4;       // 角速度
 float scaling = 100;       // 放大比例
 double angle = 0;          // 起始角度
@@ -33,9 +33,7 @@ std::default_random_engine rng;
 // 路径点定义
 std::vector<cv::Point2f> waypoints = {
     cv::Point2f(2, 2),
-    cv::Point2f(-2, 2),
-    cv::Point2f(-2, -2),
-    cv::Point2f(2, -2)
+    cv::Point2f(-2, 2)
 };
 int current_target_index = 0;
 float movement_speed = 0.8; // 移动速度
@@ -215,6 +213,7 @@ int Test() {
         // MPC轨迹规划
         auto target = mpc->TrajectoryPlanning(*m_status);
         dg.Vision2Control((target.manage_yaw)*1e4,target.target_pitch*1e4,target.yaw_vel*1e4,target.yaw_acc*1e4,1,0);
+        std::cout<<target.target_pitch*57.3<<",";
         serial_.SendData(dg);
         // 绘制状态估计和预测结果
         for (size_t i = 0; i < filter_armors.size(); i++) {

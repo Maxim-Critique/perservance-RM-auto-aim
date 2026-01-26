@@ -37,7 +37,7 @@ private:
     int lose_;                                           // 丢失的次数
     double lastlen_;
     bool debug_ = false;                                 // debug
-    bool show_ = false;                                   // 可视化
+    bool show_ = true;                                   // 可视化
 
     cv::Mat img_;                                        // 原始图像
     cv::Mat gray_img_;                                   // 二值化后的图

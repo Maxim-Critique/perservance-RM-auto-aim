@@ -40,13 +40,26 @@ private:
 
     cv::Vec3d rvec_, tvec_;
 
-    // TODO
+    // 第一个扇叶
     const std::vector<cv::Point3f> OBJECT_POINTS = {
         cv::Point3f(0, 0, 835e-3), cv::Point3f(0, 135e-3, 700e-3),
         cv::Point3f(0, 0, 565e-3), cv::Point3f(0, -135e-3, 700e-3),
         cv::Point3f(0, 0, 700e-3), cv::Point3f(0, 0, 344e-3),
-        cv::Point3f(0, 0, 0)};  // 单位：米
-
+        cv::Point3f(0, 0, 0)
+    };  // 单位：米
+    // 相邻扇叶
+    const std::vector<cv::Point3f> ADJACENT_POINTS = {
+        cv::Point3f(0, 0.794132, 0.258029), cv::Point3f(0, 0.707457, 0.0879193),
+        cv::Point3f(0, 0.537347, 0.174595), cv::Point3f(0, 0.624022, 0.344705),
+        cv::Point3f(0, 0.66574,  0.216312), cv::Point3f(0, 0.327163, 0.106302)
+    };  // 单位：米
+    // 间隔扇叶
+    const std::vector<cv::Point3f> INTERVAL_POINTS = {
+        cv::Point3f(0, 0.490801, -0.675529), cv::Point3f(0,  0.302232, -0.645663),
+        cv::Point3f(0, 0.332099, -0.457095), cv::Point3f(0,  0.520667, -0.486961),
+        cv::Point3f(0, 0.41145,  -0.566312), cv::Point3f(0,  0.202198, -0.278302)
+    };  // 单位：米
+    
     // 函数：生成绕x轴旋转的旋转矩阵
     cv::Matx33f rotation_matrix(double angle) const;
 

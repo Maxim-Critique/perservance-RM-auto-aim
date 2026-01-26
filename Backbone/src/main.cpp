@@ -42,6 +42,5 @@ int main(){
         imshow("image",img);
         waitKey(1);
     }
-    // TestBuff();
 
 }

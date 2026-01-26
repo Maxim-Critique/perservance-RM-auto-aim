@@ -15,12 +15,12 @@ void BuffDetector::HandleImg(){
     cv::cvtColor(img_, gray_img_, cv::COLOR_BGR2GRAY);  
     // cv::imshow("gray", gray_img_); 
     // 进行二值化 
-    cv::threshold(gray_img_, gray_img_, 50, 255, cv::THRESH_BINARY);
+    cv::threshold(gray_img_, gray_img_, 100, 255, cv::THRESH_BINARY);
     // cv::imshow("gray", gray_img_);
     // 找轮廓
     cv::findContours(gray_img_, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     auto it = std::remove_if(contours.begin(), contours.end(),
-        [](const std::vector<cv::Point>& c) { return c.size() < 30; });
+        [](const std::vector<cv::Point>& c) { return c.size() < 2; });
     contours.erase(it, contours.end());
 }
 
@@ -35,15 +35,15 @@ void BuffDetector::Lose()
 }
 
 std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
-    
-    vector<FanBlade> fanblades;                               // 存放扇叶
+    // 存放扇叶
+    vector<FanBlade> fanblades;                              
     std::vector<std::pair<float,std::vector<cv::Point2f>>>rects;
     img_ = img;
     // 预处理
     HandleImg();         
     // 进行圆拟合，获得待机击打区域
     DetectCircles(fanblades);
-    if(fanblades.empty()){
+    if(fanblades.empty()||fanblades.size()>2){
         Lose();
         return std::nullopt;
     }
@@ -67,7 +67,6 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     lose_ = 0;
 
     if(show_)Show(powerrune);
-
     std::optional<PowerRune> P;
     P.emplace(std::move(powerrune));
     last_powerrune_ = P;
@@ -96,7 +95,7 @@ cv::Point2f BuffDetector::GetR(std::vector<FanBlade> & fanblades)
         r_center_t += (fanblade.points[5]-fanblade.points[4])+fanblade.points[5];  // TODO
     }
     r_center_t /= float(fanblades.size());
-
+    return r_center_t;
     /// 处理图片,mask选出大概范围
     double radius = cv::norm(fanblades[0].points[2] - fanblades[0].center) * 0.8;
     cv::Mat mask = cv::Mat::zeros(gray_img_.size(), CV_8U);  // mask
@@ -154,10 +153,10 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
-    double min_ratio = 0.15;
-    double max_ratio = 0.5;
-    int min_area = 800;
-    int max_area = 1600;
+    double min_ratio = 0.3;
+    double max_ratio = 1;
+    int min_area = 1000;
+    int max_area = 5000;
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
         cv::Point2f center;float radius;
@@ -189,8 +188,8 @@ void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2
         bool w_h = (rect.size.width < rect.size.height);
         float aspect_ratio = w_h ? (rect.size.width / rect.size.height) : (rect.size.height / rect.size.width);
         if(debug_){
-            for (int i = 0; i < 4; ++i) {cv::line(img_, vertices[i], vertices[(i+1)%4], cv::Scalar(0, 255, 0), 2, cv::LINE_AA); }
-            putText(img_,"Size: "+to_string(area)+"Bili :"+to_string(aspect_ratio),vertices[0], cv::FONT_HERSHEY_COMPLEX,0.6, Scalar(0, 255, 0), 1);
+            for (int i = 0; i < 4; ++i) cv::line(img_, vertices[i], vertices[(i+1)%4], cv::Scalar(0, 255, 0), 2, cv::LINE_AA); 
+            putText(img_,"Size: "+to_string(area)+"Bili :"+to_string(aspect_ratio),vertices[1], cv::FONT_HERSHEY_COMPLEX,0.6, Scalar(0, 255, 0), 1);
         }
         if ((area>min_area) && (area<max_area) && (aspect_ratio>min_aspect) && (aspect_ratio<max_aspect)) {
             if(w_h)rect.angle+=90;
@@ -222,9 +221,6 @@ std::vector<cv::Point2f> GetPoints(
 
 void BuffDetector::GetLightBars(vector<FanBlade>& fanblades, std::vector<std::pair<float, std::vector<cv::Point2f>>>& rects) {
     for (auto& fan : fanblades) {
-        if (show_) {
-            circle(img_, fan.center, fan.radius, Scalar(200, 0, 200), 2);
-        }
 
         float min_distance = std::numeric_limits<float>::max();
         const std::vector<cv::Point2f>* best_rect_points = nullptr;
@@ -245,6 +241,7 @@ void BuffDetector::GetLightBars(vector<FanBlade>& fanblades, std::vector<std::pa
             fan.points = all_points;
 
         }
+
     }
 }
 }// namespace

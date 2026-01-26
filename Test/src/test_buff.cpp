@@ -209,18 +209,21 @@ private:
     
     double actual_a_, actual_w_, actual_b_;
     std::normal_distribution<double> noise_distribution_;
-    int sample_count_ = 0;  // 添加sample_count_成员变量
+    int sample_count_ = 0;
     
 public:
-    DataGenerator() : noise_distribution_(0.0, 0.02) {
-        std::random_device rd;
-        gen_.seed(rd());
+    // 修改构造函数：使用固定随机数种子
+    DataGenerator(unsigned int seed = 42) : noise_distribution_(0.0, 0.02) {
+        // 使用固定种子保证可复现性
+        gen_.seed(seed);
         
         a_min_ = 0.780;
         a_max_ = 1.045;
         w_min_ = 1.884;
         w_max_ = 2.000;
         start_time_ = std::chrono::steady_clock::now();
+        
+        std::cout << "使用随机数种子: " << seed << " (保证结果可复现)" << std::endl;
     }
     
     double addNoise(double value) {
@@ -245,7 +248,7 @@ public:
             
             double spd_actual = actual_a_ * sin(actual_w_ * t) + actual_b_;
             double roll_angle = (-actual_a_/actual_w_ * cos(actual_w_ * t) + actual_b_ * t) + (actual_a_/actual_w_);
-
+            if(roll_angle>2*PI)roll_angle-=2*PI;
             if (!testEKF(timestamp, roll_angle, spd_actual, t, num_samples)) {
                 break;
             }
@@ -292,12 +295,11 @@ private:
         Eigen::Vector3d blade_xyz_in_buff{{distance, 0, 700e-3}};
         Eigen::Vector3d blade_world_pos = R * blade_xyz_in_buff;
         powerrune.blade_ypd_in_world = tools::xyz2ypd(blade_world_pos);
-        
+    
         return powerrune;
     }
     
     Eigen::Vector3d calculateNoisyPosition(double roll_angle) {
-        // 移除未使用的noisy_distance变量
         Eigen::Vector3d noisy_ypr(0.0, 0.0, addNoise(roll_angle));
         Eigen::Matrix3d noisy_R = tools::rotation_matrix(noisy_ypr);
         Eigen::Vector3d blade_xyz_in_buff{{0, 0, 0.7}};
@@ -333,7 +335,7 @@ private:
             Eigen::Vector3d noisy_blade_pos = calculateNoisyPosition(roll_angle);
             double noisy_angle = addNoise(roll_angle);
             
-            // 更新可视化 - 修正变量名
+            // 更新可视化
             visualizer_.update(actual_blade_pos, ekf_blade_pos, noisy_blade_pos,
                              roll_angle, ekf_roll, noisy_angle, current_time, 
                              actual_spd, ekf_spd);
@@ -352,14 +354,7 @@ private:
                 std::cout << "角速度误差: " << std::setprecision(4) << std::abs(actual_spd - ekf_spd) << " rad/s" << std::endl;
             }
             
-            // 实时进度显示
-            std::cout << "\r进度: " << std::setw(3) << (sample_count_ * 100 / num_samples) << "% | "
-                      << "时间: " << std::fixed << std::setprecision(1) << current_time << "s | "
-                      << "噪声误差: " << std::setprecision(2) << std::abs(noisy_angle - roll_angle) * 180/M_PI << "° | "
-                      << "EKF误差: " << std::setprecision(2) << std::abs(ekf_roll - roll_angle) * 180/M_PI << "°"
-                      << std::flush;
-            
-            sample_count_++;  // 增加样本计数
+            sample_count_++;
             return true;
         } else {
             if (sample_count_ == 0) {
@@ -375,7 +370,10 @@ void TestBuff() {
         std::cout << "开始EKF滤波器仿真测试 (带5%噪声)" << std::endl;
         std::cout << "========================================" << std::endl;
         
-        DataGenerator generator;
+        // 使用固定种子42保证可复现性
+        unsigned int seed = 42;
+        DataGenerator generator(seed);
+        
         int num_samples = 500;
         double time_interval = 0.01;
         
@@ -383,11 +381,12 @@ void TestBuff() {
         
         std::cout << "\n========================================" << std::endl;
         std::cout << "仿真测试完成!" << std::endl;
+        std::cout << "随机数种子: " << seed << " (可用于复现本次结果)" << std::endl;
         
         cv::waitKey(0);
         
     } catch (const std::exception& e) {
         std::cerr << "错误: " << e.what() << std::endl;
     }
-    
 }
+

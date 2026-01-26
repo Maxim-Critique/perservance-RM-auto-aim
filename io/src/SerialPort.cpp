@@ -190,5 +190,4 @@ void Data_Get::Vision2Control(int32_t x, int32_t y, int32_t ui_x, int32_t ui_y, 
     raw_data[17] = (ui_y >> 0) & 0xff;
     raw_data[18] = found;
     raw_data[19] = fire;
-    std::cout<<x*1e-4<<"  "<<y*1e-4<<std::endl;
 }

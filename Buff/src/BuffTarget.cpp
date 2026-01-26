@@ -582,6 +582,7 @@ void BigTarget::update(double nowtime, const PowerRune & p)
         c[3] = tools::limit_rad(c[3]);
         return c;
     };
+
     Eigen::VectorXd z1{{R_ypd[0], R_ypd[1], R_ypd[2], ypr[2]}};  // R_ypd roll
     ekf_.update(z1, H1, R1, z_subtract1);
 
