@@ -7,7 +7,7 @@ std::mutex mutex_bh;
 namespace auto_buff{
 
 BuffDetector::BuffDetector(){
-    net_ = cv::dnn::readNetFromONNX("/home/nav4/auto-aim/model/mlp_bh1.onnx");
+    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh1.onnx");
 }
 
 void BuffDetector::HandleImg(){
@@ -126,7 +126,7 @@ void SaveImg(Mat &input_image){
     static int number = 0;
     number++;
     if(number%5==0){
-        string filename = "/home/nav4/auto-aim/photos/" + to_string(number) + ".png";
+        string filename = "../photos/" + to_string(number) + ".png";
         imwrite(filename, input_image); 
     }
     

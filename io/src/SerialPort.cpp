@@ -4,7 +4,7 @@
 #include <termios.h>
 #include "SerialPort.h"
 #include <poll.h>
-
+#include "math_tools.hpp"
 namespace io
 {
 bool SerialPort::configure_serial(int fd)
@@ -147,7 +147,6 @@ void SerialPort::Query(Data_Save &ds,const time_point &t){
     ds.camera_pitch_angle = (data_behind_.camera_pitch_angle+data_ahead_.camera_pitch_angle)/2;
     ds.camera_roll_angle = (data_behind_.camera_roll_angle+data_ahead_.camera_yaw_angle)/2;  
     ds.camera_roll_angle = 0;  
-    
 }
 
 void SerialPort::SendData(const struct Data_Get &data)

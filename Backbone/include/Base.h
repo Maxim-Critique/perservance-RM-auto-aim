@@ -9,7 +9,7 @@
 
 #define PI 3.1415926
 // 弹速
-#define bullet_speed 20
+#define bullet_speed 22
 #define _std_radian(angle) ((angle) + round((0 - (angle)) / (2 * PI)) * (2 * PI))
 using time_point = std::chrono::steady_clock::time_point;
 
@@ -29,7 +29,7 @@ struct Data_Get
     Data_Get() {
         memset(raw_data, 0, sizeof(raw_data));
         raw_data[0] = 0xAA;
-        raw_data[1] = 0xAA;
+        raw_data[1] = 0xBB;
         raw_data[20] = 0xBB;
         size = 21;
     }
@@ -45,5 +45,5 @@ struct Gimbal_Angle
     double yaw_acc;           // 控制yaw的加速度
 };
 
-static const std::string YamlPath = "/home/nav4/auto-aim/text.yaml";
+static const std::string YamlPath = "/home/killer_machine/WRITE/text.yaml";
 #endif

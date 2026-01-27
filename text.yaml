@@ -13,7 +13,7 @@ Tradition:
   light_threshold: 180
   dim_threshold: 110
 Planer:
-  predict_time: 0.06
+  predict_time: 0.1
   max_yaw_acc: 50
 EKF:
   ProcessNoise:
@@ -26,8 +26,8 @@ Transmit:
   compensate_pitch: 2
   compensate_yaw: -1.2
 Buff:
-  pitch_offset: 9
-  yaw_offset: -0.8
+  pitch_offset: 0.3
+  yaw_offset: -1
 Find:
   is_get_from_ds: false #是否由电控发颜色
   enemy_color: 0  # 目标红色为1,蓝色为0

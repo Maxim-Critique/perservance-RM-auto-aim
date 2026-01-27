@@ -37,6 +37,8 @@ public:
 
     Eigen::Vector3d point_buff2world(const Eigen::Vector3d & point_in_buff) const;
 
+    Eigen::Vector3d fire_buff2world(const Eigen::Vector3d & point_in_buff) const;
+
     bool is_unsolve() const;
 
     Eigen::VectorXd ekf_x() const;

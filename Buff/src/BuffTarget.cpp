@@ -24,12 +24,29 @@ Target::Target() : first_in_(true), unsolvable_(true) {};
 Eigen::Vector3d Target::point_buff2world(const Eigen::Vector3d & point_in_buff) const
 {
     if (unsolvable_) return Eigen::Vector3d(0, 0, 0);
-    Eigen::Matrix3d R_buff2world =
-        tools::rotation_matrix(Eigen::Vector3d(ekf_.x[4], 0.0, ekf_.x[5]));  // pitch = 0
+    Eigen::Matrix3d R_buff2world = tools::rotation_matrix(Eigen::Vector3d(ekf_.x[4], 0.0, ekf_.x[5]));  // pitch = 0
 
     auto R_yaw = ekf_.x[0];
     auto R_pitch = ekf_.x[2];
     auto R_dis = ekf_.x[3];
+    std::cout<<" ekf_.x[4] "<<ekf_.x[4]<<endl;
+    Eigen::Vector3d point_in_world =
+        R_buff2world * point_in_buff + Eigen::Vector3d(
+                                        R_dis * std::cos(R_pitch) * std::cos(R_yaw),
+                                        R_dis * std::cos(R_pitch) * std::sin(R_yaw),
+                                        R_dis * std::sin(R_pitch));
+    return point_in_world;
+}
+
+Eigen::Vector3d Target::fire_buff2world(const Eigen::Vector3d & point_in_buff) const
+{
+    if (unsolvable_) return Eigen::Vector3d(0, 0, 0);
+    Eigen::Matrix3d R_buff2world = tools::rotation_matrix(Eigen::Vector3d(0.0, 0.0, ekf_.x[5]));  // pitch = 0
+
+    auto R_yaw = ekf_.x[0];
+    auto R_pitch = ekf_.x[2];
+    auto R_dis = ekf_.x[3];
+    
     Eigen::Vector3d point_in_world =
         R_buff2world * point_in_buff + Eigen::Vector3d(
                                         R_dis * std::cos(R_pitch) * std::cos(R_yaw),
@@ -92,7 +109,7 @@ void SmallTarget::predict(double dt)
 {
     // 预测下一个状态
     // clang-format off
-    A_ << 1.0,  dt, 0.0, 0.0, 0.0, 0.0, 0.0, // R_yaw
+    A_ <<   1.0,  dt, 0.0, 0.0, 0.0, 0.0, 0.0, // R_yaw
             0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, // R_v_yaw
             0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, // R_pitch
             0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, // R_dis
@@ -101,11 +118,11 @@ void SmallTarget::predict(double dt)
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0; // spd
 
     // 过程噪声协方差矩阵                            //// 调整
-    auto v1 = 0.001;  // 角加速度方差
+    auto v1 = 0.1;  // 角加速度方差
     auto a = dt * dt * dt * dt / 4;
     auto b = dt * dt * dt / 2;
     auto c = dt * dt;
-    Q_ << a * v1, b * v1, 0.0, 0.0, 0.0, 0.0, 0.0,
+    Q_ <<   a * v1, b * v1, 0.0, 0.0, 0.0, 0.0, 0.0,
             b * v1, c * v1, 0.0, 0.0, 0.0, 0.0, 0.0,
             0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
             0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -146,15 +163,15 @@ void SmallTarget::init(double nowtime, const PowerRune & p)
 
     // clang-format off
     // 初始状态
-    x0_ << p.ypd_in_world[0], 0.0, p.ypd_in_world[1], p.ypd_in_world[2],
-            p.ypr_in_world[0], p.ypr_in_world[2], 
+    x0_ <<  p.ypd_in_world[0], 0.0, p.ypd_in_world[1], p.ypd_in_world[2],
+            0.0, p.ypr_in_world[2], 
             SMALL_W * voter.clockwise();
     // 初始状态协方差矩阵
     P0_ << 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
             0.0, 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,
             0.0,  0.0, 10.0,  0.0,  0.0,  0.0,  0.0,
             0.0,  0.0,  0.0, 10.0,  0.0,  0.0,  0.0,
-            0.0,  0.0,  0.0,  0.0, 10.0,  0.0,  0.0,
+            0.0,  0.0,  0.0,  0.0,  1.0,  0.0,  0.0,
             0.0,  0.0,  0.0,  0.0,  0.0, 10.0,  0.0,
             0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-2;
     // 状态转移矩阵
@@ -398,7 +415,7 @@ void BigTarget::predict(double dt)
     double fi = ekf_.x[9];   // 可以理解为t0
     double t = lasttime_ + dt;
     // clang-format off
-    A_ << 1.0,  dt, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//R_yaw
+    A_ <<   1.0,  dt, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//R_yaw
             0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//v_R_yaw
             0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//R_pitch
             0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//R_dis
@@ -414,7 +431,7 @@ void BigTarget::predict(double dt)
     auto a1 = dt * dt * dt * dt / 4;
     auto b1 = dt * dt * dt / 2;
     auto c1 = dt * dt;
-    Q_ << a1 * v1, b1 * v1, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+    Q_ <<   a1 * v1, b1 * v1, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
             b1 * v1, c1 * v1, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
                 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
                 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
@@ -474,14 +491,14 @@ void BigTarget::init(double nowtime, const PowerRune & p)
   // clang-format off
   // 初始状态
   x0_ << p.ypd_in_world[0], 0.0, p.ypd_in_world[1], p.ypd_in_world[2],
-         p.ypr_in_world[0], p.ypr_in_world[2], 
+         0.0, p.ypr_in_world[2], 
          1.1775, 0.9125, 1.942, 0.0;//std::atan((spd - 2.09) / 0.9125 + 1
   // 初始状态协方差矩阵
   P0_ << 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
           0.0, 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
           0.0,  0.0, 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
           0.0,  0.0,  0.0, 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-          0.0,  0.0,  0.0,  0.0, 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+          0.0,  0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  0.0,  0.0,  0.0,
           0.0,  0.0,  0.0,  0.0,  0.0, 10.0,  0.0,  0.0,  0.0,  0.0,
           0.0,  0.0,  0.0,  0.0,  0.0,  0.0, 100.0, 0.0,  0.0,  0.0,
           0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, 10.0,  0.0,  0.0,

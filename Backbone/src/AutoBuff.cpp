@@ -8,41 +8,31 @@ AutoBuff::AutoBuff(){
 }
 
 void AutoBuff::AutoAim(cv::Mat &img,const Data_Save &ds,Data_Get &dg){
-    if(ds.armor_or_buff != last_mode){
-        if(ds.armor_or_buff == 1)target_ = std::make_unique<auto_buff::SmallTarget>();
-        else{target_ = std::make_unique<auto_buff::BigTarget>();}
-        last_mode = ds.armor_or_buff;
-    }
+
+    // if(ds.armor_or_buff != last_mode){
+    //     if(ds.armor_or_buff == 1) target_ = std::make_unique<auto_buff::SmallTarget>();
+    //     else target_ = std::make_unique<auto_buff::BigTarget>();
+    //     last_mode = ds.armor_or_buff;
+    // }
     dg.Vision2Control();
     auto power_runes = discover_->Detect(img);
     slover_->UpdateStatus(ds);
     slover_->Solve(power_runes);
-
-    if (!power_runes.has_value()) return;
-    const auto& p = power_runes.value();
-    if(p.light_num ==2){
-        auto points = slover_->reproject_buff(p.xyz_in_world,p.ypr_in_world.x(),p.ypr_in_world.z());
-        cv::circle(img, points[4], 8, cv::Scalar(0, 0, 255), -1);
-        auto points1 = slover_->reproject_buff(p.xyz_in_world,p.ypr_in_world.x(),p.ypr_in_world.z()-4*PI/5);
-        cv::circle(img, points1[4], 8, cv::Scalar(0, 255, 0), -1);
-    }
-
     target_->get_target(power_runes,ds.timestamp);
     auto target_copy =  target_->clone();
     auto gimbal_angle = planner_->Plan(*target_copy,ds.timestamp);
     Transmit(gimbal_angle,ds,dg);
-    Show(img);
+    // Show(img);
 }
 
 void AutoBuff::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg){
     int32_t yaw = (tools::R2D(gimbal_angle.target_yaw)) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch)) * 1e4;
- 
     bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) - tools::R2D(ds.camera_yaw_angle)) < 1;
     bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) - tools::R2D(ds.camera_pitch_angle)) < 1;
     bool fire_delta = (yaw_delta && pitch_delta);
     bool follow_dalta = gimbal_angle.manage_yaw;
-    dg.Vision2Control(yaw,pitch,0,0,follow_dalta,fire_delta);
+    dg.Vision2Control(yaw,pitch,0,0,follow_dalta,0);
 }
 
 void AutoBuff::Show(cv::Mat &img){

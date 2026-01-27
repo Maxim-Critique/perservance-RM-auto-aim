@@ -34,13 +34,15 @@ int main(){
     tools::Exiter exiter;
     std::unique_ptr<AutoBuff>buffer_ = std::make_unique<AutoBuff>();
     std::unique_ptr<io::HikRobot> camera_ = std::make_unique<io::HikRobot>(1000, 0, "2bdf:0001");
+    std::unique_ptr<io::SerialPort> serial_ = std::make_unique<io::SerialPort>("/dev/ttyACM0");
     
     while (!exiter.exit()) {
         camera_->Query(img,t);
-        ds.timestamp = t;
+        serial_->Query(ds,t);
         buffer_->AutoAim(img,ds,dg);
-        imshow("image",img);
-        waitKey(1);
+        serial_->SendData(dg);
+        // imshow("image",img);
+        // waitKey(1);
     }
 
 }
