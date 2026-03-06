@@ -84,45 +84,6 @@ void Solver::Solve(std::optional<PowerRune> & ps) const
     p.blade_ypd_in_world = tools::xyz2ypd(p.blade_xyz_in_world);
 
     p.ypr_in_world = tools::eulers(R_buff2world, 2, 1, 0);
-    // if(p.light_num == 2){
-    //     std::vector<cv::Point2f> image_points = p.target().points;
-    //     image_points.emplace_back(p.r_center);
-    //     std::vector<cv::Point2f> image_points_fourth(image_points.begin(), image_points.end());
-        
-    //     std::vector<cv::Point3f> OBJECT_POINTS_FOURTH = p.adjacent?ADJACENT_POINTS:INTERVAL_POINTS;
-    //     OBJECT_POINTS_FOURTH.push_back(cv::Point3f(0, 0, 0));
-    //     cv::solvePnP(OBJECT_POINTS_FOURTH, image_points_fourth, camera_matrix_, 
-    //         distort_coeffs_, rvec_, tvec_, false,cv::SOLVEPNP_IPPE);
-    //     Eigen::Vector3d t_buff2camera;
-    //     cv::cv2eigen(tvec_, t_buff2camera);
-    //     cv::Mat rmat;
-    //     cv::Rodrigues(rvec_, rmat);
-    //     Eigen::Matrix3d R_buff2camera;
-    //     cv::cv2eigen(rmat, R_buff2camera);
-    //     Eigen::Vector3d blade_xyz_in_buff{{0, 0, 700e-3}};
-
-    //     // buff -> camera
-    //     Eigen::Vector3d xyz_in_camera = t_buff2camera;
-    //     Eigen::Vector3d blade_xyz_in_camera = R_buff2camera * blade_xyz_in_buff + t_buff2camera;
-
-    //     // camera -> gimbal
-    //     Eigen::Matrix3d R_buff2gimbal = R_camera2gimbal_ * R_buff2camera;
-    //     Eigen::Vector3d xyz_in_gimbal = R_camera2gimbal_ * xyz_in_camera + t_camera2gimbal_;
-    //     Eigen::Vector3d blade_xyz_in_gimbal = R_camera2gimbal_ * blade_xyz_in_camera + t_camera2gimbal_;
-
-    //     /// gimbal -> world
-    //     Eigen::Matrix3d R_buff2world = R_gimbal2world_ * R_buff2gimbal;
-
-    //     p.next_xyz_in_world = R_gimbal2world_ * xyz_in_gimbal;
-    //     p.next_ypd_in_world = tools::xyz2ypd(p.xyz_in_world);
-
-    //     p.next_blade_xyz_in_world = R_gimbal2world_ * blade_xyz_in_gimbal;
-    //     p.next_blade_ypd_in_world = tools::xyz2ypd(p.blade_xyz_in_world);
-
-    //     p.next_ypr_in_world = tools::eulers(R_buff2world, 2, 1, 0);
-    //     p.next_ypr_in_world[2]+=PI;
-    //     std::cout<<" first "<<p.ypr_in_world.transpose()<<" second "<<p.next_ypr_in_world.transpose()<<std::endl;
-    // }
 
 }
 // 调试用

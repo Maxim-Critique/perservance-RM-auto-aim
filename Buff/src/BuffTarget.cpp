@@ -29,7 +29,6 @@ Eigen::Vector3d Target::point_buff2world(const Eigen::Vector3d & point_in_buff) 
     auto R_yaw = ekf_.x[0];
     auto R_pitch = ekf_.x[2];
     auto R_dis = ekf_.x[3];
-    std::cout<<" ekf_.x[4] "<<ekf_.x[4]<<endl;
     Eigen::Vector3d point_in_world =
         R_buff2world * point_in_buff + Eigen::Vector3d(
                                         R_dis * std::cos(R_pitch) * std::cos(R_yaw),
@@ -95,7 +94,17 @@ void SmallTarget::get_target(const std::optional<PowerRune> & p, const time_poin
     // kalman update
     unsolvable_ = false;
     update(time_gap, p.value());
-
+    filtered_yaw += ekf_.x[4];
+    number ++;
+    ekf_.x[4] = filtered_yaw/number;
+    tools::logger()->info("[SmallTarget] Input - PowerRune Data: R_ypd[{:.2f}, {:.2f}, {:.2f}], ypr[{:.2f}, {:.2f}, {:.2f}], Blade_ypd[{:.2f}, {:.2f}, {:.2f}]",
+                        p.value().ypd_in_world[0], p.value().ypd_in_world[1], p.value().ypd_in_world[2],
+                        p.value().ypr_in_world[0], p.value().ypr_in_world[1], p.value().ypr_in_world[2],
+                        p.value().blade_ypd_in_world[0], p.value().blade_ypd_in_world[1], p.value().blade_ypd_in_world[2]);
+    tools::logger()->info("[SmallTarget] State After Update - R_yaw: {:.3f}, v_R_yaw: {:.3f}, R_pitch: {:.3f}, R_dis: {:.3f}, yaw: {:.3f}, roll: {:.3f}, spd: {:.3f}",
+                            ekf_.x[0], ekf_.x[1], ekf_.x[2],
+                            ekf_.x[3], ekf_.x[4], ekf_.x[5],
+                            ekf_.x[6]);
     // 处理发散
     if (std::abs(ekf_.x[6]) > SMALL_W + CV_PI / 18 || std::abs(ekf_.x[6]) < SMALL_W - CV_PI / 18) {
         unsolvable_ = true;
@@ -127,8 +136,8 @@ void SmallTarget::predict(double dt)
             0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
             0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
             0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+            0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.01,
+            0.0,    0.0, 0.0, 0.0, 0.0, 0.0,  0.0;
     // clang-format on 
     auto f = [&](const Eigen::VectorXd & x) -> Eigen::VectorXd {
         Eigen::VectorXd x_prior = A_ * x;
@@ -212,7 +221,7 @@ void SmallTarget::update(double nowtime, const PowerRune & p)
     const Eigen::VectorXd & B_ypd = p.blade_ypd_in_world;  // center of blade
 
     // 处理扇叶跳变 angle/row
-    if (abs(ypr[2] - ekf_.x[5]) > CV_PI / 12) {
+    if (abs(ypr[2] - ekf_.x[5]) > CV_PI / 9) {
         for (int i = -5; i <= 5; i++) {
         double angle_c = ekf_.x[5] + i * 2 * CV_PI / 5;
         if (std::fabs(angle_c - ypr[2]) < CV_PI / 5) {
@@ -256,7 +265,7 @@ void SmallTarget::update(double nowtime, const PowerRune & p)
         {0.01, 0.0, 0.0,  0.0}, // R_yaw
         {0.0, 0.01, 0.0,  0.0}, // R_pitch
         {0.0,  0.0, 0.5,  0.0}, // R_dis
-        {0.0,  0.0, 0.0,  0.1}  // roll
+        {0.0,  0.0, 0.0,  0.5}  // roll
     };
     // clang-format on
 
@@ -396,6 +405,7 @@ void BigTarget::get_target(
     // kalman update
     unsolvable_ = false;
     update(time_gap, p.value());
+   
 
     // 处理发散
     if (
@@ -546,7 +556,7 @@ void BigTarget::update(double nowtime, const PowerRune & p)
     const Eigen::VectorXd & B_ypd = p.blade_ypd_in_world;  // center of blade
 
     // 处理扇叶跳变 angle/row
-    if (abs(ypr[2] - ekf_.x[5]) > CV_PI / 12) {
+    if (abs(ypr[2] - ekf_.x[5]) > CV_PI / 9) {
         for (int i = -5; i <= 5; i++) {
             double angle_c = ekf_.x[5] + i * 2 * CV_PI / 5;
             if (std::fabs(angle_c - ypr[2]) < CV_PI / 5) {
@@ -637,6 +647,9 @@ void BigTarget::update(double nowtime, const PowerRune & p)
 
     Eigen::VectorXd z2{{B_ypd[0], B_ypd[1], B_ypd[2]}};
     ekf_.update(z2, H2, R2, h2, z_subtract2);
+    filtered_yaw += ekf_.x[4];
+    number ++;
+    ekf_.x[4] = filtered_yaw/number;
     // 更新lasttime
     lasttime_ = nowtime;
     unsolvable_ = false;

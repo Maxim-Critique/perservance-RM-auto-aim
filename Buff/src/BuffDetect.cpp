@@ -7,7 +7,7 @@ std::mutex mutex_bh;
 namespace auto_buff{
 
 BuffDetector::BuffDetector(){
-    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh1.onnx");
+    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh4.onnx");
 }
 
 void BuffDetector::HandleImg(){
@@ -15,7 +15,7 @@ void BuffDetector::HandleImg(){
     cv::cvtColor(img_, gray_img_, cv::COLOR_BGR2GRAY);  
     // cv::imshow("gray", gray_img_); 
     // 进行二值化 
-    cv::threshold(gray_img_, gray_img_, 100, 255, cv::THRESH_BINARY);
+    cv::threshold(gray_img_, gray_img_, 80, 255, cv::THRESH_BINARY);
     // cv::imshow("gray", gray_img_);
     // 找轮廓
     cv::findContours(gray_img_, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -123,7 +123,7 @@ cv::Point2f BuffDetector::GetR(std::vector<FanBlade> & fanblades)
 
 void SaveImg(Mat &input_image){
     if (input_image.empty()) cout << "warpPerspective失败，图像为空!" << endl;
-    static int number = 0;
+    static int number = 40000;
     number++;
     if(number%5==0){
         string filename = "../photos/" + to_string(number) + ".png";
@@ -153,9 +153,9 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
-    double min_ratio = 0.3;
+    double min_ratio = 0.1;
     double max_ratio = 1;
-    int min_area = 1000;
+    int min_area = 500;
     int max_area = 5000;
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
@@ -166,7 +166,9 @@ void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
             circle(img_,center,radius,Scalar(200,0,200),2);
             putText(img_,"Size: "+to_string(area)+"Ratio :"+to_string(area_ratio),center, cv::FONT_HERSHEY_COMPLEX, 0.6, Scalar(205, 100, 225), 1);
         }
+        
         if ((area>min_area) && (area<max_area) && (area_ratio>min_ratio) && (area_ratio<max_ratio) ){
+            
             cv::RotatedRect rect = cv::minAreaRect(contour);
             cv::Point2f vertices[4];
             rect.points(vertices);
