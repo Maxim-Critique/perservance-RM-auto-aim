@@ -7,6 +7,7 @@
 #include "hikrobot.hpp" 
 #include "exiter.hpp"
 #include "SerialPort.h"
+#include "ros2.hpp"
 
 void drawAngleInfo(cv::Mat& img, const Data_Save& data) {
     cv::putText(img, cv::format("Y:%.1f P:%.1f R:%.1f", 

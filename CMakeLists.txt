@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.16)
 
 project(VISION)
-
+list(APPEND CMAKE_PREFIX_PATH "/opt/ros/humble")
 # 设置构建类型为 Release
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 
@@ -19,6 +19,8 @@ find_package(fmt REQUIRED)
 add_subdirectory(tinympc)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 
 # 设置包含目录
 include_directories(
@@ -55,13 +57,10 @@ file(GLOB_RECURSE sourceFiles
 )
 list(FILTER sourceFiles EXCLUDE REGEX ".*/build/.*")
 
-# 添加可执行目标
 add_executable(action ${sourceFiles})
 
-# 查找 MVS 库
 find_library(MVS libMvCameraControl.so PATHS /opt/MVS/lib /opt/MVS/lib/64)
 
-# 链接库 - 修正libusb链接
 target_link_libraries(action
     ${OpenCV_LIBS}
     fmt::fmt
@@ -73,6 +72,8 @@ target_link_libraries(action
     ${YAML_CPP_LIBRARIES}
     tinympcstatic
     ${LIBUSB_LIBRARIES}  
+    rclcpp::rclcpp
+    std_msgs::std_msgs
 )
 
 # 设置Release模式的编译选项，使用-O2优化
