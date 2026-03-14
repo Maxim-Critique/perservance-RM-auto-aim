@@ -27,5 +27,6 @@ private:
     std::unique_ptr<Tradition> find_ptr;              // 找灯条和装甲板的指针
     double m_next_shoot_time;                         // 下一次开火时间
     double show;                                      // 可视化开关
+    int m_aim_id;                                  // 识别的ID
 };
 

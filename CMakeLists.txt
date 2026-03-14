@@ -21,6 +21,10 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(rcl REQUIRED)
+find_package(rmw REQUIRED)
+find_package(rosidl_runtime_c REQUIRED)
+find_package(rosidl_typesupport_interface REQUIRED)
 
 # 设置包含目录
 include_directories(
@@ -39,6 +43,12 @@ include_directories(
     "/opt/MVS/include"
     ${CMAKE_SOURCE_DIR}/tinympc
     ${LIBUSB_INCLUDE_DIRS}  
+    ${rclcpp_INCLUDE_DIRS}
+    ${rcl_INCLUDE_DIRS}
+    ${rmw_INCLUDE_DIRS}
+    ${rosidl_runtime_c_INCLUDE_DIRS}
+    ${rosidl_typesupport_interface_INCLUDE_DIRS}
+    ${std_msgs_INCLUDE_DIRS}
 )
 
 # 设置库文件目录
@@ -72,8 +82,12 @@ target_link_libraries(action
     ${YAML_CPP_LIBRARIES}
     tinympcstatic
     ${LIBUSB_LIBRARIES}  
-    rclcpp::rclcpp
-    std_msgs::std_msgs
+    ${rclcpp_LIBRARIES}
+    ${rcl_LIBRARIES}
+    ${rmw_LIBRARIES}
+    ${rosidl_runtime_c_LIBRARIES}
+    ${rosidl_typesupport_interface_LIBRARIES}
+# 注意：不需要在这里链接std_msgs，它由rclcpp自动提供
 )
 
 # 设置Release模式的编译选项，使用-O2优化
@@ -86,3 +100,12 @@ message(STATUS "Ceres include directories: ${CERES_INCLUDE_DIRS}")
 message(STATUS "yaml-cpp include directories: ${YAML_CPP_INCLUDE_DIRS}")
 message(STATUS "libusb libraries: ${LIBUSB_LIBRARIES}")
 message(STATUS "libusb include dirs: ${LIBUSB_INCLUDE_DIRS}")
+message(STATUS "rclcpp include dirs: ${rclcpp_INCLUDE_DIRS}")
+message(STATUS "rcl include dirs: ${rcl_INCLUDE_DIRS}")
+message(STATUS "rmw include dirs: ${rmw_INCLUDE_DIRS}")
+message(STATUS "rosidl_runtime_c include dirs: ${rosidl_runtime_c_INCLUDE_DIRS}")
+message(STATUS "rosidl_typesupport_interface include dirs: ${rosidl_typesupport_interface_INCLUDE_DIRS}")
+message(STATUS "std_msgs include dirs: ${std_msgs_INCLUDE_DIRS}")
+message(STATUS "rclcpp libraries: ${rclcpp_LIBRARIES}")
+message(STATUS "rcl libraries: ${rcl_LIBRARIES}")
+message(STATUS "rmw libraries: ${rmw_LIBRARIES}")

@@ -11,7 +11,7 @@ namespace io
 
 Publish2Nav::Publish2Nav() : Node("auto_aim_target_pos_publisher")
 {
-  publisher_ = this->create_publisher<std_msgs::msg::Int16>("auto_aim_target_pos", 10);
+  publisher_ = this->create_publisher<std_msgs::msg::Int16>("target_number", 10);
 
   RCLCPP_INFO(this->get_logger(), "auto_aim_target_pos_publisher node initialized.");
 }

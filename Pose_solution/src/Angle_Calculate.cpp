@@ -17,7 +17,7 @@ vector<Point3f> GetWorldPoints(double width,double height){
 
 Slover::Slover()
 {
-    std::string YamlPath = "/home/killer_machine/WRITE/text.yaml";
+
     auto yaml = YAML::LoadFile(YamlPath);
     auto R_camera2gimbal_data = yaml["Transform"]["R_camera2gimbal"].as<std::vector<double>>();
     auto t_camera2gimbal_data = yaml["Transform"]["t_camera2gimbal"].as<std::vector<double>>();

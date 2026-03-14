@@ -10,11 +10,21 @@ AutoArmor::AutoArmor(){
 void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     dg.Vision2Control();
     LightBlobs light_blobs = find_ptr->FindLight(img,ds.color);
-    if(light_blobs.size()<2)return;
+    if(light_blobs.size()<2){
+        tools::logger()->warn("未识别到足够灯条，灯条数量: {}", light_blobs.size());
+        return;
+    }
     auto armors = find_ptr->FindArmor(img,light_blobs);
+    if(armors.empty()){
+        tools::logger()->warn("灯条配对后未生成任何装甲板。");
+        return;
+    }
     classifier.extractNumbers(img,armors);
     classifier.classify(armors);
-    if(armors.empty())return;
+    if(armors.empty()){
+        tools::logger()->warn("装甲板数字识别与分类后无有效目标。");
+        return;
+    }
     auto armors_ = ChooseProcess(armors,ds);
     if(armors_.empty())return;
     ShowArmors(armors_,img);
@@ -30,7 +40,7 @@ void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Da
     bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 1;
     bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 1;
     bool fire_delta = (yaw_delta && pitch_delta);
-    dg.Vision2Control(yaw,pitch,yaw_val,0,1,fire_delta);
+    dg.Vision2Control(yaw,pitch,m_aim_id,1,fire_delta);
 }
 
 // 处理倒影
@@ -74,7 +84,7 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
             }
         }
     }
-        
+    m_aim_id = FoundID(aim_ptr->aim_id);
     return armors_;
 }
 

@@ -8,7 +8,7 @@
 
 #define PI 3.1415926
 // 弹速
-#define bullet_speed 24
+#define bullet_speed 23
 #define _std_radian(angle) ((angle) + round((0 - (angle)) / (2 * PI)) * (2 * PI))
 using time_point = std::chrono::steady_clock::time_point;
 
@@ -17,7 +17,7 @@ struct Data_Save {
     double camera_yaw_angle;
     double camera_pitch_angle;  
     double camera_roll_angle;
-    int Buff_or_Armor;       // 自瞄或大符
+    int go_back;       // 自瞄或大符
     int color;               // 敌方颜色
 };
 
@@ -32,7 +32,8 @@ struct Data_Get
         raw_data[20] = 0xBB;
         size = 21;
     }
-    void Vision2Control(int32_t x=0, int32_t y=0, int32_t ui_x=0, int32_t ui_y=0, uint8_t found=0, uint8_t fire=0);
+    void Vision2Control(int32_t x=0, int32_t y=0, uint8_t id=0, uint8_t found=0, uint8_t fire=0);
+    void Nav2Control(int16_t x=0, int16_t y=0);
 };
 
 struct Gimbal_Angle
@@ -52,5 +53,5 @@ struct Path_Point{
     Path_Point(double t, double a, double v,double acc) : time(t), angle(a), angle_vel(v), angle_acc(acc){}
 };
 
-static const std::string YamlPath = "/home/killer_machine/WRITE/text.yaml";
+static const std::string YamlPath = "/home/perseverance/auto-aim/text.yaml";
 #endif

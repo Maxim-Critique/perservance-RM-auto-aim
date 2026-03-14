@@ -321,8 +321,8 @@ int Test() {
             auto target = mpc->TrajectoryPlanning(aim_ptr->target_state);
             in << target.target_yaw << " " << target.manage_yaw << "\n";
             // 发送控制数据
-            dg.Vision2Control((target.manage_yaw)*1e4, target.target_pitch*1e4, 
-                             target.yaw_vel*1e4, target.yaw_acc*1e4, 1, 0);
+            // dg.Vision2Control((target.manage_yaw)*1e4, target.target_pitch*1e4, 
+            //                  target.yaw_vel*1e4, target.yaw_acc*1e4, 1, 0);
             serial_.SendData(dg);
             
             // 绘制状态估计和预测结果

@@ -2,11 +2,10 @@
 #define IO__SUBSCRIBE2NAV_HPP
 
 #include <rclcpp/rclcpp.hpp>
-#include <rclcpp/timer.hpp>
+#include <std_msgs/msg/int16_multi_array.hpp>
 #include <vector>
 
-#include "std_msgs/msg/int16_multi_array.hpp"
-#include "tools/thread_safe_queue.hpp"
+#include "thread_safe_queue.hpp"
 
 namespace io
 {

@@ -1,5 +1,8 @@
 #include "AIM.h"
+#include "logger.hpp"
+#include <fstream>
 
+std::ofstream in_ekf("ekf_log.txt", std::ios::app); 
 Aim::Aim(Armor armor){
     aim_id = armor.number;
     target_state = Eigen::VectorXd::Zero(10);
@@ -14,6 +17,15 @@ Eigen::VectorXd Aim::Estimate(const Armors &armors, double &time){
 
 void Aim::Resolve(const Armors &armors, double time)
 {   
+    tools::logger()->debug("time: {}", time);
+    for(auto armor :armors) {
+        tools::logger()->debug("armor.xyz: {},{},{}  armor.yaw: {}", armor.abs_pose.x(),armor.abs_pose.y(),armor.abs_pose.z(),armor.yaw);
+    }  
+    in_ekf << time << " ";
+    for(int i =0;i<target_state.rows(); i++){
+        in_ekf << target_state(i) << " ";
+    }
+    in_ekf << " \n ";
     if(m_model_observer->is_lost){
         InitEKF(armors[0]);
         m_model_observer = std::make_shared<ExtendedKalmanFilter>(target_state);
@@ -27,6 +39,7 @@ void Aim::Resolve(const Armors &armors, double time)
         match.push_back(value);
     }
     target_state = m_model_observer->update(armors, match);
+    
 }
 
 void Aim::InitEKF(Armor armor){

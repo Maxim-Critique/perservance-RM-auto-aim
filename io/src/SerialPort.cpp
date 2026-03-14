@@ -97,7 +97,7 @@ void SerialPort::read_data()
             }
             
             // 大缓冲区
-            unsigned char read_buffer[17];
+            unsigned char read_buffer[21];
             long bytes_read = ::read(fd, read_buffer, sizeof(read_buffer));
             
             if (bytes_read <= 0) {
@@ -126,8 +126,10 @@ void SerialPort::read_data()
                 ds.camera_pitch_angle = pit_ * SCALE;
                 ds.camera_roll_angle = _std_radian(roll_ * SCALE - PI);
                 ds.color = read_buffer[15];
-                ds.Buff_or_Armor = read_buffer[16];
+                ds.go_back = read_buffer[16];
                 queue_.push(ds);
+
+                //  std::cout<<"roll "<<roll_<<std::endl;
             }
             
         }
@@ -144,11 +146,10 @@ void SerialPort::Query(Data_Save &ds,const time_point &t){
     }
     ds.timestamp = t;
     ds.color = data_behind_.color;
+    ds.go_back = data_behind_.go_back;
     ds.camera_yaw_angle = (data_behind_.camera_yaw_angle+data_ahead_.camera_yaw_angle)/2;
     ds.camera_pitch_angle = (data_behind_.camera_pitch_angle+data_ahead_.camera_pitch_angle)/2;
-    ds.camera_roll_angle = (data_behind_.camera_roll_angle+data_ahead_.camera_yaw_angle)/2;  
-    ds.camera_roll_angle = 0;
-
+    ds.camera_roll_angle = (data_behind_.camera_roll_angle+data_ahead_.camera_roll_angle)/2;  
 }
 
 void SerialPort::SendData(const struct Data_Get &data)
@@ -171,7 +172,7 @@ void SerialPort::SendData(const struct Data_Get &data)
     }
 }
 }
-void Data_Get::Vision2Control(int32_t x, int32_t y, int32_t ui_x, int32_t ui_y, uint8_t found, uint8_t fire)
+void Data_Get::Vision2Control(int32_t x, int32_t y, uint8_t id, uint8_t found, uint8_t fire)
 {
     raw_data[2] = (x >> 24) & 0xff;
     raw_data[3] = (x >> 16) & 0xff;
@@ -181,15 +182,15 @@ void Data_Get::Vision2Control(int32_t x, int32_t y, int32_t ui_x, int32_t ui_y, 
     raw_data[7] = (y >> 16) & 0xff;
     raw_data[8] = (y >> 8) & 0xff;
     raw_data[9] = (y >> 0) & 0xff;
-    raw_data[10] = (ui_x >> 24) & 0xff;
-    raw_data[11] = (ui_x >> 16) & 0xff;
-    raw_data[12] = (ui_x >> 8) & 0xff;
-    raw_data[13] = (ui_x >> 0) & 0xff;
-    raw_data[14] = (ui_y >> 24) & 0xff;
-    raw_data[15] = (ui_y >> 16) & 0xff;
-    raw_data[16] = (ui_y >> 8) & 0xff;
-    raw_data[17] = (ui_y >> 0) & 0xff;
+    raw_data[17] = id;
     raw_data[18] = found;
     raw_data[19] = fire;
-    std::cout<<"x "<<x*1e-4<<"y "<<y*1e-4<<"vx "<<ui_x*1e-4<<"found "<<static_cast<int>(found)<<" fire "<<static_cast<int>(fire)<<std::endl;
+    std::cout<<"x "<<x*1e-4<<"y "<<y*1e-4<<"found "<<static_cast<int>(found)<<" fire "<<static_cast<int>(fire)<<std::endl;
+}
+
+void Data_Get::Nav2Control(int16_t x, int16_t y){
+    raw_data[10] = (x >> 8) & 0xff;
+    raw_data[11] = (x >> 0) & 0xff;
+    raw_data[12] = (y >> 8) & 0xff;
+    raw_data[13] = (y >> 0) & 0xff;
 }

@@ -16,7 +16,7 @@ Subscribe2Nav::Subscribe2Nav()
 {
 
   autoaim_target_subscription_ = this->create_subscription<std_msgs::msg::Int16MultiArray>(
-    "auto_aim_target_pos", // 注意话题名可能需要与发送方保持一致
+    "target_pos", // 确保话题名称与发布者一致
     10,
     std::bind(&Subscribe2Nav::autoaim_target_callback, this, std::placeholders::_1));
 
@@ -31,8 +31,8 @@ Subscribe2Nav::~Subscribe2Nav()
 void Subscribe2Nav::autoaim_target_callback(const std_msgs::msg::Int16MultiArray::SharedPtr msg)
 {
 
-  if (msg->data.size() < 2) {
-    RCLCPP_WARN(this->get_logger(), "Received Int16MultiArray with insufficient data size: %zu", msg->data.size());
+  if (msg->data.size() < 1) {  // 修改为至少需要1个元素
+    RCLCPP_WARN(this->get_logger(), "Received Int16MultiArray with no data: size %zu", msg->data.size());
     return;
   }
 

@@ -92,7 +92,7 @@
 //     //     double time_interval = (time - last_time)/1e8;
 //     //     last_time = time;
 //     //     GetThetaPhi(); 
-//     //     if(ds.Buff_or_Armor - 1) {
+//     //     if(ds.go_back - 1) {
 //     //         // if(!init){
 //     //         //     EKF = std::make_unique<CAlphaEKF>(this->theta);
 //     //         //     init = true;
