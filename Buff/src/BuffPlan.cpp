@@ -8,8 +8,6 @@ namespace auto_buff
 Planner::Planner()
 {
     auto yaml = YAML::LoadFile(YamlPath);
-    yaw_offset_ = yaml["Buff"]["yaw_offset"].as<double>() / 57.3;      // degree to rad
-    pitch_offset_ = yaml["Buff"]["pitch_offset"].as<double>() / 57.3;  // degree to rad
     predict_time_ = yaml["Planer"]["predict_time"].as<double>();
 }
 
@@ -47,7 +45,7 @@ bool Planner::GetSendAngle(Target & target, const double predict_time, double & 
     // 考虑detecor所消耗的时间，此外假设aimer的用时可忽略不计
     target.predict(predict_time);
     // 计算目标点的空间坐标
-    auto aim_in_world = target.point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));
+    auto aim_in_world = target.fire_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));
     double d = std::sqrt(aim_in_world[0] * aim_in_world[0] + aim_in_world[1] * aim_in_world[1]);
     double h = aim_in_world[2];
      
@@ -63,7 +61,7 @@ bool Planner::GetSendAngle(Target & target, const double predict_time, double & 
     target.predict(trajectory0.fly_time);
 
     // 计算新的目标点的空间坐标
-    aim_in_world = target.point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));
+    aim_in_world = target.fire_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));
     // aim_in_world = target.point_R2world();//调试用
     d = fsqrt(aim_in_world[0] * aim_in_world[0] + aim_in_world[1] * aim_in_world[1]);
     h = aim_in_world[2];
@@ -82,8 +80,9 @@ bool Planner::GetSendAngle(Target & target, const double predict_time, double & 
     }
 
     // 计算偏航角和俯仰角，并返回命中结果
-    yaw = std::atan2(aim_in_world[1], aim_in_world[0]) + yaw_offset_;
-    pitch = trajectory1.pitch + pitch_offset_;
+    yaw = std::atan2(aim_in_world[1], aim_in_world[0]);
+    pitch = trajectory1.pitch;
+
     return true;
 };
 

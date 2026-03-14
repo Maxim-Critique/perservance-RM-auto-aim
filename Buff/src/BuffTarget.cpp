@@ -8,7 +8,7 @@ Voter::Voter() : clockwise_(0) {}
 
 void Voter::vote(const double angle_last, const double angle_now)
 {
-    if (std::abs(clockwise_) > 50) return;
+    if (std::abs(clockwise_) > 10) return;
     if (angle_last > angle_now)
         clockwise_--;
     else
@@ -40,12 +40,11 @@ Eigen::Vector3d Target::point_buff2world(const Eigen::Vector3d & point_in_buff) 
 Eigen::Vector3d Target::fire_buff2world(const Eigen::Vector3d & point_in_buff) const
 {
     if (unsolvable_) return Eigen::Vector3d(0, 0, 0);
-    Eigen::Matrix3d R_buff2world = tools::rotation_matrix(Eigen::Vector3d(0.0, 0.0, ekf_.x[5]));  // pitch = 0
+    Eigen::Matrix3d R_buff2world = tools::rotation_matrix(Eigen::Vector3d(ekf_.x[4], 0.0, ekf_.x[5]-fire_mode));  // pitch = 0
 
     auto R_yaw = ekf_.x[0];
     auto R_pitch = ekf_.x[2];
     auto R_dis = ekf_.x[3];
-    
     Eigen::Vector3d point_in_world =
         R_buff2world * point_in_buff + Eigen::Vector3d(
                                         R_dis * std::cos(R_pitch) * std::cos(R_yaw),
@@ -94,9 +93,6 @@ void SmallTarget::get_target(const std::optional<PowerRune> & p, const time_poin
     // kalman update
     unsolvable_ = false;
     update(time_gap, p.value());
-    filtered_yaw += ekf_.x[4];
-    number ++;
-    ekf_.x[4] = filtered_yaw/number;
     tools::logger()->info("[SmallTarget] Input - PowerRune Data: R_ypd[{:.2f}, {:.2f}, {:.2f}], ypr[{:.2f}, {:.2f}, {:.2f}], Blade_ypd[{:.2f}, {:.2f}, {:.2f}]",
                         p.value().ypd_in_world[0], p.value().ypd_in_world[1], p.value().ypd_in_world[2],
                         p.value().ypr_in_world[0], p.value().ypr_in_world[1], p.value().ypr_in_world[2],
@@ -127,17 +123,17 @@ void SmallTarget::predict(double dt)
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0; // spd
 
     // 过程噪声协方差矩阵                            //// 调整
-    auto v1 = 0.1;  // 角加速度方差
+    auto v1 = 400;  // 角加速度方差
     auto a = dt * dt * dt * dt / 4;
     auto b = dt * dt * dt / 2;
     auto c = dt * dt;
-    Q_ <<   a * v1, b * v1, 0.0, 0.0, 0.0, 0.0, 0.0,
-            b * v1, c * v1, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0,    0.0, 0.0, 0.0, 0.0, 0.0, 0.01,
-            0.0,    0.0, 0.0, 0.0, 0.0, 0.0,  0.0;
+    Q_ <<   a*v1, b*v1,  0.0,  0.0, 0.0, 0.0, 0.0,
+            b*v1, c*v1,  0.0,  0.0, 0.0, 0.0, 0.0,
+            0.0,   0.0, 1.2*a*v1,  0.0, 0.0, 0.0, 0.0,
+            0.0,   0.0,  0.0,  0.0, 0.0, 0.0, 0.0,
+            0.0,   0.0,  0.0,  0.0, 0.0, 0.0, 0.0,
+            0.0,   0.0,  0.0,  0.0, 0.0, 0.0, 0.0,
+            0.0,   0.0,  0.0,  0.0, 0.0, 0.0, 0.0;
     // clang-format on 
     auto f = [&](const Eigen::VectorXd & x) -> Eigen::VectorXd {
         Eigen::VectorXd x_prior = A_ * x;
@@ -173,7 +169,7 @@ void SmallTarget::init(double nowtime, const PowerRune & p)
     // clang-format off
     // 初始状态
     x0_ <<  p.ypd_in_world[0], 0.0, p.ypd_in_world[1], p.ypd_in_world[2],
-            0.0, p.ypr_in_world[2], 
+            p.ypr_in_world[0], p.ypr_in_world[2], 
             SMALL_W * voter.clockwise();
     // 初始状态协方差矩阵
     P0_ << 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
@@ -221,15 +217,7 @@ void SmallTarget::update(double nowtime, const PowerRune & p)
     const Eigen::VectorXd & B_ypd = p.blade_ypd_in_world;  // center of blade
 
     // 处理扇叶跳变 angle/row
-    if (abs(ypr[2] - ekf_.x[5]) > CV_PI / 9) {
-        for (int i = -5; i <= 5; i++) {
-        double angle_c = ekf_.x[5] + i * 2 * CV_PI / 5;
-        if (std::fabs(angle_c - ypr[2]) < CV_PI / 5) {
-            ekf_.x[5] += i * 2 * CV_PI / 5;
-            break;
-        }
-        }
-    }
+    if (abs(ypr[2] - ekf_.x[5]) > CV_PI / 9) init(nowtime,p);
 
     // vote判断是顺时针还是逆时针旋转
     voter.vote(ekf_.x[5], ypr[2]);
@@ -437,13 +425,13 @@ void BigTarget::predict(double dt)
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0;//theta
         
     // 过程噪声协方差矩阵                            //// 调整
-    auto v1 = 0.9;  // 角加速度方差
+    auto v1 = 400;  // 角加速度方差
     auto a1 = dt * dt * dt * dt / 4;
     auto b1 = dt * dt * dt / 2;
     auto c1 = dt * dt;
     Q_ <<   a1 * v1, b1 * v1, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
             b1 * v1, c1 * v1, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-                0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                0.0,     0.0, 1.2*a1 * v1, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
                 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
                 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
                 0.0,     0.0, 0.0, 0.0, 0.0, 0.09,  0.0,  0.0,  0.0,  0.0,//row
@@ -501,7 +489,7 @@ void BigTarget::init(double nowtime, const PowerRune & p)
   // clang-format off
   // 初始状态
   x0_ << p.ypd_in_world[0], 0.0, p.ypd_in_world[1], p.ypd_in_world[2],
-         0.0, p.ypr_in_world[2], 
+         p.ypr_in_world[0], p.ypr_in_world[2], 
          1.1775, 0.9125, 1.942, 0.0;//std::atan((spd - 2.09) / 0.9125 + 1
   // 初始状态协方差矩阵
   P0_ << 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
@@ -564,6 +552,7 @@ void BigTarget::update(double nowtime, const PowerRune & p)
                 break;
             }
         }
+        
     }
 
     // vote判断是顺时针还是逆时针旋转

@@ -15,7 +15,7 @@ void BuffDetector::HandleImg(){
     cv::cvtColor(img_, gray_img_, cv::COLOR_BGR2GRAY);  
     // cv::imshow("gray", gray_img_); 
     // 进行二值化 
-    cv::threshold(gray_img_, gray_img_, 80, 255, cv::THRESH_BINARY);
+    cv::threshold(gray_img_, gray_img_, 60, 255, cv::THRESH_BINARY);
     // cv::imshow("gray", gray_img_);
     // 找轮廓
     cv::findContours(gray_img_, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -147,16 +147,16 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
     cv::Mat outputs = net_.forward().clone();
     mutex_bh.unlock();
     // 获取类别1的概率
-    float probability = outputs.at<float>(0, 0);  
-    float sigmoid_prob = 1.0f / (1.0f + exp(-probability));  
-    return sigmoid_prob > 0.7f;
+    float probability = outputs.at<float>(0, 0);
+    float sigmoid_prob = 1.0f / (1.0f + exp(-probability));
+    return sigmoid_prob > 0.5f;
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
     double min_ratio = 0.1;
     double max_ratio = 1;
     int min_area = 500;
-    int max_area = 5000;
+    int max_area = 7000;
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
         cv::Point2f center;float radius;
@@ -238,7 +238,7 @@ void BuffDetector::GetLightBars(vector<FanBlade>& fanblades, std::vector<std::pa
 
         if (min_distance != std::numeric_limits<float>::max() && best_rect_points) {
             cv::Point2f ref_point = best_rect_points->back(); 
-            float r = fan.radius - 2;
+            float r = fan.radius - 4;
             std::vector<cv::Point2f> all_points = GetPoints(fan.center, r, ref_point);
             fan.points = all_points;
 

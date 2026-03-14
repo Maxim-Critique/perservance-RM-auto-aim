@@ -1,4 +1,5 @@
 #include "BuffSlove.h"
+#include "logger.hpp"
 namespace auto_buff
 {
 cv::Matx33f Solver::rotation_matrix(double angle) const
@@ -45,16 +46,11 @@ void Solver::Solve(std::optional<PowerRune> & ps) const
     PowerRune & p = ps.value();
     std::vector<cv::Point2f> image_points = p.target().points;
     image_points.emplace_back(p.r_center);
-    std::vector<cv::Point2f> image_points_fourth(image_points.begin(), image_points.end());
-    std::vector<cv::Point3f> OBJECT_POINTS_FOURTH(OBJECT_POINTS.begin(), OBJECT_POINTS.end());
-    if(p.light_num == 2){
-        std::vector<cv::Point3f> POINTS;
-        POINTS = p.adjacent?ADJACENT_POINTS:INTERVAL_POINTS;
-        image_points_fourth.insert(image_points_fourth.end(),std::begin(p.target_next().points),std::end(p.target_next().points));
-        OBJECT_POINTS_FOURTH.insert(OBJECT_POINTS_FOURTH.end(),std::begin(POINTS),std::end(POINTS));
-    }
+    std::vector<cv::Point2f> image_points_fourth(image_points.begin(), image_points.begin() + 4);
+    std::vector<cv::Point3f> OBJECT_POINTS_FOURTH(OBJECT_POINTS.begin(), OBJECT_POINTS.begin() + 4);
     cv::solvePnP(OBJECT_POINTS_FOURTH, image_points_fourth, camera_matrix_, 
-        distort_coeffs_, rvec_, tvec_, false,cv::SOLVEPNP_ITERATIVE);
+        distort_coeffs_, rvec_, tvec_, false,cv::SOLVEPNP_IPPE);
+
 
     Eigen::Vector3d t_buff2camera;
     cv::cv2eigen(tvec_, t_buff2camera);

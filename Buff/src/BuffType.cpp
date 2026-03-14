@@ -20,16 +20,18 @@ PowerRune::PowerRune(
     if(light_num == 2){
         ts[0].angle = atan_angle(ts[0].center);
         ts[1].angle = atan_angle(ts[1].center);
-        auto delta = _std_radian(ts[0].angle - ts[1].angle);
-        if(delta>0){
-            fanblades.emplace_back(ts[0]);
-            fanblades.emplace_back(ts[1]);
-        }else{
-            fanblades.emplace_back(ts[1]);
-            fanblades.emplace_back(ts[0]);
+        
+        FanBlade selected_blade = ts[0];
+        if (last_powerrune) {
+            double target_angle = last_powerrune->target().angle; // Extract angle from FanBlade
+            double delta0 = std::abs(_std_radian(ts[0].angle - target_angle));
+            double delta1 = std::abs(_std_radian(ts[1].angle - target_angle));
+            selected_blade = (delta0 < delta1) ? ts[0] : ts[1];
         }
-        adjacent = (abs(abs(delta)-2*PI/5)<abs(abs(delta)-4*PI/5));
-    }else fanblades.emplace_back(ts[0]);
+        fanblades.emplace_back(selected_blade);
+    } else {
+        fanblades.emplace_back(ts[0]);
+    }
 };
 
 double PowerRune::atan_angle(cv::Point2f point) const

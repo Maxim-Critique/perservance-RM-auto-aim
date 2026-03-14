@@ -46,7 +46,6 @@ public:
     double spd = 0;  //调试用
 
     virtual std::unique_ptr<Target> clone() const = 0;
-
 protected:
     virtual void init(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
 
@@ -63,6 +62,8 @@ protected:
     Voter voter;  // 逆时针-1 顺时针1
     bool first_in_;
     bool unsolvable_;
+    double fire_mode = 0;
+    
 };
 
 /// SmallTarget子类

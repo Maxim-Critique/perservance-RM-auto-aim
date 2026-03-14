@@ -21,9 +21,6 @@ public:
 
     Gimbal_Angle Plan(Target & target, time_point timestamp);
 private:
-    double yaw_offset_;
-    double pitch_offset_;
-
     double fire_gap_time_;
     double predict_time_;
 
