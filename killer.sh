@@ -1,3 +1,3 @@
 #gnome-terminal
-cd /home/killer_machine/WRITE/build/
+cd /home/sirius/auto-aim/build/
 ./action

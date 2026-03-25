@@ -93,7 +93,7 @@ void NumberClassifier::extractNumbers(const cv::Mat &src, std::vector<Armor> &ar
 }
 // 训练用平
 string Writepath1;
-int counting1 = 7000;
+int counting1 = 0;
 string Photo_name1;
 
 void NumberClassifier::classify(std::vector<Armor> &armors)
@@ -140,6 +140,64 @@ void NumberClassifier::classify(std::vector<Armor> &armors)
     //  for (auto & armor : armors){
     //      cout<<armor.number << ": " << std::fixed << std::setprecision(1)<< armor.confidence * 100.0 << "%"<<endl<<endl;
     //  }
+    // for (auto &armor : armors) {
+    //     if (armor.number == "1") {
+    //         Writepath1 = "/home/sirius/datasets/1/";
+    //         Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
+    //         imwrite(Photo_name1, armor.number_img);
+    //         cout << Photo_name1 << endl;
+    //         counting1++;
+    //     }
+    //     else if (armor.number == "2") {
+    //         Writepath1 = "/home/sirius/datasets/2/";
+    //         Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
+    //         imwrite(Photo_name1, armor.number_img);
+    //         cout << Photo_name1 << endl;
+    //         counting1++;
+    //     }
+    //     else if (armor.number == "3") {
+    //         Writepath1 = "/home/sirius/datasets/3/";
+    //         Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
+    //         imwrite(Photo_name1, armor.number_img);
+    //         cout << Photo_name1 << endl;
+    //         counting1++;
+    //     }
+    //     else if (armor.number == "4") {
+    //         Writepath1 = "/home/sirius/datasets/4/";
+    //         Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
+    //         imwrite(Photo_name1, armor.number_img);
+    //         cout << Photo_name1 << endl;
+    //         counting1++;
+    //     }
+    //     else if (armor.number == "outpost") {
+    //         Writepath1 = "/home/sirius/datasets/outpost/";
+    //         Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
+    //         imwrite(Photo_name1, armor.number_img);
+    //         cout << Photo_name1 << endl;
+    //         counting1++;
+    //     }
+    //     else if (armor.number == "guard") {
+    //         Writepath1 = "/home/sirius/datasets/guard/";
+    //         Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
+    //         imwrite(Photo_name1, armor.number_img);
+    //         cout << Photo_name1 << endl;
+    //         counting1++;
+    //     }
+    //     else if (armor.number == "base") {
+    //         Writepath1 = "/home/sirius/datasets/base/";
+    //         Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
+    //         imwrite(Photo_name1, armor.number_img);
+    //         cout << Photo_name1 << endl;
+    //         counting1++;
+    //     }
+    //     else if (armor.number == "negative") {
+    //         Writepath1 = "/home/sirius/datasets/negative/";
+    //         Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
+    //         imwrite(Photo_name1, armor.number_img);
+    //         cout << Photo_name1 << endl;
+    //         counting1++;
+    //     }
+    // }
 
     armors.erase(
         std::remove_if(
@@ -191,71 +249,7 @@ void NumberClassifier::classify(std::vector<Armor> &armors)
     // }
 
     // 保存图像
-    //  for (auto &armor : armors) {
-    //      if(armor.number != "graud"){
-    //          Writepath1 = "/home/perseverance/WRITE/videos/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) +armor.number+ ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          counting1++;
-    //      }
-    //  }
-    //      if (armor.number == "1") {
-    //          Writepath1 = "/home/zhbit/datasets/1/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "2") {
-    //          Writepath1 = "/home/zhbit/datasets/2/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "3") {
-    //          Writepath1 = "/home/zhbit/datasets/3/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "4") {
-    //          Writepath1 = "/home/zhbit/datasets/4/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "outpost") {
-    //          Writepath1 = "/home/zhbit/datasets/outpost/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "guard") {
-    //          Writepath1 = "/home/zhbit/datasets/guard/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "base") {
-    //          Writepath1 = "/home/zhbit/datasets/base/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "negative") {
-    //          Writepath1 = "/home/zhbit/datasets/negative/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //  }
+
 }
 
 const std::string model_path = "../model/mlp.onnx";

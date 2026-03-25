@@ -8,13 +8,23 @@ AutoArmor::AutoArmor(){
     last_time = std::chrono::steady_clock::now()-std::chrono::seconds(4);
 }
 void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
-    dg.Vision2Control();
+    DontMove(ds,dg);
     LightBlobs light_blobs = find_ptr->FindLight(img,ds.color);
-    if(light_blobs.size()<2)return;
+    if(light_blobs.size()<2){
+        tools::logger()->warn("未识别到足够灯条，灯条数量: {}", light_blobs.size());
+        return;
+    }
     auto armors = find_ptr->FindArmor(img,light_blobs);
+    if(armors.empty()){
+        tools::logger()->warn("灯条配对后未生成任何装甲板。");
+        return;
+    }
     classifier.extractNumbers(img,armors);
     classifier.classify(armors);
-    if(armors.empty())return;
+    if(armors.empty()){
+        tools::logger()->warn("装甲板数字识别与分类后无有效目标。");
+        return;
+    }
     auto armors_ = ChooseProcess(armors,ds);
     if(armors_.empty())return;
     ShowArmors(armors_,img);
@@ -33,6 +43,12 @@ void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Da
     dg.Vision2Control(yaw,pitch,yaw_val,0,1,fire_delta);
 }
 
+void AutoArmor::DontMove(const Data_Save &ds,Data_Get &dg){
+    int32_t yaw = (tools::R2D(ds.camera_yaw_angle)) * 1e4;
+    int32_t pitch = (tools::R2D(ds.camera_pitch_angle)) * 1e4;
+    dg.Vision2Control(yaw,pitch,0,0,0,0);
+}
+
 // 处理倒影
 void SortArmors(Armors& armors) {
     std::sort(armors.begin(), armors.end(), 
@@ -46,18 +62,18 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
 
     Armors armors_;
     time_interval = (ds.timestamp-last_time).count() / 1e9;
-    last_time = ds.timestamp;
     if(time_interval==0)return armors_;
 
     SortArmors(armors);
     solve_ptr->UpdateStatus(ds);
 
-    if(time_interval>2){
+    if(time_interval>0.25){
         for(auto armor : armors){
             solve_ptr->Solve(armor);
             if(armor.gim_pose.norm()<6){
                 armors_.push_back(armor); 
                 aim_ptr = std::make_unique<Aim>(armor);
+                last_time = ds.timestamp;
                 break;
             }
         }
@@ -67,6 +83,7 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
                 solve_ptr->Solve(armor);
                 if(armor.gim_pose.norm()<6){
                     armors_.push_back(armor);
+                    last_time = ds.timestamp;
                 }
             }
             if(armors_.size()>2){

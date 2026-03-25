@@ -1,19 +1,19 @@
 Camera:
-  exposure_time: 1000
+  exposure_time: 2000
   camera_matrix: [1730.7, 0.4, 731.1, 0, 1730.1, 559.6, 0, 0, 1]
   distort_coeffs: [-0.0681, 0.1248, -0.0000634, 0.0005893, -0.0815]
-  show: 1
+  show: 0
 
 Transform:
   R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
-  t_camera2gimbal: [0.10, -0.05, 0]
+  t_camera2gimbal: [0.183, 0.067, 0.023]
 
 Tradition:
   threshold: 180
 
 Planer:
-  predict_time: 0.08
-  max_yaw_acc: 20
+  predict_time: 0.033
+  max_yaw_acc: 10
 
 EKF:
   ProcessNoise:
@@ -21,13 +21,13 @@ EKF:
     da: 400
 
 Transmit:
-  compensate_pitch: 1.2
-  compensate_yaw: -0.9
+  compensate_pitch: -1.5
+  compensate_yaw: 0.7
 
 Buff:
   pitch: 9
   yaw: -0.8
 
 Find:
-  is_get_from_ds: false
+  is_get_from_ds: true
   enemy_color: 0

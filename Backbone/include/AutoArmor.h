@@ -17,6 +17,8 @@ private:
     YAML::Node readYAML(const std::string& filename);
     // 可视化
     void ShowArmors(const Armors &armor,Mat &img);
+
+    void DontMove(const Data_Save &ds,Data_Get &dg);
     /////////////////////////////////变量/////////////////////////////
     double time_interval;                             // 两次时间间隔
     std::unique_ptr<Aim> aim_ptr;                     // 整车观测的指针

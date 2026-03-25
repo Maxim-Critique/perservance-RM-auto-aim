@@ -74,9 +74,9 @@ LightBlobs Tradition::FindLight(Mat &src, int enemy_color) {
     std::vector<cv::Mat> channels;
     cv::split(src, channels);
 
-    if (enemy_color == ENEMY_BLUE) {         
+    if (enemy_color_ == ENEMY_BLUE) {         
         color_channel = channels[0];        
-    } else if (enemy_color == ENEMY_RED) {    
+    } else if (enemy_color_ == ENEMY_RED) {    
         color_channel = channels[2];        
     }
 
