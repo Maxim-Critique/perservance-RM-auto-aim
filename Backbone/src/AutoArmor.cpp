@@ -36,7 +36,7 @@ void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
 void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg){
     int32_t yaw = (tools::R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
-    int32_t yaw_val = tools::R2D(gimbal_angle.yaw_vel)*1e4;
+    // int32_t yaw_val = tools::R2D(gimbal_angle.yaw_vel)*1e4;  // unused variable
     bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 1;
     bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 1;
     bool fire_delta = (yaw_delta && pitch_delta);

@@ -1,8 +1,14 @@
 Camera:
-  exposure_time: 2000
+  exposure_time: 2400
   camera_matrix: [1730.7, 0.4, 731.1, 0, 1730.1, 559.6, 0, 0, 1]
   distort_coeffs: [-0.0681, 0.1248, -0.0000634, 0.0005893, -0.0815]
   show: 1
+
+USBCamera:
+  new_image_width: 1280
+  new_image_height: 720
+  usb_frame_rate: 60
+  new_usb_exposure: 120
 
 Transform:
   R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
@@ -29,5 +35,5 @@ Buff:
   yaw: -0.8
 
 Find:
-  is_get_from_ds: false
+  is_get_from_ds: true
   enemy_color: 0

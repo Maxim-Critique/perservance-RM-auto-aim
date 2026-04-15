@@ -11,8 +11,8 @@ namespace io
 
 Subscribe2Nav::Subscribe2Nav()
 : Node("nav_subscriber"),
-  autoaim_target_queue_(1),
-  autoaim_target_counter_(0)
+  autoaim_target_counter_(0),
+  autoaim_target_queue_(1)
 {
 
   autoaim_target_subscription_ = this->create_subscription<std_msgs::msg::Int16MultiArray>(
@@ -28,7 +28,7 @@ Subscribe2Nav::~Subscribe2Nav()
   RCLCPP_INFO(this->get_logger(), "nav_subscriber node shutting down.");
 }
 
-void Subscribe2Nav::autoaim_target_callback(const std_msgs::msg::Int16MultiArray::SharedPtr msg)
+void Subscribe2Nav::autoaim_target_callback(std::shared_ptr<const std_msgs::msg::Int16MultiArray> msg)
 {
 
   if (msg->data.size() < 1) {  // 修改为至少需要1个元素

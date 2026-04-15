@@ -119,6 +119,7 @@ Armor StandardModel::GetClosestArmor(double predict_time,int &last_index,int &fr
     // Armor armor;
     // armor.abs_pose = point;
     // return armor;
+    return Armor();
 }
 
 Armor StandardModel::GetFacingArmor(double predict_time,int &last_index,int &frames_since_last_switch,Point3d &center_pose)
@@ -185,6 +186,7 @@ Armor StandardModel::GetFacingArmor(double predict_time,int &last_index,int &fra
     // Armor armor;
     // armor.abs_pose = point;
     // return armor;
+    return Armor();
 }
 
 void StandardModel::print(std::string tag)

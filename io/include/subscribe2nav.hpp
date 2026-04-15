@@ -22,7 +22,7 @@ public:
 
 private:
 
-  void autoaim_target_callback(const std_msgs::msg::Int16MultiArray::SharedPtr msg);
+  void autoaim_target_callback(std::shared_ptr<const std_msgs::msg::Int16MultiArray> msg);
 
   int autoaim_target_counter_;
 

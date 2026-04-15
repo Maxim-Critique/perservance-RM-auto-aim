@@ -67,7 +67,7 @@ Gimbal_Angle MPC::TrajectoryPlanning(Eigen::VectorXd states){
 double MPC::GetGimbalYaw(double time){
     Armors armors = m_status->GetArmors(time);
     double min_distance = 100;
-    Eigen::Vector3d point;
+    Eigen::Vector3d point = Eigen::Vector3d::Zero();
     for(auto armor : armors){
         if(min_distance>armor.abs_pose.norm()){
             point = armor.abs_pose;

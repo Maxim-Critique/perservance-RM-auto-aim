@@ -16,6 +16,8 @@ find_package(Eigen3 REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(fmt REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(OPENVINO REQUIRED openvino)
 add_subdirectory(tinympc)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
@@ -36,13 +38,15 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/Buff/include
     ${CMAKE_SOURCE_DIR}/Test/include
     ${CMAKE_SOURCE_DIR}/tools
+    ${CMAKE_SOURCE_DIR}/Omniperception
     ${OpenCV_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIR}
     ${CERES_INCLUDE_DIRS}
     ${YAML_CPP_INCLUDE_DIRS}
     "/opt/MVS/include"
     ${CMAKE_SOURCE_DIR}/tinympc
-    ${LIBUSB_INCLUDE_DIRS}  
+    ${LIBUSB_INCLUDE_DIRS}
+    ${OPENVINO_INCLUDE_DIRS}
     ${rclcpp_INCLUDE_DIRS}
     ${rcl_INCLUDE_DIRS}
     ${rmw_INCLUDE_DIRS}
@@ -64,6 +68,7 @@ file(GLOB_RECURSE sourceFiles
     "${CMAKE_SOURCE_DIR}/Buff/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/Test/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/tools/*.cpp"
+    "${CMAKE_SOURCE_DIR}/Omniperception/*.cpp"
 )
 list(FILTER sourceFiles EXCLUDE REGEX ".*/build/.*")
 
@@ -81,13 +86,13 @@ target_link_libraries(action
     -lgxiapi
     ${YAML_CPP_LIBRARIES}
     tinympcstatic
-    ${LIBUSB_LIBRARIES}  
+    ${LIBUSB_LIBRARIES}
+    ${OPENVINO_LIBRARIES}
     ${rclcpp_LIBRARIES}
     ${rcl_LIBRARIES}
     ${rmw_LIBRARIES}
     ${rosidl_runtime_c_LIBRARIES}
     ${rosidl_typesupport_interface_LIBRARIES}
-# 注意：不需要在这里链接std_msgs，它由rclcpp自动提供
 )
 
 # 设置Release模式的编译选项，使用-O2优化
