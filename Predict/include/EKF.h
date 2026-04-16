@@ -62,6 +62,17 @@ private:
         int index;
     };
 
+    class OutpostStrategy : public UpdateStrategy {
+    public:
+        void configure(const Eigen::VectorXd& x_pri, const Data& data) override;
+        std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd> compute() override;
+
+    private:
+        Eigen::VectorXd x;
+        Armor armor;
+        int index;
+    };
+
     // 双装甲板策略 
     class DualArmorStrategy : public UpdateStrategy {
     public:

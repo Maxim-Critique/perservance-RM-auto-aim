@@ -18,10 +18,11 @@ void Aim::Resolve(const Armors &armors, double time)
         InitEKF(armors[0]);
         m_model_observer = std::make_shared<ExtendedKalmanFilter>(target_state);
     }
-    target_state = m_model_observer->predict(time);
-    std::shared_ptr<KinematicModel> prior_status = std::make_shared<StandardModel>(target_state);
+    std::shared_ptr<KinematicModel> prior_status;
+    if(armors[0].number == "outpost")prior_status = std::make_shared<OutpostModel>(m_model_observer->predict(time));
+    else prior_status = std::make_shared<StandardModel>(m_model_observer->predict(time));
     Eigen::MatrixXd score = GetScoreMat(armors, prior_status->GetArmors(0));
-    std::map<int, int> armor_match = m_match.GetMatch(score, 1, 4);
+    std::map<int, int> armor_match = m_match.GetMatch(score, 1, prior_status->number);
     vector<int> match;
     for (const auto& [key, value] : armor_match) { 
         match.push_back(value);
@@ -30,23 +31,23 @@ void Aim::Resolve(const Armors &armors, double time)
 }
 
 void Aim::InitEKF(Armor armor){
-    // 初始半径设置为0.25
-    target_state << armor.abs_pose.x() - 0.25 * cos(armor.yaw),   // xc
-                   0,                                           // vx
-                   armor.abs_pose.y() - 0.25 * sin(armor.yaw),    // yc
-                   0,                                           // vy
-                   armor.abs_pose.z(),                            // z1
-                   armor.abs_pose.z(),                            // z2        
-                   0.25,                                        // r1
-                   0.25,                                        // r2
-                   armor.yaw,                                   // yaw
-                   0;                                           // vyaw
+    if(armor.number == "outpost"){
+        target_state << armor.abs_pose.x() - 0.25 * cos(armor.yaw),0,       // xc,vx                                                     // vx
+                armor.abs_pose.y() - 0.25 * sin(armor.yaw),0,               // yc,vy
+                armor.abs_pose.z(),armor.abs_pose.z(),armor.abs_pose.z(),   // z1,z2,z3
+                0.225,   armor.yaw,0;                                       // r1,yaw,vyaw 
+    }else{
+        target_state << armor.abs_pose.x() - 0.25 * cos(armor.yaw),0,    // xc,vx
+                   armor.abs_pose.y() - 0.25 * sin(armor.yaw),0,         // yc,vy
+                   armor.abs_pose.z(),armor.abs_pose.z(),                // z1,z2
+                   0.25,0.25,armor.yaw,0;                                // r1,r2,yaw,vyaw
+    }
 }
 
-Eigen::MatrixXd Aim::GetScoreMat(const Armors &detect_armors, const Armors &standard_armors)
+Eigen::MatrixXd Aim::GetScoreMat(const Armors &detect_armors, const Armors &predict_armors)
 {
     const Eigen::Index m = detect_armors.size();
-    const Eigen::Index n = standard_armors.size();
+    const Eigen::Index n = predict_armors.size();
     if (m == 0 || n == 0)
         return Eigen::MatrixXd::Zero(m, n);
 
@@ -55,13 +56,13 @@ Eigen::MatrixXd Aim::GetScoreMat(const Armors &detect_armors, const Armors &stan
     for (Eigen::Index i = 0; i < m; ++i) {
         for (Eigen::Index j = 0; j < n; ++j) {
             const auto &detect = detect_armors[i].abs_pose;
-            const auto &standard = standard_armors[j].abs_pose;
+            const auto &standard = predict_armors[j].abs_pose;
             // xy平面距离
             negative_score(i * n + j, 0) = std::hypot(detect.x() - standard.x(), detect.y() - standard.y());
             // z轴距离
             negative_score(i * n + j, 1) = std::abs(detect.z() - standard.z());
             // 角度差
-            negative_score(i * n + j, 2) = std::abs(_std_radian(detect_armors[i].yaw - standard_armors[j].predict_yaw));
+            negative_score(i * n + j, 2) = std::abs(_std_radian(detect_armors[i].yaw - predict_armors[j].predict_yaw));
         }
     }
 

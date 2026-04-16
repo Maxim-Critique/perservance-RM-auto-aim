@@ -5,15 +5,11 @@
 
 std::unique_ptr<ExtendedKalmanFilter::UpdateStrategy> 
 ExtendedKalmanFilter::createStrategy(const UpdateStrategy::Data& data) {
+    if (data.armors[0].number == "outpost") return std::make_unique<OutpostStrategy>();
+
     size_t n = data.match_indices.size();
-    
-    if (n == 1) {
-        return std::make_unique<SingleArmorStrategy>();
-    }
-    
-    if (n == 2) {
-        return std::make_unique<DualArmorStrategy>();
-    }
+    if (n == 1) return std::make_unique<SingleArmorStrategy>();
+    if (n == 2) return std::make_unique<DualArmorStrategy>();
     
     return nullptr;
 }
@@ -56,6 +52,44 @@ ExtendedKalmanFilter::SingleArmorStrategy::compute() {
     R.diagonal() << 4e-3, 4e-3, log(std::abs(delta_angle) + 1) + 1,
      log(std::abs(armor.abs_ypd[2]) + 1) / 200 + 9e-1;  
 
+    return {residual, H, R};
+}
+
+void ExtendedKalmanFilter::OutpostStrategy::configure(
+    const Eigen::VectorXd& x_pri, const Data& data) {
+    x = x_pri;
+    armor = data.armors[0];
+    index = data.match_indices[0];
+}
+
+std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eigen::MatrixXd>
+ExtendedKalmanFilter::OutpostStrategy::compute() {
+    double angle = _std_radian(x(8) + index*2*PI/3);
+    double radius = x(7);
+    Eigen::Vector3d armor_xyz = {x(0) + radius*cos(angle),x(2) + radius*sin(angle),x(4+index)};
+    Eigen::Vector4d h;
+    Eigen::Vector3d armor_pyd = tools::xyz2ypd(armor_xyz);
+    h << armor_pyd,angle;
+    // 实际观测
+    Eigen::Vector4d z;
+    z << armor.abs_ypd.x(), armor.abs_ypd.y(), armor.abs_ypd.z(), _std_radian(armor.yaw);
+    // 残差
+    Eigen::Vector4d residual = z - h;
+    residual(3) = _std_radian(residual(3));
+
+    Eigen::Matrix<double, 4, 10> H_armor_xyza = Eigen::Matrix<double, 4, 10>::Zero();
+    H_armor_xyza <<
+        1, 0, 0, 0, 0, 0, 0, cos(angle), -radius*sin(angle), 0,
+        0, 0, 1, 0, 0, 0, 0, sin(angle),  radius*cos(angle), 0,
+        0, 0, 0, 0, index == 0, index == 1, index == 2, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 0;
+    Eigen::Matrix4d H_armor_ypda = tools::xyz2ypd_jacobian(armor_xyz);
+    Eigen::Matrix<double, 4, 10> H = H_armor_ypda * H_armor_xyza;
+
+    Eigen::Matrix4d R = Eigen::Matrix4d::Identity();
+    double delta_angle = _std_radian(armor.abs_ypd[0]-atan2(armor.abs_pose.y(), armor.abs_pose.x()));
+    R.diagonal() << 4e-3, 4e-3, log(std::abs(delta_angle) + 1) + 1,
+        log(std::abs(armor.abs_ypd[2]) + 1) / 200 + 9e-1;  
     return {residual, H, R};
 }
 
@@ -222,8 +256,6 @@ Eigen::VectorXd ExtendedKalmanFilter::update(const Armors& armors, const std::ve
     x_post = x_pri + K * residual;
     P_post = (I - K * H) * P_pri * (I - K * H).transpose() + K * R * K.transpose();
     
-    // 状态约束
-    constrainState(x_post);
     NIS(strategy->compute());   
     return x_post;
 }
@@ -252,17 +284,3 @@ void ExtendedKalmanFilter::NIS(std::tuple<Eigen::VectorXd, Eigen::MatrixXd, Eige
 }
 
 
-
-void ExtendedKalmanFilter::constrainState(Eigen::VectorXd& state) {
-    // 半径约束
-    state(6) = std::clamp(state(6), 0.18, 0.4);
-    state(7) = std::clamp(state(7), 0.18, 0.4);
-    
-    // 角度标准化
-    state(8) = _std_radian(state(8));
-    
-    // 角速度约束
-    if (abs(state(9)) > 25) {
-        state(9) = 0;
-    }
-}

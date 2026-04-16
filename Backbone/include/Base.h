@@ -52,5 +52,5 @@ struct Path_Point{
     Path_Point(double t, double a, double v,double acc) : time(t), angle(a), angle_vel(v), angle_acc(acc){}
 };
 
-static const std::string YamlPath = "/home/killer_machine/WRITE/text.yaml";
+static const std::string YamlPath = "/home/liubai/auto-aim/text.yaml";
 #endif

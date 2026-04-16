@@ -59,7 +59,7 @@ void Slover::Solve(Armor &armor){
     }else{
         world_points = world_points_small;
     }
-    
+    is_outpost_ = armor.number == "outpost";
     cv::solvePnP(world_points, armor.points, camera_matrix_, distort_coeffs_, rvec, tvec, false, cv::SOLVEPNP_IPPE);
     Eigen::Vector3d xyz_in_camera;
     cv::cv2eigen(tvec, xyz_in_camera);
@@ -91,8 +91,8 @@ void Slover::Solve(Armor &armor){
 vector<Point2f> Slover::Reprojection(const double &yaw){
     auto sin_yaw = std::sin(yaw);
     auto cos_yaw = std::cos(yaw);
-    auto sin_pitch = std::sin(13*PI/12);
-    auto cos_pitch = std::cos(13*PI/12);
+    auto sin_pitch = is_outpost_ ? std::sin(11*PI/12) : std::sin(13*PI/12);
+    auto cos_pitch = is_outpost_ ? std::cos(11*PI/12) : std::cos(13*PI/12);
     Eigen::Matrix3d _p_R_armor2world_;
     _p_R_armor2world_ << cos_yaw,   sin_yaw * sin_pitch,   -sin_yaw * cos_pitch,
                                0,             cos_pitch,              sin_pitch,

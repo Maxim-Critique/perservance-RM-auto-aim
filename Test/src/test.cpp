@@ -36,15 +36,14 @@ int cnt = 0;
 cv::Point2f base_point = cv::Point2f(512, 512);
 
 // 仿真参数（这些就是真实状态）
-cv::Point2f center(3, 0);  // 中心点初始位置
-float z[2] = {0.15, 0.1};  // 装甲板高度
-float r[2] = {0.2, 0.3};   // 装甲板旋转半径
-float palstance = 3;       // 角速度
+cv::Point2f center(5, 0);              // 中心点（固定）
+float z[3] = {1.114, 1.126, 1.318};    // 前哨站三块装甲板高度
+float outpost_radius = 0.225;           // 前哨站旋转半径
+float palstance = 0.8;                 // 角速度系数，实际角速度=0.8*pi rad/s
 float scaling = 80;       // 放大比例
 double angle = 0;          // 起始角度
 float dt = 1e-2;           // 默认时间步长
 float sigma = 0.02;        // 噪声大小
-double big_angle = 0;
 std::default_random_engine rng;
 
 #ifdef USE_DATA
@@ -151,7 +150,7 @@ double now()
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
 }
 
-Rate::Rate() : Rate(30) {}
+Rate::Rate() : Rate(100) {}
 
 /**
  * @brief 帧率控制器构造函数
@@ -179,35 +178,29 @@ void Rate::sleep()
 
 bool init_flag = false;
 // 帧率控制器
-Rate rate(70);
-int i = 1;
+Rate rate(100);
 
 /**
  * @brief 生成仿真装甲板数据并只保留距离最近的1个
  */
 Armors generateSimulatedArmors() {
     Armors armors;
-    armors.resize(4);
-    
-    // === 更新中心位置：围绕原点做圆周运动，半径2 ===
-    big_angle += PI * 1e-3;  // 更新公转角度
-    
-    // 圆周运动参数方程
-    center.x = 5.0f * cos(big_angle);
-    center.y = 5.0f * sin(big_angle);
+    armors.resize(3);
+
+    // 前哨站中心固定，x/y方向速度为0
     angle += PI * dt * palstance; 
     angle = _std_radian(angle);
     
-    // 生成4个装甲板
+    // 生成3个前哨站装甲板，yaw间隔2*PI/3
     for (size_t i = 0; i < armors.size(); i++) {
         // 添加高斯噪声
         std::normal_distribution<float> dist_pos(0, sigma);
         std::normal_distribution<float> dist_angle(0, sigma * 10);
         
-        // 计算装甲板位置（相对中心的自转）
-        float armor_r = r[i % 2];
-        float armor_z = z[i % 2];
-        float armor_angle = angle + 0.5 * i * PI;  // 自转角度 = 公转角度 + 固定偏移
+        // 计算装甲板位置（相对固定中心自转）
+        float armor_r = outpost_radius;
+        float armor_z = z[i];
+        float armor_angle = angle + i * 2.0 * PI / 3.0;
         
         armors[i].abs_pose = {
             center.x + armor_r * cos(armor_angle) + dist_pos(rng),
@@ -218,7 +211,19 @@ Armors generateSimulatedArmors() {
         // 计算装甲板朝向角
         armors[i].yaw = _std_radian(armor_angle + dist_angle(rng));
         armors[i].predict_yaw = _std_radian(armor_angle);
+        armors[i].number = "outpost";
         armors[i].confidence = armor_r;
+    }
+
+    // 绘制无噪声三装甲板投影点（参考）
+    for (size_t i = 0; i < armors.size(); ++i) {
+        float ideal_angle = angle + i * 2.0 * PI / 3.0;
+        cv::Point2f ideal_xy(
+            center.x + outpost_radius * cos(ideal_angle),
+            center.y + outpost_radius * sin(ideal_angle)
+        );
+        cv::circle(background,base_point + ideal_xy * scaling,4,
+            cv::Scalar(0, 200, 0),-1,8);
     }
     
 
@@ -226,12 +231,10 @@ Armors generateSimulatedArmors() {
         init_flag = true;
     }else{
         // 按距离观察点的距离排序（从近到远）
-        std::sort(armors.begin(), armors.end(), 
-            [](const Armor& a, const Armor& b) {
-                return a.abs_pose.norm() < b.abs_pose.norm();
-            });
+        std::sort(armors.begin(), armors.end(), [](const Armor& a, const Armor& b)
+         {return a.abs_pose.norm() < b.abs_pose.norm();});
     }
-    armors.resize(1 + rand() % 2);
+    armors.resize(1);
     // 在仿真图上绘制装甲板
     for (const auto& armor : armors) {
         cv::circle(background, 
@@ -306,12 +309,12 @@ int Test() {
         // 如果是第一次运行，初始化预测器
         if (!aim_ptr) {
             aim_ptr = std::make_unique<Aim>(armors[0]);
-            m_status = std::make_shared<StandardModel>(aim_ptr->target_state);
+            m_status = std::make_shared<OutpostModel>(aim_ptr->target_state);
         }
         
         // 预测器解算，使用实际的时间步长
         aim_ptr->Resolve(armors, actual_dt);
-        m_status = std::make_shared<StandardModel>(aim_ptr->target_state);
+        m_status = std::make_shared<OutpostModel>(aim_ptr->target_state);
         // 获取当前状态估计
         Armors filter_armors = m_status->GetArmors(0);
         
@@ -360,10 +363,6 @@ int Test() {
 
         // 检查按键输入
         char c = cv::waitKey(1);
-        if (c == 'q'||i==200) {
-            break;
-        } 
-        i++;
         // 控制帧率
         rate.sleep();
     }
