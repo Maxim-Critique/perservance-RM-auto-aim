@@ -10,11 +10,21 @@ AutoArmor::AutoArmor(){
 void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     dg.Vision2Control();
     LightBlobs light_blobs = find_ptr->FindLight(img,ds.color);
-    if(light_blobs.size()<2)return;
+    if(light_blobs.size()<2){
+        tools::logger()->warn("未识别到足够灯条，灯条数量: {}。",light_blobs.size());
+        return;
+    }
     auto armors = find_ptr->FindArmor(img,light_blobs);
+    if(armors.empty()){
+        tools::logger()->warn("灯条配对后未生成任何装甲板。");
+        return;
+    }
     classifier.extractNumbers(img,armors);
     classifier.classify(armors);
-    if(armors.empty())return;
+    if(armors.empty()){
+        tools::logger()->warn("灯条配对后未生成任何装甲板。");
+        return;
+    }
     auto armors_ = ChooseProcess(armors,ds);
     if(armors_.empty())return;
     ShowArmors(armors_,img);

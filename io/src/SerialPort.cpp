@@ -146,8 +146,8 @@ void SerialPort::Query(Data_Save &ds,const time_point &t){
     ds.color = data_behind_.color;
     ds.camera_yaw_angle = (data_behind_.camera_yaw_angle+data_ahead_.camera_yaw_angle)/2;
     ds.camera_pitch_angle = (data_behind_.camera_pitch_angle+data_ahead_.camera_pitch_angle)/2;
-    ds.camera_roll_angle = (data_behind_.camera_roll_angle+data_ahead_.camera_yaw_angle)/2;  
-    ds.camera_roll_angle = 0;
+    ds.camera_roll_angle = (data_behind_.camera_roll_angle+data_ahead_.camera_roll_angle)/2;  
+
 
 }
 

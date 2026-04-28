@@ -18,6 +18,7 @@ void drawAngleInfo(cv::Mat& img, const Data_Save& data) {
 
 auto yaml = YAML::LoadFile(YamlPath);
 auto exposure_time = yaml["Camera"]["exposure_time"].as<double>();
+auto show =  yaml["Camera"]["show"].as<int>();
 int main()
 {
     tools::Exiter exiter;
@@ -30,9 +31,12 @@ int main()
         serial_->Query(ds,t);
         armor_->AutoAim(img,ds,dg);
         serial_->SendData(dg);
-        // drawAngleInfo(img,ds);
-        // imshow("image",img);
-        // waitKey(1);
+        if(show){
+            drawAngleInfo(img,ds);
+            imshow("image",img);
+            waitKey(1);
+        }
+       
     }
     return 0;
 }
