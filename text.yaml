@@ -9,6 +9,8 @@ USBCamera:
   new_image_height: 720
   usb_frame_rate: 60
   new_usb_exposure: 120
+  new_fov_h: 27 #67
+  new_fov_v: 40.9
 
 Transform:
   R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]

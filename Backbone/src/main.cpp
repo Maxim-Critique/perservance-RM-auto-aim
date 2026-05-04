@@ -31,14 +31,14 @@ int main()
     std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>();
     std::unique_ptr<io::USBCamera> usb_camera0 = std::make_unique<io::USBCamera>("video0", YamlPath);
     std::unique_ptr<io::USBCamera> usb_camera2 = std::make_unique<io::USBCamera>("video2", YamlPath);
-    Mat img;time_point t;Data_Save ds;Data_Get dg;
     std::unique_ptr<Omniperception::Perceptron> perceptron; 
+    Mat img;time_point t;Data_Save ds;Data_Get dg;
+    
     
     while(!exiter.exit()){
         camera_->Query(img,t);
         serial_->Query(ds,t);
         armor_->AutoAim(img,ds,dg);
-        std::cout<<"ds.color: "<<ds.color<<std::endl;
         if(!perceptron) perceptron = std::make_unique<Omniperception::Perceptron>(usb_camera0.get(), usb_camera2.get(), ds.color, YamlPath);
         std::vector<int16_t> received_data = ros2_->subscribe_autoaim_target();
         if(!received_data.empty()) dg.Nav2Control(received_data[0],received_data[1]);
@@ -48,7 +48,7 @@ int main()
         else{
             if(ds.go_back)ros2_->publish(2);
             else ros2_->publish(1);
-            auto list = perceptron->get_detection_queue();
+            auto list = perceptron->GetDetectionQueue();
             if(!list.empty())dg.Vision2Control((tools::R2D(ds.camera_yaw_angle)+ list[0].delta_yaw)*1e4,list[0].delta_pitch*1e4,0,1,0);
         }
         serial_->SendData(dg);

@@ -1,17 +1,14 @@
 #ifndef OMNIPERCEPTION__PERCEPTRON_HPP
 #define OMNIPERCEPTION__PERCEPTRON_HPP
 
-#include <chrono>
-#include <list>
-#include <memory>
-#include <thread>
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 #include "find_armor.h"
-#include "usbcamera.hpp"
 #include "thread_safe_queue.hpp"
+#include "usbcamera.hpp"
 
 namespace Omniperception
 {
@@ -19,47 +16,49 @@ namespace Omniperception
 // 检测结果结构体
 struct DetectionResult
 {
-  Armors armors;
-  std::string camera_name;
-  double delta_pitch = 0.0;
-  double delta_yaw = 0.0;
-  std::chrono::steady_clock::time_point timestamp;
+    Armors armors;
+    double delta_pitch = 0.0;
+    double delta_yaw = 0.0;
 };
 
 class Perceptron
 {
 public:
-  Perceptron(
-    io::USBCamera * usbcam1, io::USBCamera * usbcam2,
-    int enemy_color, const std::string & config_path);
+    Perceptron(
+        io::USBCamera * usbcam1,
+        io::USBCamera * usbcam2,
+        int enemy_color,
+        const std::string & config_path);
 
-  ~Perceptron();
+    ~Perceptron();
 
-  void parallel_infer(io::USBCamera * cam, Tradition & tradition, int enemy_color);
+    void ParallelInfer(io::USBCamera * cam, Tradition & tradition, int enemy_color);
 
-  // 获取检测队列中的所有结果
-  std::vector<DetectionResult> get_detection_queue();
+    // 获取检测队列中的所有结果
+    std::vector<DetectionResult> GetDetectionQueue();
 
 private:
-  void draw_and_visualize(const cv::Mat & img, const Armors & armors,
-                          const std::string & window_name);
-  
-  // 排序和过滤检测结果（移除armors为空的成员）
-  std::vector<DetectionResult> filterAndSortResults(
-    const std::vector<DetectionResult> & raw_results);
-  
-  // 线程安全队列用于存储检测结果
-  tools::ThreadSafeQueue<DetectionResult> detection_queue_;
-  
-  std::vector<std::thread> threads_;
+    void DrawAndVisualize(
+        const cv::Mat & img,
+        const Armors & armors,
+        const std::string & window_name);
 
-  Tradition tradition1_;
-  Tradition tradition2_;
+    // 计算delta角度并将结果存入检测队列
+    void CalculateDeltaAngles(const Armors & armors, io::USBCamera * cam);
 
-  bool stop_flag_;
-  bool show_visualization_;
-  mutable std::mutex mutex_;
-  std::condition_variable condition_;
+    // 线程安全队列用于存储检测结果
+    tools::ThreadSafeQueue<DetectionResult> detection_queue_;
+
+    std::vector<std::thread> threads_;
+    Tradition tradition1_;
+    Tradition tradition2_;
+
+    bool stop_flag_;
+    bool show_visualization_;
+    double fov_h_;
+    double fov_v_;
+    mutable std::mutex mutex_;
+    std::condition_variable condition_;
 };
 
 }  // namespace Omniperception

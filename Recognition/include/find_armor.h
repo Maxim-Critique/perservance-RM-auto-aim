@@ -62,6 +62,13 @@ struct Armor
     {
         this->points = points;
         this->type = type;
+        this->center = cv::Point2f(0.f, 0.f);
+        if (!this->points.empty()) {
+            for (const auto &point : this->points) {
+                this->center += point;
+            }
+            this->center *= 1.0f / 4.0f;
+        }
     }
 
     cv::Point2f center;
