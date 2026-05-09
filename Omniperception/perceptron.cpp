@@ -17,6 +17,7 @@ namespace Omniperception
 Perceptron::Perceptron(
     io::USBCamera * usbcam1,
     io::USBCamera * usbcam2,
+    io::USBCamera * usbcam3,
     int enemy_color,
     const std::string & config_path)
 : detection_queue_(100),
@@ -25,7 +26,7 @@ Perceptron::Perceptron(
   fov_h_(27.0),
   fov_v_(40.9)
 {
-    if (!usbcam1 || !usbcam2) {
+    if (!usbcam1 || !usbcam2 || !usbcam3) {
         tools::logger()->error("Invalid camera pointers in Perceptron initialization!");
         throw std::runtime_error("Camera pointers are null");
     }
@@ -43,18 +44,18 @@ Perceptron::Perceptron(
 
     tools::logger()->info("Initializing Perceptron with 2 cameras using Recognition module...enemy_color: {}", enemy_color);
 
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-    std::cout << "enemy_color: " << enemy_color << std::endl;
-
     threads_.emplace_back([this, usbcam1, enemy_color] {
         ParallelInfer(usbcam1, tradition1_, enemy_color);
     });
     threads_.emplace_back([this, usbcam2, enemy_color] {
         ParallelInfer(usbcam2, tradition2_, enemy_color);
     });
+    threads_.emplace_back([this, usbcam3, enemy_color] {
+        ParallelInfer(usbcam3, tradition3_, enemy_color);
+    });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    tools::logger()->info("Perceptron initialized with 2 cameras using Recognition module.");
+    tools::logger()->info("Perceptron initialized with 3 cameras using Recognition module.");
 }
 
 Perceptron::~Perceptron()
@@ -90,17 +91,17 @@ void Perceptron::ParallelInfer(io::USBCamera * cam, Tradition & tradition, int e
             cv::Mat usb_img = cam->read();
             if (usb_img.empty()) continue;
 
+            Armors armors;
             LightBlobs light_blobs = tradition.FindLight(usb_img, enemy_color);
-            if (light_blobs.empty()) continue;
+            if (!light_blobs.empty()) {
+                armors = tradition.FindArmor(usb_img, light_blobs);
+                if (!armors.empty()) {
+                    classifier.extractNumbers(usb_img, armors);
+                    classifier.classify(armors);
+                    if (!armors.empty()) CalculateDeltaAngles(armors, cam);
+                }
+            }
 
-            Armors armors = tradition.FindArmor(usb_img, light_blobs);
-            if (armors.empty()) continue;
-
-            classifier.extractNumbers(usb_img, armors);
-            classifier.classify(armors);
-            if (armors.empty()) continue;
-
-            CalculateDeltaAngles(armors, cam);
             if (show_visualization_) 
                 DrawAndVisualize(usb_img, armors, cam->device_name);
             
@@ -123,9 +124,9 @@ void Perceptron::CalculateDeltaAngles(const Armors & armors, io::USBCamera * cam
         result.delta_yaw = 90 + (fov_h_ / 2) - norm_center.x * fov_h_;
     } else if (cam->device_name == "right") {
         result.delta_yaw = -90.0 + (fov_h_ / 2) - norm_center.x * fov_h_;
-    }
+    } else  result.delta_yaw = 180;
 
-    result.delta_pitch = -(norm_center.y * fov_v_ - fov_v_ / 2);
+    result.delta_pitch = -10;
     detection_queue_.push(result);
 }
 
@@ -134,13 +135,21 @@ void Perceptron::DrawAndVisualize(
     const Armors & armors,
     const std::string & window_name)
 {
+    if (img.empty()) return;  // 检查图像是否有效
+    
     cv::Mat vis_img = img.clone();
     for (const auto & armor : armors) {
         for (const auto & point : armor.points) {
-            cv::circle(vis_img, point, 3, {0, 255, 0}, -1);
+            // 检查坐标是否在图像范围内
+            if (point.x >= 0 && point.x < vis_img.cols && point.y >= 0 && point.y < vis_img.rows) {
+                cv::circle(vis_img, point, 3, {0, 255, 0}, -1);
+            }
         }
-        auto info = fmt::format("{:.2f}", armor.confidence);
-        cv::putText(vis_img, info, armor.center, cv::FONT_HERSHEY_SIMPLEX, 0.6, {0, 255, 0}, 2);
+        // 检查中心坐标是否在范围内
+        if (armor.center.x >= 0 && armor.center.x < vis_img.cols && armor.center.y >= 0 && armor.center.y < vis_img.rows) {
+            auto info = fmt::format("{} {:.2f}", armor.number, armor.confidence);
+            cv::putText(vis_img, info, armor.center, cv::FONT_HERSHEY_SIMPLEX, 0.6, {0, 255, 0}, 2);
+        }
     }
 
     cv::Mat resized;

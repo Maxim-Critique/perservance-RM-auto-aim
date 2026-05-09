@@ -117,8 +117,10 @@ void USBCamera::Open()
         device_name = "right";
     } else if (open_name_ == "video2") {
         device_name = "left";
+        new_usb_exposure_ += 20;
     } else if (open_name_ == "video4") {
         device_name = "back";
+        new_usb_exposure_ += 40;
     }
 
     cap_.set(cv::CAP_PROP_FRAME_WIDTH, new_image_width_);

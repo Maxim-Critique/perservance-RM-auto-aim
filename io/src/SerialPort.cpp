@@ -185,7 +185,7 @@ void Data_Get::Vision2Control(int32_t x, int32_t y, uint8_t id, uint8_t found, u
     raw_data[17] = id;
     raw_data[18] = found;
     raw_data[19] = fire;
-    std::cout<<"x "<<x*1e-4<<"y "<<y*1e-4<<"found "<<static_cast<int>(found)<<" fire "<<static_cast<int>(fire)<<std::endl;
+    if(found!=0)tools::logger()->info("Send yaw {} pitch {} found {} fire {}", x*1e-4, y*1e-4,static_cast<int>(found),static_cast<int>(fire));
 }
 
 void Data_Get::Nav2Control(int16_t x, int16_t y){

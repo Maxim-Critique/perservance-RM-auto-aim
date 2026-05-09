@@ -27,6 +27,7 @@ public:
     Perceptron(
         io::USBCamera * usbcam1,
         io::USBCamera * usbcam2,
+        io::USBCamera * usbcam3,
         int enemy_color,
         const std::string & config_path);
 
@@ -46,12 +47,16 @@ private:
     // 计算delta角度并将结果存入检测队列
     void CalculateDeltaAngles(const Armors & armors, io::USBCamera * cam);
 
+    // 根据points的第1和第3个点向外延伸armor的points
+    void ExpandArmorPoints(Armors & armors);
+
     // 线程安全队列用于存储检测结果
     tools::ThreadSafeQueue<DetectionResult> detection_queue_;
 
     std::vector<std::thread> threads_;
     Tradition tradition1_;
     Tradition tradition2_;
+    Tradition tradition3_;
 
     bool stop_flag_;
     bool show_visualization_;
