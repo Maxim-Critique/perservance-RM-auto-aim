@@ -58,13 +58,10 @@ void NumberClassifier::extractNumbers(const cv::Mat &src, std::vector<Armor> &ar
         cv::warpPerspective(src, number_image, rotation_matrix, cv::Size(warp_width, warp_height));
 
         // Get ROI
-        number_image =
-            number_image(cv::Rect(cv::Point((warp_width - roi_size.width) / 2, 0), roi_size));
+        number_image =number_image(cv::Rect(cv::Point((warp_width - roi_size.width) / 2, 0), roi_size));
 
         // Binarize
         cv::cvtColor(number_image, number_image, cv::COLOR_RGB2GRAY);
-        // cv::threshold(number_image, number_image, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
-
         /*
         * gray_image: 这是输入的灰度图像，即待处理的图像。
         * binary_image: 这是输出的二值化图像，函数将在此处存储结果。
@@ -186,9 +183,6 @@ void NumberClassifier::classify(std::vector<Armor> &armors)
             }),
         armors.end());
 
-    // for (auto &armor : armors) {
-    //     armor.number_img = cv::Mat(); // 将 number_img 置为空矩阵
-    // }
 
     // 保存图像
     //  for (auto &armor : armors) {

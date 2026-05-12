@@ -3,9 +3,8 @@
 #include <errno.h>
 #include <termios.h>
 #include "SerialPort.h"
-#include "math.hpp"
+#include "math_tools.hpp"
 #include <poll.h>
-
 namespace io
 {
 bool SerialPort::configure_serial(int fd)
@@ -127,9 +126,9 @@ void SerialPort::read_data()
                 ds.camera_roll_angle = _std_radian(roll_ * SCALE - PI);
                 ds.color = read_buffer[15];
                 ds.go_back = read_buffer[16];
+                ds.armor_or_buff = read_buffer[17];
                 queue_.push(ds);
 
-                //  std::cout<<"roll "<<roll_<<std::endl;
             }
             
         }
@@ -139,7 +138,7 @@ void SerialPort::read_data()
 void SerialPort::Query(Data_Save &ds,const time_point &t){
     if (data_behind_.timestamp < t) data_ahead_ = data_behind_;
     while (true) {
-        if (queue_.empty())tools::logger()->warn("[SerialPort] WARNING: Queue is empty!");
+        // if (queue_.empty())tools::logger()->warn("[SerialPort] WARNING: Queue is empty!");
         queue_.pop(data_behind_);
         if (data_behind_.timestamp > t) break;
         data_ahead_ = data_behind_;
@@ -147,9 +146,10 @@ void SerialPort::Query(Data_Save &ds,const time_point &t){
     ds.timestamp = t;
     ds.color = data_behind_.color;
     ds.go_back = data_behind_.go_back;
+    ds.armor_or_buff = data_behind_.armor_or_buff;
     ds.camera_yaw_angle = (data_behind_.camera_yaw_angle+data_ahead_.camera_yaw_angle)/2;
     ds.camera_pitch_angle = (data_behind_.camera_pitch_angle+data_ahead_.camera_pitch_angle)/2;
-    ds.camera_roll_angle = (data_behind_.camera_roll_angle+data_ahead_.camera_roll_angle)/2;  
+    ds.camera_roll_angle = (data_behind_.camera_roll_angle+data_ahead_.camera_roll_angle)/2;
 }
 
 void SerialPort::SendData(const struct Data_Get &data)

@@ -27,7 +27,6 @@ public:
     Perceptron(
         io::USBCamera * usbcam1,
         io::USBCamera * usbcam2,
-        io::USBCamera * usbcam3,
         int enemy_color,
         const std::string & config_path);
 
@@ -56,7 +55,6 @@ private:
     std::vector<std::thread> threads_;
     Tradition tradition1_;
     Tradition tradition2_;
-    Tradition tradition3_;
 
     bool stop_flag_;
     bool show_visualization_;

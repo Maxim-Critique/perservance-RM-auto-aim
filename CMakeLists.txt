@@ -6,8 +6,14 @@ list(APPEND CMAKE_PREFIX_PATH "/opt/ros/humble")
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 在设置全局标志之前，先设置Release模式的优化级别
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -Wall")
+set(CMAKE_C_FLAGS_RELEASE "-O2")
+
+# 全局编译标志（会被特定构建类型的标志覆盖）
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
 # 查找必要的包
 find_package(OpenCV REQUIRED)
@@ -83,7 +89,6 @@ target_link_libraries(action
     ${EIGEN3_LIBRARIES}
     ${CERES_LIBRARIES}
     ${MVS}
-    -lgxiapi
     ${YAML_CPP_LIBRARIES}
     tinympcstatic
     ${LIBUSB_LIBRARIES}

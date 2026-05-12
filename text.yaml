@@ -1,5 +1,5 @@
 Camera:
-  exposure_time: 2400
+  exposure_time: 2500
   camera_matrix: [1730.7, 0.4, 731.1, 0, 1730.1, 559.6, 0, 0, 1]
   distort_coeffs: [-0.0681, 0.1248, -0.0000634, 0.0005893, -0.0815]
   show: 1
@@ -33,9 +33,8 @@ Transmit:
   compensate_yaw: -0.25  # 朝左为正
  
 Buff:
-  pitch: 9
-  yaw: -0.8
-
+  compensate_pitch: 0.45 # 向上为正
+  compensate_yaw: 0.4  # 向左为正
 Find:
   is_get_from_ds: true
   enemy_color: 0

@@ -11,7 +11,7 @@
 #include <yaml-cpp/yaml.h>
 #include "SerialPort.h"
 #include <vector>
-#include "math.hpp"
+#include "math_tools.hpp"
 using namespace cv;
 using namespace std;
 

@@ -4,6 +4,7 @@
 #include <string>
 #include <chrono>
 #include <cstring>
+#include <memory> 
 #pragma once 
 
 #define PI 3.1415926
@@ -17,7 +18,8 @@ struct Data_Save {
     double camera_yaw_angle;
     double camera_pitch_angle;  
     double camera_roll_angle;
-    int go_back;       // 自瞄或大符
+    double go_back;                 // 自瞄或大符
+    double armor_or_buff = 1;       // 自瞄或大符
     int color;               // 敌方颜色
 };
 
