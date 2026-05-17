@@ -3,9 +3,11 @@
 
 #include <Eigen/Geometry>
 #include <chrono>
-
+#include <opencv2/core.hpp>
+#include "Base.h"
 namespace tools
 {
+
 // 将弧度值限制在(-pi, pi]
 double limit_rad(double angle);
 
@@ -29,8 +31,11 @@ Eigen::Matrix3d rotation_matrix(const Eigen::Vector3d & ypr);
 // ypd为yaw、pitch、distance的缩写
 Eigen::Vector3d xyz2ypd(const Eigen::Vector3d & xyz);
 
-// 直角坐标系转球坐标系转换函数对xyz的雅可比矩阵
+// 直角坐标系转球坐标系转换函数对xyz的雅可比矩阵 (3x3)
 Eigen::MatrixXd xyz2ypd_jacobian(const Eigen::Vector3d & xyz);
+
+// 直角坐标系转球坐标系转换函数对xyz的雅可比矩阵 (4x4，扩展版本用于EKF)
+Eigen::Matrix4d xyza2ypda_jacobian(const Eigen::Vector3d & xyz);
 
 // 球坐标系转直角坐标系
 Eigen::Vector3d ypd2xyz(const Eigen::Vector3d & ypd);

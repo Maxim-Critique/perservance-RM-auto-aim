@@ -228,11 +228,7 @@ int Test() {
         m_status = std::make_shared<StandardModel>(aim_ptr->target_state);
         // 获取当前状态估计
         Armors filter_armors = m_status->GetArmors(0);
-        // MPC轨迹规划
-        auto target = mpc->TrajectoryPlanning(*m_status);
-        dg.Vision2Control((target.manage_yaw)*1e4,target.target_pitch*1e4,target.yaw_vel*1e4,target.yaw_acc*1e4,1,0);
-        std::cout<<target.target_pitch*57.3<<",";
-        serial_.SendData(dg);
+
         // 绘制状态估计和预测结果
         for (size_t i = 0; i < filter_armors.size(); i++) {
             // 当前状态估计量（红色）

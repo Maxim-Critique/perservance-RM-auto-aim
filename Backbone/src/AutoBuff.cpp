@@ -26,11 +26,11 @@ void AutoBuff::show(const std::optional<auto_buff::PowerRune> &power_runes, cv::
 
 void AutoBuff::AutoAim(cv::Mat &img,const Data_Save &ds,Data_Get &dg){
 
-    // if(ds.armor_or_buff != last_mode){
-    //     if(ds.armor_or_buff == 1) target_ = std::make_unique<auto_buff::SmallTarget>();
-    //     else target_ = std::make_unique<auto_buff::BigTarget>();
-    //     last_mode = ds.armor_or_buff;
-    // }
+    if(ds.armor_or_buff != last_mode){
+        if(ds.armor_or_buff == 1) target_ = std::make_unique<auto_buff::SmallTarget>();
+        else target_ = std::make_unique<auto_buff::BigTarget>();
+        last_mode = ds.armor_or_buff;
+    }
     dg.Vision2Control();
     auto power_runes = discover_->Detect(img);
     slover_->UpdateStatus(ds);

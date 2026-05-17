@@ -185,8 +185,6 @@ Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
 Tradition::Tradition(){
     try {
         YAML::Node config = YAML::LoadFile(YamlPath);
-        enemy_color_ = config["Find"]["enemy_color"].as<int>();
-        is_get_from_ds_ = config["Find"]["is_get_from_ds"].as<bool>();
         threshold_ = config["Tradition"]["threshold"].as<int>();
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("YAML Error: " + std::string(e.what()) + "Tradition");

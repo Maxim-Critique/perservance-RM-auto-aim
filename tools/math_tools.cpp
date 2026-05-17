@@ -136,6 +136,22 @@ Eigen::MatrixXd xyz2ypd_jacobian(const Eigen::Vector3d & xyz)
   return J;
 }
 
+Eigen::Matrix4d xyza2ypda_jacobian(const Eigen::Vector3d & xyz)
+{
+  // 获取 3x3 的雅可比矩阵
+  Eigen::MatrixXd J3x3 = xyz2ypd_jacobian(xyz);
+  
+  // 扩展为 4x4 矩阵（第4行第4列为恒等映射）
+  Eigen::Matrix4d J{
+    {J3x3(0,0), J3x3(0,1), J3x3(0,2), 0},
+    {J3x3(1,0), J3x3(1,1), J3x3(1,2), 0},
+    {J3x3(2,0), J3x3(2,1), J3x3(2,2), 0},
+    {0, 0, 0, 1}
+  };
+  
+  return J;
+}
+
 Eigen::Vector3d ypd2xyz(const Eigen::Vector3d & ypd)
 {
   auto yaw = ypd[0], pitch = ypd[1], distance = ypd[2];

@@ -26,11 +26,15 @@ int main()
     tools::Exiter exiter;
     std::unique_ptr<io::HikRobot> camera_ = std::make_unique<io::HikRobot>(exposure_time, 0, "2bdf:0001");
     std::unique_ptr<io::SerialPort> serial_ = std::make_unique<io::SerialPort>("/dev/ttyACM0");
-    
-    while (!exiter.exit()) {
+    std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>();
+    std::unique_ptr<AutoBuff> buffer_ = std::make_unique<AutoBuff>();
+    Mat img;time_point t;Data_Save ds;Data_Get dg;
+    while(!exiter.exit()){
         camera_->Query(img,t);
-        serial_->Query(ds,t);
-        buffer_->AutoAim(img,ds,dg);
+        // serial_->Query(ds,t);
+
+        if(true)armor_->AutoAim(img,ds,dg);
+        else buffer_->AutoAim(img,ds,dg);
         serial_->SendData(dg);
         if(show){
             drawAngleInfo(img,ds);

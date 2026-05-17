@@ -1,5 +1,5 @@
 Camera:
-  exposure_time: 1400
+  exposure_time: 5000
   camera_matrix: [1730.7, 0.4, 731.1, 0, 1730.1, 559.6, 0, 0, 1]
   distort_coeffs: [-0.0681, 0.1248, -0.0000634, 0.0005893, -0.0815]
   show: 1

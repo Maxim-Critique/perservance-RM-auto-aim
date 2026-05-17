@@ -64,9 +64,8 @@ static int GetBlobColor(const cv::Mat &src, const cv::RotatedRect &blobPos) {
 }
 
 LightBlobs Tradition::FindLight(Mat &src, int enemy_color) { 
-    std::cout<<"enemy_color "<<enemy_color<<std::endl;
     LightBlobs light_blobs;
-    if (is_get_from_ds_) enemy_color_ = enemy_color;
+    enemy_color_ = 0;
 
     cv::Mat color_channel;
     cv::Mat src_bin;  // 只需要一个二值图像

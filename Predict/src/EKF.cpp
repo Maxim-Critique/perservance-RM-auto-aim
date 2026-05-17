@@ -1,7 +1,7 @@
 #include "EKF.h"
 #include <cmath>
 #include <algorithm>
-#include "math.hpp"
+#include "math_tools.hpp"
 
 std::unique_ptr<ExtendedKalmanFilter::UpdateStrategy> 
 ExtendedKalmanFilter::createStrategy(const UpdateStrategy::Data& data) {
@@ -49,7 +49,7 @@ ExtendedKalmanFilter::SingleArmorStrategy::compute() {
                      0, 0, 1, 0,           0,       0, ((index+1)%2)*sin(angle), (index%2)*sin(angle),  radius*cos(angle), 0,
                      0, 0, 0, 0, (index+1)%2, index%2,                        0,                    0,                  0, 0,
                      0, 0, 0, 0,           0,       0,                        0,                    0,                  1, 0;
-    Eigen::Matrix4d H_armor_ypda = tools::xyz2ypd_jacobian(armor_xyz);
+    Eigen::Matrix4d H_armor_ypda = tools::xyza2ypda_jacobian(armor_xyz);
     Eigen::Matrix<double, 4, 10> H = H_armor_ypda * H_armor_xyza;
     Eigen::Matrix4d R = Eigen::Matrix4d::Zero();
     double delta_angle = _std_radian(armor.abs_ypd[0]-atan2(armor.abs_pose.y(), armor.abs_pose.x()));
@@ -106,7 +106,7 @@ ExtendedKalmanFilter::DualArmorStrategy::compute() {
         0, 0, 1, 0, 0, 0, ((index1+1)%2)*sin(angle1), (index1%2)*sin(angle1), radius1*cos(angle1), 0,
         0, 0, 0, 0, (index1+1)%2, index1%2, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 1, 0;
-    Eigen::Matrix4d H_armor1_ypda = tools::xyz2ypd_jacobian(armor1_xyz);
+    Eigen::Matrix4d H_armor1_ypda = tools::xyza2ypda_jacobian(armor1_xyz);
     
     // 第二块装甲板部分
     Eigen::Matrix<double, 4, 10> H_armor2_xyza;
@@ -115,7 +115,7 @@ ExtendedKalmanFilter::DualArmorStrategy::compute() {
         0, 0, 1, 0, 0, 0, ((index2+1)%2)*sin(angle2), (index2%2)*sin(angle2), radius2*cos(angle2), 0,
         0, 0, 0, 0, (index2+1)%2, index2%2, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 1, 0;
-    Eigen::Matrix4d H_armor2_ypda = tools::xyz2ypd_jacobian(armor2_xyz);
+    Eigen::Matrix4d H_armor2_ypda = tools::xyza2ypda_jacobian(armor2_xyz);
 
     // 声明H矩阵并赋值
     Eigen::Matrix<double, 8, 10> H;

@@ -6,6 +6,7 @@ AutoArmor::AutoArmor(){
     planner_ptr = std::make_unique<Planner>();
     solve_ptr = std::make_unique<Slover>();
     last_time = std::chrono::steady_clock::now()-std::chrono::seconds(4);
+    time_interval = 4;
 }
 void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     dg.Vision2Control();
@@ -55,28 +56,29 @@ void SortArmors(Armors& armors) {
 Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
 
     Armors armors_;
-    time_interval = (ds.timestamp-last_time).count() / 1e9;
-    last_time = ds.timestamp;
-    if(time_interval==0)return armors_;
-
     SortArmors(armors);
     solve_ptr->UpdateStatus(ds);
 
-    if(time_interval>2){
+    if(time_interval>0.2){
         for(auto armor : armors){
             solve_ptr->Solve(armor);
             if(armor.gim_pose.norm()<6){
                 armors_.push_back(armor); 
                 aim_ptr = std::make_unique<Aim>(armor);
+                time_interval = (ds.timestamp-last_time).count() / 1e9;
+                last_time = ds.timestamp;
                 break;
             }
         }
     }else{
+        if(aim_ptr == nullptr)return armors_;
         for(auto armor : armors){
             if(armor.number == aim_ptr->aim_id){
                 solve_ptr->Solve(armor);
                 if(armor.gim_pose.norm()<6){
                     armors_.push_back(armor);
+                    time_interval = (ds.timestamp-last_time).count() / 1e9;
+                    last_time = ds.timestamp;
                 }
             }
             if(armors_.size()>2){
@@ -84,7 +86,6 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
             }
         }
     }
-        
     return armors_;
 }
 
