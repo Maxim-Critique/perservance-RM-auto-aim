@@ -7,6 +7,8 @@
 #include "hikrobot.hpp" 
 #include "exiter.hpp"
 #include "SerialPort.h"
+#include "AutoBuff.h"
+
 
 void drawAngleInfo(cv::Mat& img, const Data_Save& data) {
     cv::putText(img, cv::format("Y:%.1f P:%.1f R:%.1f", 
@@ -24,12 +26,11 @@ int main()
     tools::Exiter exiter;
     std::unique_ptr<io::HikRobot> camera_ = std::make_unique<io::HikRobot>(exposure_time, 0, "2bdf:0001");
     std::unique_ptr<io::SerialPort> serial_ = std::make_unique<io::SerialPort>("/dev/ttyACM0");
-    std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>();
-    Mat img;time_point t;Data_Save ds;Data_Get dg;
-    while(!exiter.exit()){
+    
+    while (!exiter.exit()) {
         camera_->Query(img,t);
         serial_->Query(ds,t);
-        armor_->AutoAim(img,ds,dg);
+        buffer_->AutoAim(img,ds,dg);
         serial_->SendData(dg);
         if(show){
             drawAngleInfo(img,ds);
@@ -40,9 +41,3 @@ int main()
     }
     return 0;
 }
-
-// int main(){
-//     Test();
-//     // MPCTest();
-//     return 0;
-// }

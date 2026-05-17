@@ -14,3 +14,4 @@ private:
 };
 int Test();
 int MPCTest();
+void TestBuff();
