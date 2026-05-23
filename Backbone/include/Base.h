@@ -10,7 +10,7 @@
 
 #define PI 3.1415926
 // 弹速
-#define bullet_speed 22
+#define bullet_speed 21.5
 #define _std_radian(angle) ((angle) + round((0 - (angle)) / (2 * PI)) * (2 * PI))
 using time_point = std::chrono::steady_clock::time_point;
 
@@ -54,5 +54,5 @@ struct Path_Point{
     Path_Point(double t, double a, double v,double acc) : time(t), angle(a), angle_vel(v), angle_acc(acc){}
 };
 
-static const std::string YamlPath = "/home/killer_machine/WRITE/text.yaml";
+static const std::string YamlPath = "/home/zhbit/auto-aim/text.yaml";
 #endif

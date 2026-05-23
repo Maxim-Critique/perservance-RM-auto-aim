@@ -51,6 +51,13 @@ void HikRobot::Query(cv::Mat & img, time_point & timestamp)
   timestamp = data.timestamp;
 }
 
+void HikRobot::SetExposureTime(double exposure_us)
+{
+  exposure_us_ = exposure_us;
+  set_float_value("ExposureTime", exposure_us_);
+  tools::logger()->info("Set exposure time to {} us", exposure_us_);
+}
+
 void HikRobot::capture_start()
 {
   capturing_ = false;

@@ -7,7 +7,7 @@ using trajectory = Eigen::Matrix<double, 2, horizon>;
 MPC::MPC(){
 
     YAML::Node config = YAML::LoadFile(YamlPath);
-    predict_time = config["Planer"]["predict_time"].as<double>();
+    predict_time = config["Transmit"]["predict_time"].as<double>();
     max_yaw_acc = config["Planer"]["max_yaw_acc"].as<double>();
     Eigen::MatrixXd A{{1, dt}, {0, 1}};
     Eigen::MatrixXd B{{0}, {dt}};

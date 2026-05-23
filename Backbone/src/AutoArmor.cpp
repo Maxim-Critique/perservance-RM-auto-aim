@@ -23,11 +23,12 @@ void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     classifier.extractNumbers(img,armors);
     classifier.classify(armors);
     if(armors.empty()){
-        tools::logger()->warn("灯条配对后未生成任何装甲板。");
+        tools::logger()->warn("未生成任何装甲板。");
         return;
     }
     auto armors_ = ChooseProcess(armors,ds);
     if(armors_.empty())return;
+    tools::logger()->info("锁定装甲板。");
     ShowArmors(armors_,img);
     auto target_state = aim_ptr->Estimate(armors_, time_interval);
     auto gimbal_angle = planner_ptr->TrajectoryPlanning(target_state);
@@ -38,8 +39,8 @@ void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Da
     int32_t yaw = (tools::R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
     int32_t yaw_val = tools::R2D(gimbal_angle.yaw_vel)*1e4;
-    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 1;
-    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 1;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 1.5;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 1.5;
     bool fire_delta = (yaw_delta && pitch_delta);
     dg.Vision2Control(yaw,pitch,yaw_val,0,1,fire_delta);
 }
@@ -58,14 +59,13 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
     Armors armors_;
     SortArmors(armors);
     solve_ptr->UpdateStatus(ds);
-
+    time_interval = (ds.timestamp-last_time).count() / 1e9;
     if(time_interval>0.2){
         for(auto armor : armors){
             solve_ptr->Solve(armor);
             if(armor.gim_pose.norm()<6){
                 armors_.push_back(armor); 
                 aim_ptr = std::make_unique<Aim>(armor);
-                time_interval = (ds.timestamp-last_time).count() / 1e9;
                 last_time = ds.timestamp;
                 break;
             }
@@ -77,7 +77,6 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
                 solve_ptr->Solve(armor);
                 if(armor.gim_pose.norm()<6){
                     armors_.push_back(armor);
-                    time_interval = (ds.timestamp-last_time).count() / 1e9;
                     last_time = ds.timestamp;
                 }
             }

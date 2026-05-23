@@ -36,7 +36,7 @@ private:
     Track_status status_;                                // 状态
     int lose_;                                           // 丢失的次数
     double lastlen_;
-    bool debug_ = false;                                 // debug
+    bool debug_ = true;                                 // debug
     bool show_ = true;                                   // 可视化
 
     cv::Mat img_;                                        // 原始图像

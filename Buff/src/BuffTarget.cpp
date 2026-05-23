@@ -59,7 +59,9 @@ Eigen::VectorXd Target::ekf_x() const { return ekf_.x; }
 
 /// SmallTarget
 
-SmallTarget::SmallTarget() : Target() {}
+SmallTarget::SmallTarget() : Target() {
+    tools::logger()->debug("[Target] small buff");
+}
 
 void SmallTarget::get_target(const std::optional<PowerRune> & p, const time_point & timestamp)
 {
@@ -358,7 +360,9 @@ Eigen::MatrixXd SmallTarget::h_jacobian() const
 
 /// BigTarget
 
-BigTarget::BigTarget() : Target(){}
+BigTarget::BigTarget() : Target(){
+    tools::logger()->debug("[Target] big buff");
+}
 
 void BigTarget::get_target(
   const std::optional<PowerRune> & p, const time_point & timestamp)

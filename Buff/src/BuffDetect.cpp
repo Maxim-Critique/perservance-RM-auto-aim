@@ -7,7 +7,7 @@ std::mutex mutex_bh;
 namespace auto_buff{
 
 BuffDetector::BuffDetector(){
-    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh4.onnx");
+    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh2.onnx");
 }
 
 void BuffDetector::HandleImg(){
@@ -123,7 +123,7 @@ cv::Point2f BuffDetector::GetR(std::vector<FanBlade> & fanblades)
 
 void SaveImg(Mat &input_image){
     if (input_image.empty()) cout << "warpPerspective失败，图像为空!" << endl;
-    static int number = 40000;
+    static int number =1;
     number++;
     if(number%5==0){
         string filename = "../photos/" + to_string(number) + ".png";
@@ -149,13 +149,13 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
     // 获取类别1的概率
     float probability = outputs.at<float>(0, 0);
     float sigmoid_prob = 1.0f / (1.0f + exp(-probability));
-    return sigmoid_prob > 0.5f;
+    return sigmoid_prob < 0.5f;
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
     double min_ratio = 0.1;
     double max_ratio = 1;
-    int min_area = 500;
+    int min_area = 3500;
     int max_area = 7000;
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);

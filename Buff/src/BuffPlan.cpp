@@ -8,7 +8,7 @@ namespace auto_buff
 Planner::Planner()
 {
     auto yaml = YAML::LoadFile(YamlPath);
-    predict_time_ = yaml["Planer"]["predict_time"].as<double>();
+    predict_time_ = yaml["Buff"]["predict_time"].as<double>();
 }
 
 Gimbal_Angle Planner::Plan(Target & target, time_point timestamp)

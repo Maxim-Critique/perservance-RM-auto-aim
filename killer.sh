@@ -1,3 +1,4 @@
 #gnome-terminal
-cd /home/killer_machine/WRITE/build/
+cd /home/zhbit/auto-aim/build/
 ./action
+ 

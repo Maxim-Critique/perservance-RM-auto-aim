@@ -5,7 +5,7 @@ AutoBuff::AutoBuff(){
     readYAML(YamlPath);
     discover_ = std::make_unique<auto_buff::BuffDetector>();
     slover_ = std::make_unique<auto_buff::Solver>();
-    target_ = std::make_unique<auto_buff::BigTarget>();
+    target_ = std::make_unique<auto_buff::SmallTarget>();
     planner_ = std::make_unique<auto_buff::Planner>();
 }
 

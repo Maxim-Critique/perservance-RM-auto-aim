@@ -125,6 +125,7 @@ void SerialPort::read_data()
                 ds.camera_yaw_angle = _std_radian(yaw_ * SCALE);
                 ds.camera_pitch_angle = pit_ * SCALE;
                 ds.camera_roll_angle = _std_radian(roll_ * SCALE - PI);
+                
                 ds.color = read_buffer[15];
                 ds.armor_or_buff = read_buffer[16];
                 queue_.push(ds);
@@ -148,8 +149,7 @@ void SerialPort::Query(Data_Save &ds,const time_point &t){
     ds.camera_yaw_angle = (data_behind_.camera_yaw_angle+data_ahead_.camera_yaw_angle)/2;
     ds.camera_pitch_angle = (data_behind_.camera_pitch_angle+data_ahead_.camera_pitch_angle)/2;
     ds.camera_roll_angle = (data_behind_.camera_roll_angle+data_ahead_.camera_roll_angle)/2;  
-
-
+    tools::logger()->info("color {}", ds.color);
 }
 
 void SerialPort::SendData(const struct Data_Get &data)
@@ -192,4 +192,6 @@ void Data_Get::Vision2Control(int32_t x, int32_t y, int32_t ui_x, int32_t ui_y, 
     raw_data[17] = (ui_y >> 0) & 0xff;
     raw_data[18] = found;
     raw_data[19] = fire;
+    tools::logger()->info(" x:{} y:{} ui_x:{} ui_y:{} found:{} fire:{}", x*1e-4, y*1e-4, ui_x, ui_y, found, fire);
+    
 }
