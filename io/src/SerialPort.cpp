@@ -127,8 +127,12 @@ void SerialPort::read_data()
                 ds.color = read_buffer[15];
                 ds.go_back = read_buffer[16];
                 ds.armor_or_buff = read_buffer[17];
+                double refree_data = read_buffer[18];
+                double pitch4310 = read_buffer[19];
+                double dt7 = read_buffer[20];
+                tools::logger()->info("Received data: yaw {:.4f}, pitch {:.4f}, roll {:.4f}, color {}, go_back {}, armor_or_buff {}, refree_data {}, pitch4310 {}, dt7 {}", 
+                    ds.camera_yaw_angle, ds.camera_pitch_angle, ds.camera_roll_angle, static_cast<int>(ds.color), static_cast<int>(ds.go_back), static_cast<int>(ds.armor_or_buff), refree_data, pitch4310,dt7);
                 queue_.push(ds);
-
             }
             
         }
@@ -185,7 +189,7 @@ void Data_Get::Vision2Control(int32_t x, int32_t y, uint8_t id, uint8_t found, u
     raw_data[17] = id;
     raw_data[18] = found;
     raw_data[19] = fire;
-    if(found!=0)tools::logger()->info("Send yaw {} pitch {} found {} fire {}", x*1e-4, y*1e-4,static_cast<int>(found),static_cast<int>(fire));
+    if(found!=0)tools::logger()->info("Send yaw {:3f} pitch {} found {} fire {}", x*1e-4, y*1e-4,static_cast<int>(found),static_cast<int>(fire));
 }
 
 void Data_Get::Nav2Control(int16_t x, int16_t y){

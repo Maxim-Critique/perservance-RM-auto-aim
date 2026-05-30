@@ -24,44 +24,46 @@ void drawAngleInfo(cv::Mat& img, const Data_Save& data) {
 int main()
 {
     auto yaml = YAML::LoadFile(YamlPath);
-    auto exposure_time = yaml["Camera"]["exposure_time"].as<double>();
+    auto exposure_armor = yaml["Camera"]["exposure_armor"].as<double>();
+    auto exposure_buff = yaml["Camera"]["exposure_buff"].as<double>();
     auto show = yaml["Camera"]["show"].as<int>();
     tools::Exiter exiter;
-    std::unique_ptr<io::HikRobot> camera_ = std::make_unique<io::HikRobot>(exposure_time, 0, "2bdf:0001");
+    std::unique_ptr<io::HikRobot> camera_ = std::make_unique<io::HikRobot>(exposure_buff, 0, "2bdf:0001");
     std::unique_ptr<io::SerialPort> serial_ = std::make_unique<io::SerialPort>("/dev/ttyACM0");
     std::unique_ptr<io::ROS2>ros2_ = std::make_unique<io::ROS2>();
     std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>();
     std::unique_ptr<AutoBuff> buff_ = std::make_unique<AutoBuff>();
     std::unique_ptr<io::USBCamera> usb_camera0 = std::make_unique<io::USBCamera>("video0", YamlPath);
     std::unique_ptr<io::USBCamera> usb_camera2 = std::make_unique<io::USBCamera>("video2", YamlPath);
+    std::unique_ptr<io::USBCamera> usb_camera4 = std::make_unique<io::USBCamera>("video4", YamlPath);
     std::unique_ptr<Omniperception::Perceptron> perceptron; 
     Mat img;time_point t;Data_Save ds;Data_Get dg;
-    
+    bool last_mode = false;
     
     while(!exiter.exit()){
         camera_->Query(img,t);
         serial_->Query(ds,t);
         std::vector<int16_t> received_data = ros2_->subscribe_autoaim_target();
-        
         if(!ds.armor_or_buff){
+            if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_armor);
             armor_->AutoAim(img,ds,dg);
-            if(!perceptron) perceptron = std::make_unique<Omniperception::Perceptron>(usb_camera0.get(), usb_camera2.get(), ds.color, YamlPath);
-            
-            
+            if(!perceptron) perceptron = std::make_unique<Omniperception::Perceptron>(usb_camera0.get(), usb_camera2.get(), usb_camera4.get(),ds.color, YamlPath);
             uint8_t found = dg.raw_data[18];
+            perceptron->SetActive(!found);
             if(found) ros2_->publish(0);
             else{
                 ros2_->publish(ds.go_back);
-                tools::logger()->info("ds.go_back {}",ds.go_back);
                 auto list = perceptron->GetDetectionQueue();
                 if(!list.empty())dg.Vision2Control((tools::R2D(ds.camera_yaw_angle)+ list[0].delta_yaw)*1e4,list[0].delta_pitch*1e4,0,1,0);
                 else dg.Vision2Control();
             }
         }else{
+            if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_buff);
             ros2_->publish(ds.go_back);
-            tools::logger()->info("ds.go_back {}",ds.go_back);
             buff_->AutoAim(img,ds,dg);
         }
+        last_mode = ds.armor_or_buff;
+        tools::logger()->info("ds.go_back {} ,mode {}",ds.go_back,ds.armor_or_buff);
         if(!received_data.empty()) {
             dg.Nav2Control(received_data[0],received_data[1]);
             tools::logger()->info("received_data {} {}",received_data[0],received_data[1]);

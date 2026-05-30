@@ -124,7 +124,6 @@ public:
     Armors FindArmor(Mat &src, LightBlobs &light_blobs);
 
 private:
-    bool is_get_from_ds_;                  // 是否使用电控颜色
     int enemy_color_;                      // 敌方颜色
     int threshold_;                        // 二值化阈值
 };

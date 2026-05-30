@@ -7,7 +7,7 @@ std::ofstream out("mpc_log.txt", std::ios::app);
 
 Planner::Planner(){
     YAML::Node config = YAML::LoadFile(YamlPath);
-    predict_time = config["Planer"]["predict_time"].as<double>();
+    predict_time = config["Transmit"]["predict_time"].as<double>();
     max_yaw_acc = config["Planer"]["max_yaw_acc"].as<double>();
 }
 

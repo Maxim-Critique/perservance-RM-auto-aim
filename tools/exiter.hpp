@@ -11,6 +11,8 @@ public:
   bool exit() const;
 };
 
+bool exit_requested();
+
 }  // namespace tools
 
 #endif  // TOOLS__EXITER_HPP

@@ -255,5 +255,5 @@ void NumberClassifier::classify(std::vector<Armor> &armors)
 const std::string model_path = "../model/mlp.onnx";
 const std::string label_path = "../model/label.txt";
 const double threshold1 = 0.7;
-const std::vector<std::string> ignore_classes = {"negative"};
+const std::vector<std::string> ignore_classes = {"negative","outpost","base"};
 NumberClassifier classifier(model_path, label_path, threshold1, ignore_classes);

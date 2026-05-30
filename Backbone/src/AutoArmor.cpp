@@ -6,6 +6,7 @@ AutoArmor::AutoArmor(){
     planner_ptr = std::make_unique<Planner>();
     solve_ptr = std::make_unique<Slover>();
     last_time = std::chrono::steady_clock::now()-std::chrono::seconds(4);
+    time_interval = 4.0; 
 }
 void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     dg.Vision2Control();
@@ -27,6 +28,7 @@ void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     }
     auto armors_ = ChooseProcess(armors,ds);
     if(armors_.empty())return;
+    tools::logger()->info("装甲板数字识别成功。");
     ShowArmors(armors_,img);
     auto target_state = aim_ptr->Estimate(armors_, time_interval);
     auto gimbal_angle = planner_ptr->TrajectoryPlanning(target_state);
@@ -36,9 +38,8 @@ void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
 void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg){
     int32_t yaw = (tools::R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
-    // int32_t yaw_val = tools::R2D(gimbal_angle.yaw_vel)*1e4;  // unused variable
-    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 1;
-    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 1;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 2;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 2;
     bool fire_delta = (yaw_delta && pitch_delta);
     dg.Vision2Control(yaw,pitch,m_aim_id,1,fire_delta);
 }
@@ -55,28 +56,29 @@ void SortArmors(Armors& armors) {
 Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
 
     Armors armors_;
-    time_interval = (ds.timestamp-last_time).count() / 1e9;
-    last_time = ds.timestamp;
-    if(time_interval==0)return armors_;
-
     SortArmors(armors);
+    time_interval = (ds.timestamp-last_time).count() / 1e9;
     solve_ptr->UpdateStatus(ds);
 
-    if(time_interval>2){
+    if(time_interval>0.2){
         for(auto armor : armors){
             solve_ptr->Solve(armor);
-            if(armor.gim_pose.norm()<6){
+            if(armor.gim_pose.norm()<10){
                 armors_.push_back(armor); 
                 aim_ptr = std::make_unique<Aim>(armor);
+                last_time = ds.timestamp;
                 break;
             }
         }
     }else{
+        if(!aim_ptr)return armors_;
+        
         for(auto armor : armors){
             if(armor.number == aim_ptr->aim_id){
                 solve_ptr->Solve(armor);
-                if(armor.gim_pose.norm()<6){
+                if(armor.gim_pose.norm()<10){
                     armors_.push_back(armor);
+                    last_time = ds.timestamp;
                 }
             }
             if(armors_.size()>2){
@@ -84,7 +86,7 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
             }
         }
     }
-    m_aim_id = FoundID(aim_ptr->aim_id);
+    // if(!armors_.empty())m_aim_id = FoundID(aim_ptr->aim_id);
     return armors_;
 }
 

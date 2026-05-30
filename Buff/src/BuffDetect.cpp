@@ -9,7 +9,7 @@ std::mutex mutex_bh;
 namespace auto_buff{
 
 BuffDetector::BuffDetector(){
-    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh.onnx");
+    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh2.onnx");
 }
 
 void BuffDetector::HandleImg(){
@@ -17,10 +17,10 @@ void BuffDetector::HandleImg(){
     cv::cvtColor(img_, gray_img_, cv::COLOR_BGR2GRAY);  
     // cv::imshow("gray", gray_img_); 
     // 进行二值化 
-    cv::threshold(gray_img_, gray_img_, 80, 255, cv::THRESH_BINARY);
+    cv::threshold(gray_img_, gray_img_, 60, 255, cv::THRESH_BINARY);
     // cv::imshow("binary", gray_img_);
     // 3x3闭运算
-    cv::morphologyEx(gray_img_, gray_img_, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)));
+    // cv::morphologyEx(gray_img_, gray_img_, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)));
     // 找轮廓
     cv::findContours(gray_img_, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     auto it = std::remove_if(contours.begin(), contours.end(),
@@ -142,7 +142,8 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
     auto rotation_matrix = cv::getPerspectiveTransform(points, target_vertices);
     cv::Mat input_image;
     cv::warpPerspective(gray_img_, input_image, rotation_matrix, cv::Size(28, 28));
-    cv::Mat job_image = input_image.clone();
+    cv::Mat job_image = input_image.clone();\
+    SaveImg(job_image);
     // 转换数据类型为 float32 并归一化到 [0, 1]
     input_image.convertTo(input_image, CV_32F, 1.0 / 255.0);
     
@@ -165,8 +166,8 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
     double min_ratio = 0.1;
     double max_ratio = 1;
-    int min_size = 5000;
-    int max_size = 9000;
+    int min_size = 3000;
+    int max_size = 7000;
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
         cv::Point2f center;float radius;
@@ -189,10 +190,10 @@ void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
 }
 
 void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2f>>> &rects){
-    float min_area = 1300;
-    float max_area = 4500;
-    float min_aspect = 0.15f;
-    float max_aspect = 0.7f;
+    float min_area = 500;
+    float max_area = 3000;
+    float min_aspect = 0.05f;
+    float max_aspect = 0.35f;
     for (const auto& contour : contours) {
         cv::RotatedRect rect = cv::minAreaRect(contour);
         cv::Point2f vertices[4];

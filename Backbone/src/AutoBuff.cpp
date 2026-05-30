@@ -5,7 +5,7 @@ AutoBuff::AutoBuff(){
     readYAML(YamlPath);
     discover_ = std::make_unique<auto_buff::BuffDetector>();
     slover_ = std::make_unique<auto_buff::Solver>();
-    target_ = std::make_unique<auto_buff::SmallTarget>();
+    target_ = std::make_unique<auto_buff::BigTarget>();
     planner_ = std::make_unique<auto_buff::Planner>();
 }
 
@@ -48,8 +48,8 @@ void AutoBuff::AutoAim(cv::Mat &img,const Data_Save &ds,Data_Get &dg){
 void AutoBuff::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg,cv::Mat &img){
     int32_t yaw = (tools::R2D(gimbal_angle.target_yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
-    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 0.8;
-    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 0.8;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 1.8;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 1.8;
     bool fire_delta = (yaw_delta && pitch_delta);
     if(!gimbal_angle.manage_yaw){
         yaw = (tools::R2D(ds.camera_yaw_angle)) * 1e4;

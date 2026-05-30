@@ -27,12 +27,15 @@ public:
     Perceptron(
         io::USBCamera * usbcam1,
         io::USBCamera * usbcam2,
+        io::USBCamera * usbcam3,
         int enemy_color,
         const std::string & config_path);
 
     ~Perceptron();
 
     void ParallelInfer(io::USBCamera * cam, Tradition & tradition, int enemy_color);
+
+    void SetActive(bool active);
 
     // 获取检测队列中的所有结果
     std::vector<DetectionResult> GetDetectionQueue();
@@ -55,8 +58,10 @@ private:
     std::vector<std::thread> threads_;
     Tradition tradition1_;
     Tradition tradition2_;
+    Tradition tradition3_;
 
     bool stop_flag_;
+    bool active_;
     bool show_visualization_;
     double fov_h_;
     double fov_v_;

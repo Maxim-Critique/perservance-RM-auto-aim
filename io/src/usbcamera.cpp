@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "logger.hpp"
+#include "exiter.hpp"
 
 using namespace std::chrono_literals;
 
@@ -21,6 +22,10 @@ USBCamera::USBCamera(const std::string & open_name, const std::string & yaml_pat
         const int max_consecutive_fails = 5;
 
         while (!quit_) {
+            if (tools::exit_requested()) {
+                quit_ = true;
+                break;
+            }
             std::this_thread::sleep_for(100ms);
             if (ok_) {
                 consecutive_fails = 0;
@@ -72,16 +77,34 @@ USBCamera::~USBCamera()
 cv::Mat USBCamera::read()
 {
     CameraData data;
-    queue_.pop(data);
-    return data.img;
+    while (!quit_) {
+        if (tools::exit_requested()) {
+            quit_ = true;
+            break;
+        }
+        if (queue_.pop_for(data, 50ms)) {
+            return data.img;
+        }
+    }
+    return cv::Mat();
 }
 
 void USBCamera::read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp)
 {
     CameraData data;
-    queue_.pop(data);
-    img = data.img;
-    timestamp = data.timestamp;
+    while (!quit_) {
+        if (tools::exit_requested()) {
+            quit_ = true;
+            break;
+        }
+        if (queue_.pop_for(data, 50ms)) {
+            img = data.img;
+            timestamp = data.timestamp;
+            return;
+        }
+    }
+    img.release();
+    timestamp = std::chrono::steady_clock::time_point{};
 }
 
 void USBCamera::LoadConfig(const std::string & yaml_path)
@@ -95,6 +118,10 @@ void USBCamera::LoadConfig(const std::string & yaml_path)
 
 void USBCamera::Open()
 {
+    if (tools::exit_requested()) {
+        quit_ = true;
+        return;
+    }
     std::lock_guard<std::mutex> lock(cap_mutex_);
     std::string true_device_name = "/dev/" + open_name_;
     tools::logger()->info("Attempting to open USB camera: {} (attempt {})", true_device_name, open_count_);
@@ -117,7 +144,10 @@ void USBCamera::Open()
         device_name = "right";
     } else if (open_name_ == "video2") {
         device_name = "left";
-    } 
+    } else if (open_name_ == "video4") {
+        device_name = "back";
+        new_usb_exposure_ += 40;
+    }
 
     cap_.set(cv::CAP_PROP_FRAME_WIDTH, new_image_width_);
     cap_.set(cv::CAP_PROP_FRAME_HEIGHT, new_image_height_);
@@ -133,6 +163,10 @@ void USBCamera::Open()
 
         std::this_thread::sleep_for(50ms);
         while (!quit_) {
+            if (tools::exit_requested()) {
+                quit_ = true;
+                break;
+            }
             std::this_thread::sleep_for(1ms);
 
             cv::Mat img;
