@@ -63,7 +63,7 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
     if(time_interval>0.2){
         for(auto armor : armors){
             solve_ptr->Solve(armor);
-            if(armor.gim_pose.norm()<10){
+            if(armor.gim_pose.norm()<7){
                 armors_.push_back(armor); 
                 aim_ptr = std::make_unique<Aim>(armor);
                 last_time = ds.timestamp;
@@ -76,7 +76,7 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
         for(auto armor : armors){
             if(armor.number == aim_ptr->aim_id){
                 solve_ptr->Solve(armor);
-                if(armor.gim_pose.norm()<10){
+                if(armor.gim_pose.norm()<7){
                     armors_.push_back(armor);
                     last_time = ds.timestamp;
                 }

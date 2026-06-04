@@ -132,12 +132,12 @@ void Perceptron::CalculateDeltaAngles(const Armors & armors, io::USBCamera * cam
         armors[0].center.y / static_cast<float>(cam->new_image_height_));
 
     if (cam->device_name == "left") {
-        result.delta_yaw = 90;
+        result.delta_yaw = tools::D2R(96) + (fov_h_ / 2) - norm_center.x * fov_h_;
     } else if (cam->device_name == "right") {
-        result.delta_yaw = -90.0;
-    } else  result.delta_yaw = 160;
+        result.delta_yaw = - tools::D2R(96)  + (fov_h_ / 2) - norm_center.x * fov_h_;
+    } else  result.delta_yaw = PI + (fov_h_ / 2) - norm_center.x * fov_h_;
 
-    result.delta_pitch = -10;
+    result.delta_pitch = -tools::D2R(12) + (fov_v_ / 2) - norm_center.y * fov_v_;
 ;
     detection_queue_.push(result);
 }

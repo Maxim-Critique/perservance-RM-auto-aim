@@ -11,15 +11,36 @@
 #include "SerialPort.h"
 #include "ros2.hpp"
 #include "perceptron.hpp"
+#include "State.h"
 
 
-void drawAngleInfo(cv::Mat& img, const Data_Save& data) {
+void drawAngleInfo(cv::Mat& img, const Data_Save& data, const Data_Get& dg) {
     cv::putText(img, cv::format("Y:%.1f P:%.1f R:%.1f", 
                 tools::R2D(data.camera_yaw_angle), 
                 tools::R2D(data.camera_pitch_angle), 
                 tools::R2D(data.camera_roll_angle)),
                 cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+    cv::putText(img, cv::format("Mode:%s", AimStateMachine::Instance().ModeName()),
+                cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+
+    const uint32_t x_u = (static_cast<uint32_t>(dg.raw_data[2]) << 24) |
+                         (static_cast<uint32_t>(dg.raw_data[3]) << 16) |
+                         (static_cast<uint32_t>(dg.raw_data[4]) << 8) |
+                         static_cast<uint32_t>(dg.raw_data[5]);
+    const uint32_t y_u = (static_cast<uint32_t>(dg.raw_data[6]) << 24) |
+                         (static_cast<uint32_t>(dg.raw_data[7]) << 16) |
+                         (static_cast<uint32_t>(dg.raw_data[8]) << 8) |
+                         static_cast<uint32_t>(dg.raw_data[9]);
+    const int32_t x = static_cast<int32_t>(x_u);
+    const int32_t y = static_cast<int32_t>(y_u);
+    cv::putText(img, cv::format("dg x:%.4f y:%.4f id:%u f:%u fire:%u",
+                x * 1e-4, y * 1e-4,
+                static_cast<unsigned>(dg.raw_data[17]),
+                static_cast<unsigned>(dg.raw_data[18]),
+                static_cast<unsigned>(dg.raw_data[19])),
+                cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
 }
+
 
 int main()
 {
@@ -43,35 +64,40 @@ int main()
     while(!exiter.exit()){
         camera_->Query(img,t);
         serial_->Query(ds,t);
-        std::vector<int16_t> received_data = ros2_->subscribe_autoaim_target();
+        
         if(!ds.armor_or_buff){
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_armor);
             armor_->AutoAim(img,ds,dg);
             if(!perceptron) perceptron = std::make_unique<Omniperception::Perceptron>(usb_camera0.get(), usb_camera2.get(), usb_camera4.get(),ds.color, YamlPath);
             uint8_t found = dg.raw_data[18];
-            perceptron->SetActive(!found);
-            if(found) ros2_->publish(0);
-            else{
-                ros2_->publish(ds.go_back);
+            bool usb_active = AimStateMachine::Instance().UsbActive();
+            if(!found && usb_active){
                 auto list = perceptron->GetDetectionQueue();
-                if(!list.empty())dg.Vision2Control((tools::R2D(ds.camera_yaw_angle)+ list[0].delta_yaw)*1e4,list[0].delta_pitch*1e4,0,1,0);
-                else dg.Vision2Control();
-            }
+                if(!list.empty()) dg.Vision2Control((tools::R2D(_std_radian(ds.camera_yaw_angle+ list[0].delta_yaw)))*1e4,tools::R2D(list[0].delta_pitch)*1e4,0,2,0);
+                ros2_->publish(ds.go_back);
+            }else ros2_->publish(0);
+            AimStateMachine::Instance().Step(t, dg);
+            perceptron->SetActive(usb_active);
         }else{
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_buff);
             ros2_->publish(ds.go_back);
             buff_->AutoAim(img,ds,dg);
         }
+
         last_mode = ds.armor_or_buff;
         tools::logger()->info("ds.go_back {} ,mode {}",ds.go_back,ds.armor_or_buff);
+
+        std::vector<int16_t> received_data = ros2_->subscribe_autoaim_target();
         if(!received_data.empty()) {
             dg.Nav2Control(received_data[0],received_data[1]);
             tools::logger()->info("received_data {} {}",received_data[0],received_data[1]);
         }
+
         serial_->SendData(dg);
+
         if(show)
         {            
-            drawAngleInfo(img, ds);
+            drawAngleInfo(img, ds, dg);
             imshow("image", img);
             cv::waitKey(1);
         }
