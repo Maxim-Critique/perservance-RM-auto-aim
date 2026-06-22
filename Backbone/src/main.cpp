@@ -41,8 +41,8 @@ int main(){
         serial_->Query(ds,t);
         buffer_->AutoAim(img,ds,dg);
         serial_->SendData(dg);
-        // imshow("image",img);
-        // waitKey(1);
+        imshow("image",img);
+        waitKey(1);
     }
 
 }
