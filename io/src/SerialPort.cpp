@@ -3,9 +3,8 @@
 #include <errno.h>
 #include <termios.h>
 #include "SerialPort.h"
-#include "math.hpp"
+#include "math_tools.hpp"
 #include <poll.h>
-
 namespace io
 {
 bool SerialPort::configure_serial(int fd)
@@ -126,7 +125,7 @@ void SerialPort::read_data()
                 ds.camera_pitch_angle = pit_ * SCALE;
                 ds.camera_roll_angle = _std_radian(roll_ * SCALE - PI);
                 ds.color = read_buffer[15];
-                ds.Buff_or_Armor = read_buffer[16];
+                ds.armor_or_buff = read_buffer[16];
                 queue_.push(ds);
             }
             
@@ -137,7 +136,7 @@ void SerialPort::read_data()
 void SerialPort::Query(Data_Save &ds,const time_point &t){
     if (data_behind_.timestamp < t) data_ahead_ = data_behind_;
     while (true) {
-        if (queue_.empty())tools::logger()->warn("[SerialPort] WARNING: Queue is empty!");
+        // if (queue_.empty())tools::logger()->warn("[SerialPort] WARNING: Queue is empty!");
         queue_.pop(data_behind_);
         if (data_behind_.timestamp > t) break;
         data_ahead_ = data_behind_;
