@@ -1,5 +1,5 @@
-#ifndef AIM_H
-#define AIM_H
+#ifndef ARMOR_TARGET_H
+#define ARMOR_TARGET_H
 
 #include <opencv2/opencv.hpp>
 #include <eigen3/Eigen/Dense>
@@ -8,48 +8,41 @@
 #include <map>
 #include <vector>
 #include <deque>
-#include "find_armor.h"
-#include "EKF.h"
-#include "MPC.h"
-#include "Coordinate.h"
-#include "SerialPort.h"
-#include "Angle_Calculate.h"
-#include "CA.h"
-
+#include "ArmorTypes.h"
+#include "ArmorEKF.h"
+#include "ArmorPredictor.h"
+#include "ArmorSolver.h"
 using namespace cv;
 using namespace std;
 
 class Aim {
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-    
+
     // 初始化
     Aim(Armor armor);
     // 主接口
     std::shared_ptr<KinematicModel> Estimate(const Armors &armors, double &time);
     // EKF的主要部分
-    std::shared_ptr<KinematicModel> Resolve(const Armors &armors, double time);
+    void Resolve(const Armors &armors, double time);
     // 匹配装甲板
     std::map<int, int> Match(const Eigen::MatrixXd &score);
     // 初始化状态量
     void InitEKF(Armor armor);
     // 计算得分，匹配装甲板
     Eigen::MatrixXd GetScoreMat(const Armors &detect_armors, const Armors &standard_armors);
-    // 均值滤波，过滤角速度
-    double Homogeneity(double new_value);
-    
+
+    // 实时可视化运动状态（俯视2D视图）
+    void visualizeState(const Armors &detected_armors, double dt);
+
+    // 工厂方法：根据aim_id创建对应的运动学模型
+    std::shared_ptr<KinematicModel> createModel(const Eigen::VectorXd &state) const;
+
     ///////////////////////////          变量               ////////////////////////////////////////////
     double m_score_tolerance;                                    // 装甲板匹配得分最大值
-    std::shared_ptr<KinematicModel> m_status;                    // 当前状态。为了保留最佳目标装甲板，必须声明为类成员变量以保留其索引值
     std::shared_ptr<ExtendedKalmanFilter> m_model_observer;      // 状态观测器
     Eigen::VectorXd target_state;                                // EKF状态量
     string aim_id;                                               // 瞄准对象
-    std::deque<double> buffer;
-    double sum = 0;
-    const size_t window_size = 40;
-    int last_index = 0;
-    int frames_since_last_switch = 0;
-
 private:
     class Match {
     public:
@@ -75,7 +68,7 @@ private:
          * @param start 起始位置，应指定为0
          * @param k k个数，由用户决定
          */
-        void GetCombinationsNumbers(std::vector<int> &input, std::vector<int> &tmp_v, 
+        void GetCombinationsNumbers(std::vector<int> &input, std::vector<int> &tmp_v,
                                    std::vector<std::vector<int>> &result, size_t start, size_t k);
 
         double min = 0, tmp = 0;                    // 最小值
@@ -89,8 +82,8 @@ private:
         std::vector<std::vector<int>> fourAfour;    // 存储A(4,4)的结果
 
         std::map<int, int> row_col;                 // 存储最终结果，row_col[i]=j表示矩阵的第i行第j列是要选取的数
-        
+
     } m_match;
 };
 
-#endif // AIM_H
+#endif // ARMOR_TARGET_H

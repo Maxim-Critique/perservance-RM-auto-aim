@@ -1,5 +1,5 @@
 // #include "Buff_Predict.h"
-// #include "Coordinate.h"
+// #include "math.hpp"
 // typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatrixXd;
 
 // BigNewtonGauss::BigNewtonGauss() {
@@ -137,7 +137,7 @@
 //     double f_t = -a / omega * cos(omega * t + phase) + b * t;
 //     double f_dt = -a / omega * cos(omega * (t + dt) + phase) + b * (t + dt);
 //     double d_angle = (f_dt - f_t) * direction;
-//     cout<<"  f_t "<<f_t<<" f_dt "<<f_dt<<"  d_angle "<<R2D(d_angle)<<endl;
+//     cout<<"  f_t "<<f_t<<" f_dt "<<f_dt<<"  d_angle "<<tools::R2D(d_angle)<<endl;
 //     double predict_angle = last_angle + d_angle;
 //     while (predict_angle > 2*M_PI) predict_angle -= 2*M_PI;
 //     while (predict_angle < 0) predict_angle += 2*M_PI;
