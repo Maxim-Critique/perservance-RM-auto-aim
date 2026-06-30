@@ -13,4 +13,3 @@ private:
     double m_start_time_with_usec;
 };
 int Test();
-int MPCTest();

@@ -1,5 +1,6 @@
-#include "AIM.h"
+#include "ArmorTarget.h"
 #include "logger.hpp"
+#include "math.hpp"
 
 Aim::Aim(Armor armor){
     aim_id = armor.number;

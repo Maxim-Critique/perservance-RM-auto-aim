@@ -1,12 +1,12 @@
+#ifndef ARMOR_PREDICTOR_H
+#define ARMOR_PREDICTOR_H
+
 #include <iostream>
 #include <cmath>
 #include <Eigen/Dense>
-#include "find_armor.h"
-#include "SerialPort.h"
-#include <algorithm> 
+#include "ArmorTypes.h"
+#include <algorithm>
 #include "math.hpp"
-#ifndef PREDICT_H
-#define PREDICT_H
 
 /**
  * @brief 运动学状态
@@ -26,7 +26,7 @@ public:
     std::vector<double> radius;     // 旋转半径：0对应索引0、2，1对应索引1、3
     double phase;                   // 角度（并非定值）
     double palstance;               // 角速度
-   
+
     int number;                     // 装甲板数量
 };
 

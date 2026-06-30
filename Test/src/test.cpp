@@ -1,4 +1,4 @@
-#include "AIM.h"
+#include "ArmorTarget.h"
 #include "Base.h"
 #include "test.h"
 #include <random>
@@ -9,7 +9,7 @@
 #include <sstream>
 #include <vector>
 #include <limits>
-#include "Planner.h"
+#include "ArmorPlanner.h"
 // 使用录制数据进行仿真
 // #define USE_DATA
 int random_seed = 42;
@@ -28,10 +28,6 @@ std::vector<std::pair<double, Armors>> recorded_data;
 cv::Point2f observation_point(0, 0);
 // 仿真画面
 cv::Mat background;
-// MPC解算数据
-cv::Mat figure_mpc = cv::Mat(cv::Size(1024, 512), CV_8UC3, cv::Scalar(255, 255, 255));
-// MPC解算计数（超出图表范围后自动重置）
-int cnt = 0;
 // 原点（画面中心点）
 cv::Point2f base_point = cv::Point2f(512, 512);
 
@@ -164,7 +160,7 @@ Armors generateSimulatedArmors() {
     
     return armors;
 }
- std::ofstream in("mpc_log.txt", std::ios::app); 
+
 int Test() {
     srand(time(nullptr));
     
@@ -184,7 +180,7 @@ int Test() {
     // 初始化预测器和模型
     std::unique_ptr<Aim> aim_ptr;
     std::shared_ptr<KinematicModel> m_status;
-    std::unique_ptr<Planner> mpc = std::make_unique<Planner>();
+    std::unique_ptr<Planner> planner = std::make_unique<Planner>();
     io::SerialPort serial_("/dev/ttyACM0");
     Data_Get dg;
     
@@ -228,11 +224,6 @@ int Test() {
         m_status = aim_ptr->createModel(aim_ptr->target_state);
         // 获取当前状态估计
         Armors filter_armors = m_status->GetArmors(0);
-        // MPC轨迹规划
-        // auto target = mpc->TrajectoryPlanning(*m_status);
-        // dg.Vision2Control((target.manage_yaw)*1e4,target.target_pitch*1e4,target.yaw_vel*1e4,target.yaw_acc*1e4,1,0);
-        // std::cout<<target.target_pitch*57.3<<",";
-        // serial_.SendData(dg);
         // 绘制状态估计和预测结果
         for (size_t i = 0; i < filter_armors.size(); i++) {
             // 当前状态估计量（红色）

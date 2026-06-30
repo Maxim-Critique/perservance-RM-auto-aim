@@ -1,21 +1,15 @@
-#ifndef FIND_ARMOR_H
-#define FIND_ARMOR_H
-#pragma once
+#ifndef ARMOR_TYPES_H
+#define ARMOR_TYPES_H
+
 #include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
 #include <iostream>
-#include <future>
-#include "Base.h"
-#include <algorithm>  // std::max 和 std::min
-#include <cmath>      // fmax
-#include <yaml-cpp/yaml.h>
-#include "SerialPort.h"
+#include <algorithm>
+#include <cmath>
 #include <vector>
-#include "math.hpp"
+
 using namespace cv;
 using namespace std;
-
-
 
 /******************* 灯条类定义 ***********************/
 class LightBlob
@@ -43,7 +37,7 @@ public:
 
 typedef std::vector<LightBlob> LightBlobs;
 
-/******************* 装甲板ID类定义　**********************/
+/******************* 装甲板类型定义　**********************/
 
 enum class ArmorType
 {
@@ -79,48 +73,10 @@ struct Armor
 };
 typedef vector<Armor> Armors;
 
-class NumberClassifier
-{
-public:
-    NumberClassifier(
-        const std::string &model_path, const std::string &label_path, const double threshold,
-        const std::vector<std::string> &ignore_classes = {});
-
-    void extractNumbers(const cv::Mat &src, std::vector<Armor> &armors);
-
-    void classify(std::vector<Armor> &armors);
-
-    void visualizeResult(cv::Mat &src, const std::vector<Armor> &armors);
-
-    double threshold;
-
-private:
-    cv::dnn::Net net_;
-    std::vector<std::string> class_names_;
-    std::vector<std::string> ignore_classes_;
-};
-
 #define ENEMY_BLUE 0
 #define ENEMY_RED 1
 
 #define BLOB_RED ENEMY_RED
 #define BLOB_BLUE ENEMY_BLUE
 
-extern NumberClassifier classifier;
-class Tradition{
-public:
-
-    Tradition();
-    // 找灯条
-    LightBlobs FindLight(Mat &src,int enemy_color);
-    // 找装甲板
-    Armors FindArmor(Mat &src, LightBlobs &light_blobs);
-
-private:
-    int enemy_color_;                      // 敌方颜色
-    int threshold_;                        // 二值化阈值
-};
-
-#endif 
-
-
+#endif

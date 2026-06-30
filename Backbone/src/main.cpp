@@ -71,9 +71,3 @@ int main()
     }
     return 0;
 }
-
-// int main(){
-//     Test();
-//     // MPCTest();
-//     return 0;
-// }

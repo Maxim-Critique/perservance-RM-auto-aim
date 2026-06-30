@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(make -j20)",
-      "Bash(cmake --build build/)"
+      "Bash(cmake --build build/)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(grep -rn \"MPC\" /home/perseverance/auto-aim --include=\"*.cpp\" --include=\"*.h\" --include=\"*.hpp\" --include=\"*.c\" --include=\"*.txt\" --include=\"*.cmake\" --include=\"*.md\" ! -path \"*/build/*\" ! -path \"*/.git/*\" ! -path \"*/3rdparty/*\" ! -path \"*/third_party/*\" ! -path \"*/install/*\")",
+      "Bash(grep -rni \"tinympc\" /home/perseverance/auto-aim --include=\"*.cpp\" --include=\"*.h\" --include=\"*.hpp\" --include=\"*.c\" --include=\"*.txt\" --include=\"*.cmake\" --include=\"*.md\" ! -path \"*/build/*\" ! -path \"*/.git/*\" ! -path \"*/3rdparty/*\")",
+      "Bash(rm -rf /home/perseverance/auto-aim/tinympc && echo \"Deleted tinympc directory\")",
+      "Bash(cmake ..)",
+      "Bash(cmake --build .)"
+    ],
+    "additionalDirectories": [
+      "/home/perseverance/auto-aim/tinympc"
     ]
   }
 }

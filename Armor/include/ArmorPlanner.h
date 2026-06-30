@@ -1,11 +1,11 @@
+#ifndef ARMOR_PLANNER_H
+#define ARMOR_PLANNER_H
+
 #include <Eigen/Dense>
 #include <iostream>
-#include "Predict.h"
+#include "ArmorPredictor.h"
 #include "trajectory.hpp"
 #include "Base.h"
-#ifndef PLANNER_H
-#define PLANNER_H
-
 
 class Planner
 {
@@ -13,22 +13,22 @@ public:
     Planner();
     Gimbal_Angle TrajectoryPlanning(std::shared_ptr<KinematicModel> model);
 private:
-    
+
     void GetTurn();
-    // 获取轨迹    
-    void GetPath();                     
+    // 获取轨迹
+    void GetPath();
     // 获取多项式
-    void GetFPolynomial();          
+    void GetFPolynomial();
     // 封装选择多项式和计算云台角度的逻辑
-    Gimbal_Angle ComputeGimbalAngle();       
+    Gimbal_Angle ComputeGimbalAngle();
     // 工具函数获取Yaw
-    double GetGimbalYaw(double time);    
+    double GetGimbalYaw(double time);
     // 获取符合条件的多项式
-    Eigen::VectorXd GetPolynomial(int extremum);     
+    Eigen::VectorXd GetPolynomial(int extremum);
     // 工具函数获取具体多项式
     Eigen::VectorXd ComputeQuinticPoly(const Path_Point& start, const Path_Point& end);
     // 工具函数多项式代入时间
-    Path_Point EvalPolyAtT(const Eigen::VectorXd& poly,double t);
+    Path_Point EvalPolyAtT(const Eigen::VectorXd& poly, double t);
     // 工具函数多项式是否满足加速度要求
     bool CheckAccelConstraint(const Eigen::VectorXd& poly, double t0, double t1);
     // 工具函数获取飞行时间和pitch
@@ -42,6 +42,6 @@ private:
     int right_extremum;                       // 右边极值点
     std::shared_ptr<KinematicModel> m_status; // 系统预测
     std::vector<Path_Point> path;             // 轨迹序列
-    
+
 };
-#endif 
+#endif

@@ -1,5 +1,5 @@
-#ifndef AIM_H
-#define AIM_H
+#ifndef ARMOR_TARGET_H
+#define ARMOR_TARGET_H
 
 #include <opencv2/opencv.hpp>
 #include <eigen3/Eigen/Dense>
@@ -8,19 +8,17 @@
 #include <map>
 #include <vector>
 #include <deque>
-#include "find_armor.h"
-#include "EKF.h"
-#include "MPC.h"
-
-#include "SerialPort.h"
-#include "Angle_Calculate.h"
+#include "ArmorTypes.h"
+#include "ArmorEKF.h"
+#include "ArmorPredictor.h"
+#include "ArmorSolver.h"
 using namespace cv;
 using namespace std;
 
 class Aim {
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-    
+
     // 初始化
     Aim(Armor armor);
     // 主接口
@@ -39,7 +37,7 @@ public:
 
     // 工厂方法：根据aim_id创建对应的运动学模型
     std::shared_ptr<KinematicModel> createModel(const Eigen::VectorXd &state) const;
-    
+
     ///////////////////////////          变量               ////////////////////////////////////////////
     double m_score_tolerance;                                    // 装甲板匹配得分最大值
     std::shared_ptr<ExtendedKalmanFilter> m_model_observer;      // 状态观测器
@@ -70,7 +68,7 @@ private:
          * @param start 起始位置，应指定为0
          * @param k k个数，由用户决定
          */
-        void GetCombinationsNumbers(std::vector<int> &input, std::vector<int> &tmp_v, 
+        void GetCombinationsNumbers(std::vector<int> &input, std::vector<int> &tmp_v,
                                    std::vector<std::vector<int>> &result, size_t start, size_t k);
 
         double min = 0, tmp = 0;                    // 最小值
@@ -84,8 +82,8 @@ private:
         std::vector<std::vector<int>> fourAfour;    // 存储A(4,4)的结果
 
         std::map<int, int> row_col;                 // 存储最终结果，row_col[i]=j表示矩阵的第i行第j列是要选取的数
-        
+
     } m_match;
 };
 
-#endif // AIM_H
+#endif // ARMOR_TARGET_H

@@ -2,20 +2,20 @@
 
 AutoArmor::AutoArmor(){
     readYAML(YamlPath);
-    find_ptr = std::make_unique<Tradition>();
+    find_ptr = std::make_unique<ArmorDetector>(
+        "../model/mlp.onnx", "../model/label.txt", 0.7,
+        std::vector<std::string>{"negative"});
     planner_ptr = std::make_unique<Planner>();
     solve_ptr = std::make_unique<Slover>();
     last_time = std::chrono::steady_clock::now()-std::chrono::seconds(4);
 }
 bool AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     dg.Vision2Control();
-    LightBlobs light_blobs = find_ptr->FindLight(img,ds.color);
-    if(light_blobs.size()<2)return false;
-    auto armors = find_ptr->FindArmor(img,light_blobs);
-    classifier.extractNumbers(img,armors);
-    classifier.classify(armors);
-    classifier.visualizeResult(img, armors);
+
+    // 一体化识别：灯条检测 + 装甲板匹配 + 数字分类 + 可视化
+    auto armors = find_ptr->Detect(img, ds.color);
     if(armors.empty())return false;
+
     auto armors_ = ChooseProcess(armors,ds);
     if(armors_.empty())return false;
     if(show_)ShowArmors(armors_,img);
@@ -34,12 +34,12 @@ void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Da
     bool fire_delta = (yaw_delta && pitch_delta);
     if(fire_delta) dg.Vision2Control(yaw,pitch,yaw_val,0,1,2);
     else  dg.Vision2Control(yaw,pitch,yaw_val,0,1,0);
-    
+
 }
 
 // 处理倒影
 void SortArmors(Armors& armors) {
-    std::sort(armors.begin(), armors.end(), 
+    std::sort(armors.begin(), armors.end(),
         [](const Armor& a, const Armor& b) {
             return a.points[0].y < b.points[0].y;
         });
@@ -57,7 +57,7 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
         for(auto armor : armors){
             solve_ptr->Solve(armor);
             if(armor.gim_pose.norm()<7){
-                armors_.push_back(armor); 
+                armors_.push_back(armor);
                 aim_ptr = std::make_unique<Aim>(armor);
                 last_time = ds.timestamp;
                 break;
@@ -65,7 +65,7 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
         }
     }else{
         if(!aim_ptr)return armors_;
-        
+
         for(auto armor : armors){
             if(armor.number == aim_ptr->aim_id){
                 solve_ptr->Solve(armor);
@@ -79,7 +79,7 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
             }
         }
     }
-        
+
     return armors_;
 }
 
@@ -114,19 +114,19 @@ void AutoArmor::ShowArmors(const Armors &armors,Mat &img){
                 cv::line(img, armor.points[i], armor.points[(i+1)%4], cv::Scalar(125, 0, 125), 2);
                 cv::putText(img, std::to_string(i), cv::Point(armor.points[i].x + 5, armor.points[i].y - 5), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 0, 255), 2);
             }
-            if(!armor.re_points.empty()){  
+            if(!armor.re_points.empty()){
                 for(int i=0;i<4;i++){
                     cv::line(img, armor.re_points[i],armor.re_points[(i+1)%4],cv::Scalar(0, 255, 0), 2);
                     cv::putText(img, std::to_string(i), cv::Point(armor.re_points[i].x + 5, armor.re_points[i].y - 5), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 0, 0), 2);
-                }  
+                }
             }
         }
-        cv::putText(img, cv::format("X:%.2f Y:%.2f Z:%.2f,Yaw:%.1f", 
-            armor.gim_pose.x(), 
-            armor.gim_pose.y(), 
+        cv::putText(img, cv::format("X:%.2f Y:%.2f Z:%.2f,Yaw:%.1f",
+            armor.gim_pose.x(),
+            armor.gim_pose.y(),
             armor.gim_pose.z(),
             tools::R2D(armor.yaw-armor.predict_yaw)),
             armor.points[1], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
     }
-    
+
 }
