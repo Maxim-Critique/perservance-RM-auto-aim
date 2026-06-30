@@ -22,13 +22,12 @@ class LightBlob
 {
 public:
     cv::RotatedRect rect; // 灯条位置
-    double area_ratio;    // 与旋转矩形的占比
     double length;        // 灯条长度
     int blob_color;   // 灯条颜色
 
     cv::Point2f top, bottom, center;
-    LightBlob(cv::RotatedRect &r, double ratio, int color)
-        : rect(r), area_ratio(ratio), blob_color(color)
+    LightBlob(cv::RotatedRect &r, int color)
+        : rect(r), blob_color(color)
     {
         length = max(rect.size.height, rect.size.width);
 
@@ -71,7 +70,6 @@ struct Armor
     cv::Mat number_img;
     std::string number;
     float confidence;
-    std::string classfication_result;
     vector<Point2f> points;
     vector<Point2f> re_points;
     ArmorType type;
@@ -91,6 +89,8 @@ public:
     void extractNumbers(const cv::Mat &src, std::vector<Armor> &armors);
 
     void classify(std::vector<Armor> &armors);
+
+    void visualizeResult(cv::Mat &src, const std::vector<Armor> &armors);
 
     double threshold;
 
@@ -117,7 +117,6 @@ public:
     Armors FindArmor(Mat &src, LightBlobs &light_blobs);
 
 private:
-    bool is_get_from_ds_;                  // 是否使用电控颜色
     int enemy_color_;                      // 敌方颜色
     int threshold_;                        // 二值化阈值
 };

@@ -2,9 +2,6 @@
 #include <eigen3/Eigen/Dense>
 #include "find_armor.h"
 
-#include <fstream>      // 文件流操作
-#include <sys/stat.h>   // 文件状态
-#include <unistd.h>     // 系统调用（getcwd）
 #include <iostream>     // 输入输出
 #include <string>
 // 判断装甲板倾斜度
@@ -158,6 +155,8 @@ Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
 {
     Armors armors;
     ArmorType type;
+    std::vector<bool> paired(light_blobs.size(), false);
+
     for (size_t i = 0; i < light_blobs.size() - 1; ++i)
     {
         const auto& blob_i = light_blobs[i];
@@ -168,17 +167,19 @@ Armors Tradition::FindArmor(cv::Mat &src, LightBlobs &light_blobs)
             {
                 continue;
             }
-           
+
             if (ContainLight(blob_i, blob_j, light_blobs))
             {
                 continue;
             }
-            Judge_Type(blob_i, blob_j, type);            
+            Judge_Type(blob_i, blob_j, type);
             std::vector<cv::Point2f> points = GetPoints(blob_i,blob_j,src);
             armors.emplace_back(points,type);
-
+            paired[i] = true;
+            paired[j] = true;
         }
     }
+
     return armors;
 }
 
@@ -186,7 +187,6 @@ Tradition::Tradition(){
     try {
         YAML::Node config = YAML::LoadFile(YamlPath);
         enemy_color_ = config["Find"]["enemy_color"].as<int>();
-        is_get_from_ds_ = config["Find"]["is_get_from_ds"].as<bool>();
         threshold_ = config["Tradition"]["threshold"].as<int>();
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("YAML Error: " + std::string(e.what()) + "Tradition");

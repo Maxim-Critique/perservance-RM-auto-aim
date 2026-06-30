@@ -1,10 +1,6 @@
 #include "Planner.h"
 #include <cmath>
 #include <fstream>
-
-// 全局日志文件对象
-std::ofstream out("mpc_log.txt", std::ios::app); 
-
 Planner::Planner(){
     YAML::Node config = YAML::LoadFile(YamlPath);
     predict_time = config["Planer"]["predict_time"].as<double>();
@@ -53,13 +49,11 @@ Gimbal_Angle Planner::ComputeGimbalAngle() {
         gimbal_angle.manage_yaw = poly_result.angle;
         gimbal_angle.yaw_vel = poly_result.angle_vel;
     }
-
-    out << gimbal_angle.target_yaw << " " << gimbal_angle.manage_yaw << "\n";
     return gimbal_angle;
 }
 
-Gimbal_Angle Planner::TrajectoryPlanning(Eigen::VectorXd states){
-    m_status = std::make_shared<StandardModel>(states);
+Gimbal_Angle Planner::TrajectoryPlanning(std::shared_ptr<KinematicModel> model){
+    m_status = model;
     auto trajectory_ = GetTrajectory(0);
     hit_time = trajectory_.fly_time + predict_time;
     

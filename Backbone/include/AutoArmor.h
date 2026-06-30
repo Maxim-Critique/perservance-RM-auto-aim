@@ -1,11 +1,12 @@
 #include "AIM.h"
-#include <algorithm> 
+#include <algorithm>
 #include <sys/time.h>
 #include "Planner.h"
+
 class AutoArmor{
 public:
     AutoArmor();
-    void AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg);
+    bool AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg);
 private:
     // 发ID
     int FoundID(string x);
@@ -26,6 +27,6 @@ private:
     double compensate_pitch,compensate_yaw;           // pitch,yaw的补偿角 
     std::unique_ptr<Tradition> find_ptr;              // 找灯条和装甲板的指针
     double m_next_shoot_time;                         // 下一次开火时间
-    double show;                                      // 可视化开关
+    double show_;                                      // 可视化开关
 };
 

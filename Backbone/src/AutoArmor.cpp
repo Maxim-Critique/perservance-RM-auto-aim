@@ -7,30 +7,34 @@ AutoArmor::AutoArmor(){
     solve_ptr = std::make_unique<Slover>();
     last_time = std::chrono::steady_clock::now()-std::chrono::seconds(4);
 }
-void AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
+bool AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     dg.Vision2Control();
     LightBlobs light_blobs = find_ptr->FindLight(img,ds.color);
-    if(light_blobs.size()<2)return;
+    if(light_blobs.size()<2)return false;
     auto armors = find_ptr->FindArmor(img,light_blobs);
     classifier.extractNumbers(img,armors);
     classifier.classify(armors);
-    if(armors.empty())return;
+    classifier.visualizeResult(img, armors);
+    if(armors.empty())return false;
     auto armors_ = ChooseProcess(armors,ds);
-    if(armors_.empty())return;
-    ShowArmors(armors_,img);
-    auto target_state = aim_ptr->Estimate(armors_, time_interval);
-    auto gimbal_angle = planner_ptr->TrajectoryPlanning(target_state);
+    if(armors_.empty())return false;
+    if(show_)ShowArmors(armors_,img);
+    auto model = aim_ptr->Estimate(armors_, time_interval);
+    auto gimbal_angle = planner_ptr->TrajectoryPlanning(model);
     Transmit(gimbal_angle,ds,dg);
+    return true;
 }
 
 void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg){
     int32_t yaw = (tools::R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
     int32_t yaw_val = tools::R2D(gimbal_angle.yaw_vel)*1e4;
-    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 1;
-    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 1;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 0.2;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 0.2;
     bool fire_delta = (yaw_delta && pitch_delta);
-    dg.Vision2Control(yaw,pitch,yaw_val,0,1,fire_delta);
+    if(fire_delta) dg.Vision2Control(yaw,pitch,yaw_val,0,1,2);
+    else  dg.Vision2Control(yaw,pitch,yaw_val,0,1,0);
+    
 }
 
 // 处理倒影
@@ -45,28 +49,29 @@ void SortArmors(Armors& armors) {
 Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
 
     Armors armors_;
-    time_interval = (ds.timestamp-last_time).count() / 1e9;
-    last_time = ds.timestamp;
-    if(time_interval==0)return armors_;
-
     SortArmors(armors);
+    time_interval = (ds.timestamp-last_time).count() / 1e9;
     solve_ptr->UpdateStatus(ds);
 
-    if(time_interval>2){
+    if(time_interval>1|| !aim_ptr){
         for(auto armor : armors){
             solve_ptr->Solve(armor);
-            if(armor.gim_pose.norm()<6){
+            if(armor.gim_pose.norm()<7){
                 armors_.push_back(armor); 
                 aim_ptr = std::make_unique<Aim>(armor);
+                last_time = ds.timestamp;
                 break;
             }
         }
     }else{
+        if(!aim_ptr)return armors_;
+        
         for(auto armor : armors){
             if(armor.number == aim_ptr->aim_id){
                 solve_ptr->Solve(armor);
-                if(armor.gim_pose.norm()<6){
+                if(armor.gim_pose.norm()<7){
                     armors_.push_back(armor);
+                    last_time = ds.timestamp;
                 }
             }
             if(armors_.size()>2){
@@ -95,7 +100,7 @@ YAML::Node AutoArmor::readYAML(const std::string& filename){
         YAML::Node config = YAML::LoadFile(filename);
         compensate_pitch = config["Transmit"]["compensate_pitch"].as<double>();
         compensate_yaw = config["Transmit"]["compensate_yaw"].as<double>();
-        show = config["Camera"]["show"].as<int>();
+        show_ = config["Camera"]["show"].as<int>();
     } catch (const YAML::Exception& e) {
         throw std::runtime_error("YAML Error: " + std::string(e.what()) + "AutoArmor");
     }
@@ -117,9 +122,9 @@ void AutoArmor::ShowArmors(const Armors &armors,Mat &img){
             }
         }
         cv::putText(img, cv::format("X:%.2f Y:%.2f Z:%.2f,Yaw:%.1f", 
-            armor.abs_pose.x(), 
-            armor.abs_pose.y(), 
-            armor.abs_pose.z(),
+            armor.gim_pose.x(), 
+            armor.gim_pose.y(), 
+            armor.gim_pose.z(),
             tools::R2D(armor.yaw-armor.predict_yaw)),
             armor.points[1], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
     }

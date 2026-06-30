@@ -86,16 +86,8 @@ void NumberClassifier::extractNumbers(const cv::Mat &src, std::vector<Armor> &ar
 
         armor.number_img = number_image;
 
-        // string window = to_string(i);
-        // imshow(window,armor.number_img);
-        // i++;
     }
 }
-// 训练用平
-string Writepath1;
-int counting1 = 7000;
-string Photo_name1;
-
 void NumberClassifier::classify(std::vector<Armor> &armors)
 {
     for (auto &armor : armors)
@@ -114,7 +106,6 @@ void NumberClassifier::classify(std::vector<Armor> &armors)
         cv::Mat outputs = net_.forward().clone();
         mutex_.unlock();
 
-        // cout<<"==== In MLP ===="<<endl;
         //  Do softmax
         float max_prob = *std::max_element(outputs.begin<float>(), outputs.end<float>());
         cv::Mat softmax_prob;
@@ -131,16 +122,7 @@ void NumberClassifier::classify(std::vector<Armor> &armors)
         armor.confidence = confidence;
         armor.number = class_names_[label_id];
 
-        // std::stringstream result_ss;
-        // result_ss << armor.number << ": " << std::fixed << std::setprecision(1)
-        //             << armor.confidence * 100.0 << "%";
-        // armor.classfication_result = result_ss.str();
     }
-    // 检查识别精度
-    //  for (auto & armor : armors){
-    //      cout<<armor.number << ": " << std::fixed << std::setprecision(1)<< armor.confidence * 100.0 << "%"<<endl<<endl;
-    //  }
-
     armors.erase(
         std::remove_if(
             armors.begin(), armors.end(),
@@ -185,77 +167,45 @@ void NumberClassifier::classify(std::vector<Armor> &armors)
                 return mismatch_armor_type;
             }),
         armors.end());
+}
 
-    // for (auto &armor : armors) {
-    //     armor.number_img = cv::Mat(); // 将 number_img 置为空矩阵
-    // }
+void NumberClassifier::visualizeResult(cv::Mat &src, const std::vector<Armor> &armors)
+{
+    for (const auto &armor : armors)
+    {
+        // --- Picture-in-picture on source image ---
+        if (!armor.number_img.empty() && armor.points.size() >= 4)
+        {
+            const int scale = 3;
+            const int border = 2;
+            const int pip_w = armor.number_img.cols * scale;
+            const int pip_h = armor.number_img.rows * scale;
 
-    // 保存图像
-    //  for (auto &armor : armors) {
-    //      if(armor.number != "graud"){
-    //          Writepath1 = "/home/perseverance/WRITE/videos/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) +armor.number+ ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          counting1++;
-    //      }
-    //  }
-    //      if (armor.number == "1") {
-    //          Writepath1 = "/home/zhbit/datasets/1/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "2") {
-    //          Writepath1 = "/home/zhbit/datasets/2/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "3") {
-    //          Writepath1 = "/home/zhbit/datasets/3/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "4") {
-    //          Writepath1 = "/home/zhbit/datasets/4/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "outpost") {
-    //          Writepath1 = "/home/zhbit/datasets/outpost/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "guard") {
-    //          Writepath1 = "/home/zhbit/datasets/guard/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "base") {
-    //          Writepath1 = "/home/zhbit/datasets/base/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //      else if (armor.number == "negative") {
-    //          Writepath1 = "/home/zhbit/datasets/negative/";
-    //          Photo_name1 = Writepath1 + to_string(counting1) + ".jpg";
-    //          imwrite(Photo_name1, armor.number_img);
-    //          cout << Photo_name1 << endl;
-    //          counting1++;
-    //      }
-    //  }
+            // Place PiP to the right of the armor's top-right corner (points[2])
+            int pip_x = static_cast<int>(armor.points[2].x) + 10;
+            int pip_y = static_cast<int>(armor.points[2].y);
+
+            // Clamp to image bounds (all four sides)
+            if (pip_x < 0) pip_x = 0;
+            if (pip_y < 0) pip_y = 0;
+            if (pip_x + pip_w + border * 2 > src.cols) pip_x = src.cols - pip_w - border * 2;
+            if (pip_y + pip_h + border * 2 > src.rows) pip_y = src.rows - pip_h - border * 2;
+
+            // Skip if PiP doesn't fit at all
+            if (pip_x >= 0 && pip_y >= 0)
+            {
+                cv::Mat pip_color;
+                cv::resize(armor.number_img, pip_color, cv::Size(pip_w, pip_h), 0, 0, cv::INTER_NEAREST);
+                cv::cvtColor(pip_color, pip_color, cv::COLOR_GRAY2BGR);
+
+                cv::Rect roi_outer(pip_x, pip_y, pip_w + border * 2, pip_h + border * 2);
+                cv::rectangle(src, roi_outer, cv::Scalar(0, 255, 255), border);
+
+                cv::Rect roi_inner(pip_x + border, pip_y + border, pip_w, pip_h);
+                pip_color.copyTo(src(roi_inner));
+            }
+        }
+    }
 }
 
 const std::string model_path = "../model/mlp.onnx";

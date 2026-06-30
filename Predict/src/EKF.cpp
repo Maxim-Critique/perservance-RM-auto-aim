@@ -5,7 +5,7 @@
 
 std::unique_ptr<ExtendedKalmanFilter::UpdateStrategy> 
 ExtendedKalmanFilter::createStrategy(const UpdateStrategy::Data& data) {
-    if (data.armors[0].number == "outpost") return std::make_unique<OutpostStrategy>();
+    if (armor_number_ == "outpost") return std::make_unique<OutpostStrategy>();
 
     size_t n = data.match_indices.size();
     if (n == 1) return std::make_unique<SingleArmorStrategy>();
@@ -168,32 +168,27 @@ ExtendedKalmanFilter::DualArmorStrategy::compute() {
 }
 
 // ExtendedKalmanFilter 成员函数实现
-ExtendedKalmanFilter::ExtendedKalmanFilter(const Eigen::VectorXd& initial_state) :
+ExtendedKalmanFilter::ExtendedKalmanFilter(const Eigen::VectorXd& initial_state, const std::string& armor_number) :
     x_pri(initial_state), x_post(initial_state),
-    I(Eigen::MatrixXd::Identity(10, 10)){
-        loadConfig(YamlPath);
+    I(Eigen::MatrixXd::Identity(10, 10)), armor_number_(armor_number){
         Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 1, 1, 1, 0.4, 100}};
         P_pri = P0_dig.asDiagonal();
         P_post = P0_dig.asDiagonal();
         nis_history_.clear();
     }
 
-void ExtendedKalmanFilter::loadConfig(const std::string& filename) {
-    try {
-        YAML::Node config = YAML::LoadFile(filename);
-        dd = config["EKF"]["ProcessNoise"]["dd"].as<double>();
-        da = config["EKF"]["ProcessNoise"]["da"].as<double>();
-    } catch (const YAML::Exception& e) {
-        throw std::runtime_error("YAML Error: " + std::string(e.what()) + "EKF");
-    }
-}
-
-Eigen::MatrixXd ExtendedKalmanFilter::computeProcessNoise() const {
+Eigen::MatrixXd ExtendedKalmanFilter::computeProcessNoise() {
     Eigen::MatrixXd Q(10, 10);
     double t4 = pow(dt_, 4)/4;
     double t3 = pow(dt_, 3)/2;
     double t2 = pow(dt_, 2);
- 
+    if(armor_number_ == "outpost"){
+        dd = 0.0001;
+        da = 0.0001;
+    }else{
+        dd = 100;
+        da = 400;
+    }
     Q << t4*dd, t3*dd, 0,     0,     0, 0, 0, 0, 0,     0,
          t3*dd, t2*dd, 0,     0,     0, 0, 0, 0, 0,     0,
          0,     0,     t4*dd, t3*dd, 0, 0, 0, 0, 0,     0,
@@ -222,7 +217,7 @@ Eigen::VectorXd ExtendedKalmanFilter::predict(double dt) {
          0,  0, 0,  0, 0, 0, 0, 1, 0,  0,
          0,  0, 0,  0, 0, 0, 0, 0, 1, dt,
          0,  0, 0,  0, 0, 0, 0, 0, 0,  1;
-    
+
     // 过程噪声
     Eigen::MatrixXd Q = computeProcessNoise();
     // 预测步骤

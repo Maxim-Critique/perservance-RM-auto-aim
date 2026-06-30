@@ -25,9 +25,9 @@ MPC::MPC(){
     tiny_set_bound_constraints(yaw_solver, x_min, x_max, u_min, u_max);
 }
 
-Gimbal_Angle MPC::TrajectoryPlanning(Eigen::VectorXd states){
-    
-    m_status = std::make_shared<StandardModel>(states);
+Gimbal_Angle MPC::TrajectoryPlanning(std::shared_ptr<KinematicModel> model){
+
+    m_status = model;
     auto trajectory_ = GetTrajectory();
     auto hit_time = trajectory_.fly_time + predict_time;
     double counter =  -(half_horizon + 1);

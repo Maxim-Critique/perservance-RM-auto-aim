@@ -36,109 +36,24 @@ int cnt = 0;
 cv::Point2f base_point = cv::Point2f(512, 512);
 
 // 仿真参数（这些就是真实状态）
-cv::Point2f center(5, 0);              // 中心点（固定）
-float z[3] = {1.114, 1.126, 1.318};    // 前哨站三块装甲板高度
-float outpost_radius = 0.225;           // 前哨站旋转半径
-float palstance = 0.8;                 // 角速度系数，实际角速度=0.8*pi rad/s
-float scaling = 80;       // 放大比例
+cv::Point2f center(3, 0);  // 中心点初始位置
+float z[2] = {0.25, 0.1};  // 装甲板高度
+float r[2] = {0.2, 0.4};   // 装甲板旋转半径
+float palstance = 4;       // 角速度
+float scaling = 100;       // 放大比例
 double angle = 0;          // 起始角度
 float dt = 1e-2;           // 默认时间步长
 float sigma = 0.02;        // 噪声大小
+double big_angle = 0;
 std::default_random_engine rng;
 
-#ifdef USE_DATA
-/**
- * @brief 从文件加载录制的数据
- */
-bool loadRecordedData() {
-    std::ifstream in(DATA_FILE_PATH);
-    if (!in.is_open()) {
-        std::cout << "无法打开数据文件: " << DATA_FILE_PATH << std::endl;
-        return false;
-    }
-    
-    std::string line;
-    while (std::getline(in, line)) {
-        std::istringstream iss(line);
-        double timestamp;
-        
-        // 读取时间戳
-        if (!(iss >> timestamp)) {
-            continue;
-        }
-        
-        // 读取装甲板数据
-        Armors armors_in_frame;
-        Armor armor;
-        
-        while (true) {
-            // 读取位置 (x, y, z)
-            if (!(iss >> armor.abs_pose.x() >> armor.abs_pose.y() >> armor.abs_pose.z())) {
-                break;
-            }
-            
-            // 读取yaw
-            if (!(iss >> armor.yaw)) {
-                break;
-            }
-
-            // 转换为ypd
-            armor.abs_ypd = tools::xyz2ypd(armor.abs_pose);
-            armors_in_frame.push_back(armor);
-            
-            // 检查是否还有数据
-            if (iss.peek() == EOF || iss.peek() == '\n') {
-                break;
-            }
-        }
-        
-        if (!armors_in_frame.empty()) {
-            recorded_data.emplace_back(timestamp, armors_in_frame);
-        }
-    }
-    
-    in.close();
-    
-    if (recorded_data.empty()) {
-        std::cout << "数据文件为空或格式错误" << std::endl;
-        return false;
-    }
-    
-    std::cout << "成功加载 " << recorded_data.size() << " 帧数据" << std::endl;
-    return true;
-}
-
-/**
- * @brief 从录制的数据获取装甲板
- */
-Armors getRecordedArmors(double& frame_dt) {
-    if (recorded_data.empty() || data_index >= recorded_data.size()) {
-        // 如果没有数据或已播放完，返回空装甲板列表
-        return Armors();
-    }
-    
-    auto& [recorded_timestamp, armors] = recorded_data[data_index];
-    frame_dt = recorded_timestamp;  // 使用录制数据的时间戳作为dt
-    
-    data_index++;
-    
-    // 在仿真图上绘制装甲板
-    for (const auto& armor : armors) {
-        cv::circle(background, 
-                  base_point + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scaling, 
-                  3, cv::Scalar(255, 0, 0), -1, 8);
-        cv::line(background,
-                base_point + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scaling,
-                base_point + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scaling + 
-                    cv::Point2f(10 * cos(armor.yaw), 10 * sin(armor.yaw)),
-                cv::Scalar(255, 0, 0), 2, 8);
-    }
-    
-    cv::circle(background, base_point + observation_point * scaling, 5, cv::Scalar(127, 127, 127), -1, 8);
-    
-    return armors;
-}
-#endif
+// 路径点定义
+std::vector<cv::Point2f> waypoints = {
+    cv::Point2f(2, 2),
+    cv::Point2f(-2, 2)
+};
+int current_target_index = 0;
+float movement_speed = 0.8; // 移动速度
 
 /**
  * @brief 获取当前时间（秒）
@@ -150,7 +65,7 @@ double now()
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
 }
 
-Rate::Rate() : Rate(100) {}
+Rate::Rate() : Rate(30) {}
 
 /**
  * @brief 帧率控制器构造函数
@@ -178,29 +93,35 @@ void Rate::sleep()
 
 bool init_flag = false;
 // 帧率控制器
-Rate rate(100);
+Rate rate(70);
+int i = 1;
 
 /**
  * @brief 生成仿真装甲板数据并只保留距离最近的1个
  */
 Armors generateSimulatedArmors() {
     Armors armors;
-    armors.resize(3);
-
-    // 前哨站中心固定，x/y方向速度为0
+    armors.resize(4);
+    
+    // === 更新中心位置：围绕原点做圆周运动，半径2 ===
+    big_angle += PI * 1e-3;  // 更新公转角度
+    
+    // 圆周运动参数方程
+    center.x = 5.0f * cos(big_angle);
+    center.y = 5.0f * sin(big_angle);
     angle += PI * dt * palstance; 
     angle = _std_radian(angle);
     
-    // 生成3个前哨站装甲板，yaw间隔2*PI/3
+    // 生成4个装甲板
     for (size_t i = 0; i < armors.size(); i++) {
         // 添加高斯噪声
         std::normal_distribution<float> dist_pos(0, sigma);
         std::normal_distribution<float> dist_angle(0, sigma * 10);
         
-        // 计算装甲板位置（相对固定中心自转）
-        float armor_r = outpost_radius;
-        float armor_z = z[i];
-        float armor_angle = angle + i * 2.0 * PI / 3.0;
+        // 计算装甲板位置（相对中心的自转）
+        float armor_r = r[i % 2];
+        float armor_z = z[i % 2];
+        float armor_angle = angle + 0.5 * i * PI;  // 自转角度 = 公转角度 + 固定偏移
         
         armors[i].abs_pose = {
             center.x + armor_r * cos(armor_angle) + dist_pos(rng),
@@ -211,19 +132,7 @@ Armors generateSimulatedArmors() {
         // 计算装甲板朝向角
         armors[i].yaw = _std_radian(armor_angle + dist_angle(rng));
         armors[i].predict_yaw = _std_radian(armor_angle);
-        armors[i].number = "outpost";
         armors[i].confidence = armor_r;
-    }
-
-    // 绘制无噪声三装甲板投影点（参考）
-    for (size_t i = 0; i < armors.size(); ++i) {
-        float ideal_angle = angle + i * 2.0 * PI / 3.0;
-        cv::Point2f ideal_xy(
-            center.x + outpost_radius * cos(ideal_angle),
-            center.y + outpost_radius * sin(ideal_angle)
-        );
-        cv::circle(background,base_point + ideal_xy * scaling,4,
-            cv::Scalar(0, 200, 0),-1,8);
     }
     
 
@@ -231,10 +140,12 @@ Armors generateSimulatedArmors() {
         init_flag = true;
     }else{
         // 按距离观察点的距离排序（从近到远）
-        std::sort(armors.begin(), armors.end(), [](const Armor& a, const Armor& b)
-         {return a.abs_pose.norm() < b.abs_pose.norm();});
+        std::sort(armors.begin(), armors.end(), 
+            [](const Armor& a, const Armor& b) {
+                return a.abs_pose.norm() < b.abs_pose.norm();
+            });
     }
-    armors.resize(1);
+    armors.resize(1 + rand() % 2);
     // 在仿真图上绘制装甲板
     for (const auto& armor : armors) {
         cv::circle(background, 
@@ -309,60 +220,53 @@ int Test() {
         // 如果是第一次运行，初始化预测器
         if (!aim_ptr) {
             aim_ptr = std::make_unique<Aim>(armors[0]);
-            m_status = std::make_shared<OutpostModel>(aim_ptr->target_state);
+            m_status = aim_ptr->createModel(aim_ptr->target_state);
         }
-        
+
         // 预测器解算，使用实际的时间步长
         aim_ptr->Resolve(armors, actual_dt);
-        m_status = std::make_shared<OutpostModel>(aim_ptr->target_state);
+        m_status = aim_ptr->createModel(aim_ptr->target_state);
         // 获取当前状态估计
         Armors filter_armors = m_status->GetArmors(0);
-        
-        // 检查是否有有效数据
-        if (!filter_armors.empty() && !armors.empty()) {
-            // MPC轨迹规划
-            auto target = mpc->TrajectoryPlanning(aim_ptr->target_state);
-            in << target.target_yaw << " " << target.manage_yaw << "\n";
-            // 发送控制数据
-            dg.Vision2Control((target.manage_yaw)*1e4, target.target_pitch*1e4, 
-                             target.yaw_vel*1e4, target.yaw_acc*1e4, 1, 0);
-            serial_.SendData(dg);
+        // MPC轨迹规划
+        // auto target = mpc->TrajectoryPlanning(*m_status);
+        // dg.Vision2Control((target.manage_yaw)*1e4,target.target_pitch*1e4,target.yaw_vel*1e4,target.yaw_acc*1e4,1,0);
+        // std::cout<<target.target_pitch*57.3<<",";
+        // serial_.SendData(dg);
+        // 绘制状态估计和预测结果
+        for (size_t i = 0; i < filter_armors.size(); i++) {
+            // 当前状态估计量（红色）
+            cv::circle(background, 
+                    base_point + cv::Point2f(filter_armors[i].abs_pose.x(), filter_armors[i].abs_pose.y()) * scaling, 
+                    3, cv::Scalar(0, 0, 255), -1, 8);
             
-            // 绘制状态估计和预测结果
-            for (size_t i = 0; i < filter_armors.size(); i++) {
-                // 当前状态估计量（红色）
-                cv::circle(background, 
-                        base_point + cv::Point2f(filter_armors[i].abs_pose.x(), filter_armors[i].abs_pose.y()) * scaling, 
-                        3, cv::Scalar(0, 0, 255), -1, 8);
-            }
+            // 计算无噪声的理想装甲板位置（绿色）
+            float armor_r = r[i % 2];
+            float armor_angle = angle + 0.5 * i * PI;
             
-        
+            cv::Point2f ideal_position(
+                center.x + armor_r * cos(armor_angle),
+                center.y + armor_r * sin(armor_angle)
+            );
+            
+            cv::circle(background, 
+                    base_point + ideal_position * scaling, 
+                    2, cv::Scalar(0, 255, 0), -1, 10);
         }
-        // 在窗口上显示当前数据源和dt信息
-        std::string data_source = "Data Source: ";
-        std::string dt_info = "dt: " + std::to_string(actual_dt);
         
-#ifdef USE_DATA
-        if (!recorded_data.empty() && data_index < recorded_data.size()) {
-            data_source += "RECORDED (" + std::to_string(data_index) + "/" + 
-                          std::to_string(recorded_data.size()) + ")";
-        } else {
-            data_source += "SIMULATED";
-        }
-#else
-        data_source += "SIMULATED";
-#endif
-        
-        cv::putText(background, data_source, cv::Point(20, 30), 
-                   cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 0), 2);
-        cv::putText(background, dt_info, cv::Point(20, 60), 
-                   cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 0), 2);
+        // 显示目标装甲板（紫色圆圈）
+        cv::circle(background, base_point + cv::Point2f(m_status->center.x, m_status->center.y) * scaling, 
+            10, cv::Scalar(255, 0, 255), 2, 8);
         
         // 显示结果
         cv::imshow("background", background);
 
         // 检查按键输入
         char c = cv::waitKey(1);
+        if (c == 'q'||i==200) {
+            break;
+        } 
+        i++;
         // 控制帧率
         rate.sleep();
     }

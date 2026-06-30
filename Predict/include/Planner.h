@@ -11,7 +11,7 @@ class Planner
 {
 public:
     Planner();
-    Gimbal_Angle TrajectoryPlanning(Eigen::VectorXd states);
+    Gimbal_Angle TrajectoryPlanning(std::shared_ptr<KinematicModel> model);
 private:
     
     void GetTurn();

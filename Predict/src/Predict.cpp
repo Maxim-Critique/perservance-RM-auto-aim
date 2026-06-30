@@ -45,14 +45,6 @@ Armors StandardModel::GetArmors(double predict_time)
     return armors;
 }
 
-void StandardModel::print(std::string tag)
-{
-    std::string prefix = "[StandardModel] " + tag + " ";
-    std::cout << prefix << "center: " << center << " += " << velocity << std::endl;
-    std::cout << prefix << "height: " << height[0] << " " << height[1] << std::endl;
-    std::cout << prefix << "radius: " << radius[0] << " " << radius[1] << std::endl;
-    std::cout << prefix << "angle: " << _std_radian(phase)*180/PI << " += " << _std_radian(palstance)*180/PI << std::endl;
-}
 
 OutpostModel::OutpostModel()
 :   OutpostModel(Eigen::Matrix<double, 10, 1>::Zero())
@@ -89,11 +81,3 @@ Armors OutpostModel::GetArmors(double predict_time)
     return armors;
 }
 
-void OutpostModel::print(std::string tag)
-{
-    std::string prefix = "[OutpostModel] " + tag + " ";
-    std::cout << prefix << "center: " << center << " += " << velocity << std::endl;
-    std::cout << prefix << "height: " << height[0] << " " << height[1] << " " << height[2] << std::endl;
-    std::cout << prefix << "radius: " << radius[0] << std::endl;
-    std::cout << prefix << "angle: " << _std_radian(phase)*180/PI << " += " << _std_radian(palstance)*180/PI << std::endl;
-}

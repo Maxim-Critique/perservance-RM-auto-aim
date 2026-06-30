@@ -12,7 +12,7 @@ int MPCTest(){
     int i = 0;
     while(true){ 
         target_state(8)+=target_state(9)*0.01;
-        auto trajectory = planner->TrajectoryPlanning(target_state);
+        auto trajectory = planner->TrajectoryPlanning(std::make_shared<StandardModel>(target_state));
         // dg.Vision2Control(tools::R2D(trajectory.manage_yaw)*1e4,tools::R2D(trajectory.target_pitch)*1e4,tools::R2D(trajectory.yaw_vel)*1e4,trajectory.yaw_acc*1e4,1,0);
         // serial_.SendData(dg);
         out << trajectory.target_yaw << " " << trajectory.manage_yaw << "\n";

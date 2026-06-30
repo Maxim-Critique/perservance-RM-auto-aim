@@ -24,7 +24,7 @@ public:
     // 初始化
     Aim(Armor armor);
     // 主接口
-    Eigen::VectorXd Estimate(const Armors &armors, double &time);
+    std::shared_ptr<KinematicModel> Estimate(const Armors &armors, double &time);
     // EKF的主要部分
     void Resolve(const Armors &armors, double time);
     // 匹配装甲板
@@ -33,6 +33,12 @@ public:
     void InitEKF(Armor armor);
     // 计算得分，匹配装甲板
     Eigen::MatrixXd GetScoreMat(const Armors &detect_armors, const Armors &standard_armors);
+
+    // 实时可视化运动状态（俯视2D视图）
+    void visualizeState(const Armors &detected_armors, double dt);
+
+    // 工厂方法：根据aim_id创建对应的运动学模型
+    std::shared_ptr<KinematicModel> createModel(const Eigen::VectorXd &state) const;
     
     ///////////////////////////          变量               ////////////////////////////////////////////
     double m_score_tolerance;                                    // 装甲板匹配得分最大值

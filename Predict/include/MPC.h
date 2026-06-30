@@ -8,7 +8,7 @@ class MPC
 {
 public:
     MPC();
-    Gimbal_Angle TrajectoryPlanning(Eigen::VectorXd states);
+    Gimbal_Angle TrajectoryPlanning(std::shared_ptr<KinematicModel> model);
     
 private:
     double GetGimbalYaw(double time);

@@ -18,7 +18,6 @@ public:
     ~KinematicModel();
 
     virtual Armors GetArmors(double predict_time = 0) = 0;
-    virtual void print(std::string tag) = 0;
 
 public:
     cv::Point2d center;             // 旋转中心位置
@@ -44,11 +43,6 @@ public:
      */
     Armors GetArmors(double predict_time = 0);
 
-    /**
-     * @brief 打印信息
-     */
-    void print(std::string tag);
-    
 };
 
 class OutpostModel : public KinematicModel
@@ -64,11 +58,6 @@ public:
      */
     Armors GetArmors(double predict_time = 0);
 
-    /**
-     * @brief 打印信息
-     */
-    void print(std::string tag);
-    
-    
+
 };
 #endif

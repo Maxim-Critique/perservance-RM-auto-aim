@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make -j20)",
+      "Bash(cmake --build build/)"
+    ]
+  }
+}

@@ -6,13 +6,14 @@ static double lw_rate(const cv::RotatedRect &rect) {
            rect.size.height / rect.size.width :
            rect.size.width / rect.size.height;
 }
-// 轮廓面积和其最小外接矩形面积之比
-static double areaRatio(const std::vector<cv::Point> &contour, const cv::RotatedRect &rect) {
-    return cv::contourArea(contour) / rect.size.area();
+// 检查轮廓面积是否在合理范围内
+static bool isValidContourArea(const std::vector<cv::Point> &contour) {
+    double area = cv::contourArea(contour);
+    return area > 15 && area < 20000;
 }
 // 判断轮廓是否为一个灯条
 static bool IsValidLightBlob(const cv::RotatedRect &rect) {
-    return (1.5 < lw_rate(rect) && lw_rate(rect) < 40 && rect.size.area() < 6000 && rect.size.area() > 18);
+    return (1.5 < lw_rate(rect) && lw_rate(rect) < 40);
 }
 
 // 倾斜角度检查
@@ -65,24 +66,18 @@ static int GetBlobColor(const cv::Mat &src, const cv::RotatedRect &blobPos) {
 
 LightBlobs Tradition::FindLight(Mat &src, int enemy_color) { 
     LightBlobs light_blobs;
-    if (is_get_from_ds_) {
-        enemy_color_ = enemy_color;
-    }
+    enemy_color_ = enemy_color;
 
     cv::Mat color_channel;
     cv::Mat src_bin;  // 只需要一个二值图像
     std::vector<cv::Mat> channels;
     cv::split(src, channels);
 
-    if (enemy_color == ENEMY_BLUE) {         
-        color_channel = channels[0];        
-    } else if (enemy_color == ENEMY_RED) {    
-        color_channel = channels[2];        
-    }
-
+    if (enemy_color_ == ENEMY_BLUE) color_channel = channels[0];        
+    else color_channel = channels[2];        
+    
     cv::threshold(color_channel, src_bin, threshold_, 255, THRESH_BINARY);
-    ImagePreProcessDim(src_bin); 
-    // imshow("src_bin",src_bin);
+    ImagePreProcessDim(src_bin);
     std::vector<std::vector<cv::Point>> light_contours;
     std::vector<cv::Vec4i> hierarchy;
 
@@ -90,12 +85,9 @@ LightBlobs Tradition::FindLight(Mat &src, int enemy_color) {
     
     for (size_t i = 0; i < light_contours.size(); i++) {
         if (hierarchy[i][2] == -1) {
+            if (!isValidContourArea(light_contours[i])) continue;
             cv::RotatedRect rect = cv::minAreaRect(light_contours[i]);
-            if (IsValidLightBlob(rect)) {
-                light_blobs.emplace_back(
-                    rect, areaRatio(light_contours[i], rect), GetBlobColor(src, rect)
-                );
-            }
+            if (IsValidLightBlob(rect)) light_blobs.emplace_back(rect, GetBlobColor(src, rect));
         }
     }
     SlopeValidation(light_blobs);
