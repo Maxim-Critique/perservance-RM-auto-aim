@@ -110,8 +110,8 @@ void USBCamera::read(cv::Mat & img, std::chrono::steady_clock::time_point & time
 void USBCamera::LoadConfig(const std::string & yaml_path)
 {
     auto yaml = YAML::LoadFile(yaml_path);
-    new_image_height_ = yaml["USBCamera"]["new_image_height"].as<double>();
-    new_image_width_ = yaml["USBCamera"]["new_image_width"].as<double>();
+    new_image_height_ = 720.0;
+    new_image_width_ = 1280.0;
     new_usb_exposure_ = yaml["USBCamera"]["new_usb_exposure"].as<double>();
     usb_frame_rate_ = yaml["USBCamera"]["usb_frame_rate"].as<int>();
 }

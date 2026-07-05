@@ -18,7 +18,7 @@ void AutoBuff::show(const std::optional<auto_buff::PowerRune> &power_runes, cv::
         // 记录滤波器输出与识别器输出的像素差
         auto ekf_Rxyz = target_->point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.0));
         auto ekf_points = slover_->reproject_buff(ekf_Rxyz, target_->ekf_x()[4], target_->ekf_x()[5]);
-        float pixel_diff = cv::norm(ekf_points[4] - p.fanblades[0].points[4]);
+        [[maybe_unused]] float pixel_diff = cv::norm(ekf_points[4] - p.fanblades[0].points[4]);
         // tools::logger()->info("[AutoBuff] Pixel Diff: {:.2f} pixels", pixel_diff);
         cv::circle(img, ekf_points[4], 4, cv::Scalar(128, 0, 128), -1);
     }

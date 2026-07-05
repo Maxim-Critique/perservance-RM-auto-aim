@@ -6,9 +6,7 @@
 #include <thread>
 
 #include <fmt/core.h>
-#include <yaml-cpp/yaml.h>
-
-#include "find_armor.h"
+#include "ArmorDetector.h"
 #include "logger.hpp"
 
 namespace Omniperception
@@ -19,40 +17,36 @@ Perceptron::Perceptron(
     io::USBCamera * usbcam2,
     io::USBCamera * usbcam3,
     int enemy_color,
-    const std::string & config_path)
+    const std::string & /*config_path*/)
 : detection_queue_(100),
     stop_flag_(false),
     active_(true),
     show_visualization_(false),
-    fov_h_(27.0),
-    fov_v_(40.9)
+    fov_h_(1.57),
+    fov_v_(1.57)
 {
     if (!usbcam1 || !usbcam2 || !usbcam3) {
         tools::logger()->error("Invalid camera pointers in Perceptron initialization!");
         throw std::runtime_error("Camera pointers are null");
     }
 
-    try {
-        auto yaml = YAML::LoadFile(config_path);
-        show_visualization_ = yaml["Camera"]["show"].as<int>();
-        fov_h_ = yaml["USBCamera"]["new_fov_h"].as<double>();
-        fov_v_ = yaml["USBCamera"]["new_fov_v"].as<double>();
-        tools::logger()->info("Camera visualization enabled: {}", show_visualization_);
-    } catch (const std::exception & e) {
-        tools::logger()->warn("Failed to load visualization config: {}", e.what());
-        show_visualization_ = false;
-    }
+    detector1_ = std::make_unique<ArmorDetector>(
+        "../model/mlp.onnx", "../model/label.txt", 0.7, std::vector<std::string>{"negative","outpost","base"});
+    detector2_ = std::make_unique<ArmorDetector>(
+        "../model/mlp.onnx", "../model/label.txt", 0.7, std::vector<std::string>{"negative","outpost","base"});
+    detector3_ = std::make_unique<ArmorDetector>(
+        "../model/mlp.onnx", "../model/label.txt", 0.7, std::vector<std::string>{"negative","outpost","base"});
 
     tools::logger()->info("Initializing Perceptron with 2 cameras using Recognition module...enemy_color: {}", enemy_color);
 
     threads_.emplace_back([this, usbcam1, enemy_color] {
-        ParallelInfer(usbcam1, tradition1_, enemy_color);
+        ParallelInfer(usbcam1, *detector1_, enemy_color);
     });
     threads_.emplace_back([this, usbcam2, enemy_color] {
-        ParallelInfer(usbcam2, tradition2_, enemy_color);
+        ParallelInfer(usbcam2, *detector2_, enemy_color);
     });
     threads_.emplace_back([this, usbcam3, enemy_color] {
-        ParallelInfer(usbcam3, tradition3_, enemy_color);
+        ParallelInfer(usbcam3, *detector3_, enemy_color);
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -75,7 +69,7 @@ Perceptron::~Perceptron()
     tools::logger()->info("Perceptron destructed.");
 }
 
-void Perceptron::ParallelInfer(io::USBCamera * cam, Tradition & tradition, int enemy_color)
+void Perceptron::ParallelInfer(io::USBCamera * cam, ArmorDetector & detector, int enemy_color)
 {
     if (!cam) {
         tools::logger()->error("Camera pointer is null!");
@@ -93,18 +87,10 @@ void Perceptron::ParallelInfer(io::USBCamera * cam, Tradition & tradition, int e
             cv::Mat usb_img = cam->read();
             if (usb_img.empty()) continue;
 
-            Armors armors;
-            LightBlobs light_blobs = tradition.FindLight(usb_img, enemy_color);
-            if (!light_blobs.empty()) {
-                armors = tradition.FindArmor(usb_img, light_blobs);
-                if (!armors.empty()) {
-                    classifier.extractNumbers(usb_img, armors);
-                    classifier.classify(armors);
-                    if (!armors.empty()) CalculateDeltaAngles(armors, cam);
-                }
-            }
+            Armors armors = detector.Detect(usb_img, enemy_color);
+            if (!armors.empty()) CalculateDeltaAngles(armors, cam);
 
-            if (show_visualization_) 
+            if (show_visualization_)
                 DrawAndVisualize(usb_img, armors, cam->device_name);
             
         }

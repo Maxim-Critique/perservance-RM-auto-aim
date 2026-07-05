@@ -6,19 +6,12 @@ Camera:
   show: 1
 
 USBCamera:
-  new_image_width: 1280
-  new_image_height: 720
   usb_frame_rate: 120
   new_usb_exposure: 110 
-  new_fov_h: 1.57 #67
-  new_fov_v: 1.57
 
 Transform:
   R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
   t_camera2gimbal: [0.10, -0.05, 0]
-
-Tradition:
-  threshold: 180
 
 Planer:
   max_yaw_acc: 100

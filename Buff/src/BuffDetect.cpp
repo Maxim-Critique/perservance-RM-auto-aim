@@ -164,8 +164,8 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
-    double min_ratio = 0.1;
-    double max_ratio = 1;
+    [[maybe_unused]] double min_ratio = 0.1;
+    [[maybe_unused]] double max_ratio = 1;
     int min_size = 3000;
     int max_size = 7000;
     for (const auto& contour : contours) {

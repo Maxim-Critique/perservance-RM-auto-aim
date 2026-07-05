@@ -2,11 +2,13 @@
 #define OMNIPERCEPTION__PERCEPTRON_HPP
 
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
 
-#include "find_armor.h"
+#include "ArmorDetector.h"
+#include "ArmorTypes.h"
 #include "thread_safe_queue.hpp"
 #include "usbcamera.hpp"
 
@@ -33,7 +35,7 @@ public:
 
     ~Perceptron();
 
-    void ParallelInfer(io::USBCamera * cam, Tradition & tradition, int enemy_color);
+    void ParallelInfer(io::USBCamera * cam, ArmorDetector & detector, int enemy_color);
 
     void SetActive(bool active);
 
@@ -56,9 +58,9 @@ private:
     tools::ThreadSafeQueue<DetectionResult> detection_queue_;
 
     std::vector<std::thread> threads_;
-    Tradition tradition1_;
-    Tradition tradition2_;
-    Tradition tradition3_;
+    std::unique_ptr<ArmorDetector> detector1_;
+    std::unique_ptr<ArmorDetector> detector2_;
+    std::unique_ptr<ArmorDetector> detector3_;
 
     bool stop_flag_;
     bool active_;

@@ -59,7 +59,7 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
     Eigen::VectorXd residual = z_subtract(z, h(x));
     // 新增检验
     Eigen::MatrixXd S = H * P * H.transpose() + R;
-    double nis = residual.transpose() * S.inverse() * residual;
+    [[maybe_unused]] double nis = residual.transpose() * S.inverse() * residual;
     //   double nees = (x - x_prior).transpose() * P.inverse() * (x - x_prior);
 
     //   // 卡方检验阈值（自由度=4，取置信水平95%）

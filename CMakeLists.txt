@@ -24,7 +24,6 @@ find_package(yaml-cpp REQUIRED)
 find_package(fmt REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(OPENVINO REQUIRED openvino)
-add_subdirectory(tinympc)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 find_package(rclcpp REQUIRED)
@@ -38,9 +37,7 @@ find_package(rosidl_typesupport_interface REQUIRED)
 include_directories(
     ${CMAKE_SOURCE_DIR}/Backbone/include
     ${CMAKE_SOURCE_DIR}/io/include
-    ${CMAKE_SOURCE_DIR}/Recognition/include
-    ${CMAKE_SOURCE_DIR}/Pose_solution/include
-    ${CMAKE_SOURCE_DIR}/Predict/include
+    ${CMAKE_SOURCE_DIR}/Armor/include
     ${CMAKE_SOURCE_DIR}/Buff/include
     ${CMAKE_SOURCE_DIR}/Test/include
     ${CMAKE_SOURCE_DIR}/tools
@@ -50,7 +47,6 @@ include_directories(
     ${CERES_INCLUDE_DIRS}
     ${YAML_CPP_INCLUDE_DIRS}
     "/opt/MVS/include"
-    ${CMAKE_SOURCE_DIR}/tinympc
     ${LIBUSB_INCLUDE_DIRS}
     ${OPENVINO_INCLUDE_DIRS}
     ${rclcpp_INCLUDE_DIRS}
@@ -68,9 +64,7 @@ link_directories("/opt/MVS/lib")
 file(GLOB_RECURSE sourceFiles
     "${CMAKE_SOURCE_DIR}/Backbone/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/io/src/*.cpp"
-    "${CMAKE_SOURCE_DIR}/Recognition/src/*.cpp"
-    "${CMAKE_SOURCE_DIR}/Pose_solution/src/*.cpp"
-    "${CMAKE_SOURCE_DIR}/Predict/src/*.cpp"
+    "${CMAKE_SOURCE_DIR}/Armor/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/Buff/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/Test/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/tools/*.cpp"
@@ -90,7 +84,6 @@ target_link_libraries(action
     ${CERES_LIBRARIES}
     ${MVS}
     ${YAML_CPP_LIBRARIES}
-    tinympcstatic
     ${LIBUSB_LIBRARIES}
     ${OPENVINO_LIBRARIES}
     ${rclcpp_LIBRARIES}
