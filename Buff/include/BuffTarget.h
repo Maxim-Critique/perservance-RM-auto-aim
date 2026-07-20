@@ -88,10 +88,9 @@ private:
 
     Eigen::MatrixXd h_jacobian() const;
 
-    const double SMALL_W = CV_PI / 3;
-    double filtered_yaw = 0;
-    int number = 0;
-    // const double SMALL_W = 0;
+    // const double SMALL_W = CV_PI / 3;
+
+    const double SMALL_W = 0;
 };
 
 /// BigTarget子类
@@ -115,8 +114,7 @@ private:
     void update(double nowtime, const PowerRune & p) override;
 
     Eigen::MatrixXd h_jacobian() const;
-    double filtered_yaw = 0;
-    int number = 0;
+
 };
 
 }  // namespace auto_buff

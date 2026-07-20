@@ -48,7 +48,7 @@ void Solver::Solve(std::optional<PowerRune> & ps) const
     image_points.emplace_back(p.r_center);
     std::vector<cv::Point2f> image_points_fourth(image_points.begin(), image_points.begin() + 4);
     std::vector<cv::Point3f> OBJECT_POINTS_FOURTH(OBJECT_POINTS.begin(), OBJECT_POINTS.begin() + 4);
-    cv::solvePnP(OBJECT_POINTS_FOURTH, image_points_fourth, camera_matrix_, 
+    cv::solvePnP(OBJECT_POINTS_FOURTH, image_points_fourth, camera_matrix_,
         distort_coeffs_, rvec_, tvec_, false,cv::SOLVEPNP_IPPE);
 
 

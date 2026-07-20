@@ -29,7 +29,7 @@ Slover::Slover()
     Eigen::Matrix<double, 3, 3, Eigen::RowMajor> camera_matrix(camera_matrix_data.data());
     Eigen::Matrix<double, 1, 5> distort_coeffs(distort_coeffs_data.data());
     cv::eigen2cv(camera_matrix, camera_matrix_);
-    cv::eigen2cv(distort_coeffs, distort_coeffs_); 
+    cv::eigen2cv(distort_coeffs, distort_coeffs_);
     world_points_big = GetWorldPoints(0.115,0.025);
     world_points_small = GetWorldPoints(0.065,0.025);
     p_t_camera2gimbal_ = R_camera2gimbal_.transpose() * t_camera2gimbal_;

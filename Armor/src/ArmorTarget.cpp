@@ -2,7 +2,7 @@
 #include "logger.hpp"
 #include "math_tools.hpp"
 
-std::ofstream in_ekf("ekf_log.txt", std::ios::app); 
+
 Aim::Aim(Armor armor){
     aim_id = armor.number;
     target_state = Eigen::VectorXd::Zero(10);
@@ -84,7 +84,7 @@ std::shared_ptr<KinematicModel> Aim::createModel(const Eigen::VectorXd &state) c
 
 std::shared_ptr<KinematicModel> Aim::Estimate(const Armors &armors, double &time){
     Resolve(armors, time);
-    visualizeState(armors, time);
+    // visualizeState(armors, time);
     return createModel(target_state);
 }
 
@@ -134,11 +134,9 @@ Eigen::MatrixXd Aim::GetScoreMat(const Armors &detect_armors, const Armors &pred
             const auto &detect = detect_armors[i].abs_pose;
             const auto &standard = predict_armors[j].abs_pose;
             // xy平面距离
-            negative_score(i * n + j, 0) = std::hypot(detect.x() - standard.x(), detect.y() - standard.y());
-            // z轴距离
-            negative_score(i * n + j, 1) = std::abs(detect.z() - standard.z());
+            negative_score(i * n + j, 0) = (detect - standard).norm();
             // 角度差
-            negative_score(i * n + j, 2) = 4 * std::abs(_std_radian(detect_armors[i].yaw - predict_armors[j].predict_yaw));
+            negative_score(i * n + j, 2) = std::abs(_std_radian(detect_armors[i].yaw - predict_armors[j].predict_yaw));
         }
     }
 

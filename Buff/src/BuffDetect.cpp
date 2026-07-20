@@ -9,7 +9,7 @@ std::mutex mutex_bh;
 namespace auto_buff{
 
 BuffDetector::BuffDetector(){
-    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh2.onnx");
+    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh4.onnx");
 }
 
 void BuffDetector::HandleImg(){
@@ -18,13 +18,14 @@ void BuffDetector::HandleImg(){
     // cv::imshow("gray", gray_img_); 
     // 进行二值化 
     cv::threshold(gray_img_, gray_img_, 60, 255, cv::THRESH_BINARY);
-    // cv::imshow("binary", gray_img_);
-    // 3x3闭运算
-    // cv::morphologyEx(gray_img_, gray_img_, cv::MORPH_CLOSE, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)));
+    // 闭运算（3x3）
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::morphologyEx(gray_img_, gray_img_, cv::MORPH_CLOSE, kernel);
+    // cv::imshow("gray", gray_img_);
     // 找轮廓
     cv::findContours(gray_img_, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     auto it = std::remove_if(contours.begin(), contours.end(),
-        [](const std::vector<cv::Point>& c) { return c.size() < 20; });
+        [](const std::vector<cv::Point>& c) { return c.size() < 10; });
     contours.erase(it, contours.end());
 }
 
@@ -59,7 +60,8 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
         return std::nullopt;
     }
     // 获得流水灯
-    if (!GetLightBars(fanblades, rects)) {
+    GetLightBars(fanblades,rects);
+    if(fanblades.empty()){
         Lose();
         return std::nullopt;
     }
@@ -82,16 +84,18 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
 }
 
 void BuffDetector::Show(PowerRune &P){
-    // 绘制待机击打区域的外接圆
-    for(auto &fan : P.fanblades){
-        for(int i=0;i<6;i++){
-            circle(img_,fan.points[i],2,Scalar(0,200,0),-1);
-            putText(img_, std::to_string(i), fan.points[i], FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0,200,0), 0.2);
+    // 绘制所有扇叶（选扇叶前），每片6个关键点
+    auto & P_ = P;
+    for(auto &fan : P_.fanblades){
+        for(int i = 0; i < 6; i++){
+            circle(img_, fan.points[i], 2, Scalar(0, 200, 0), -1);
+            putText(img_, std::to_string(i), fan.points[i],
+                    FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0, 200, 0), 0.2);
         }
-    }    
-    circle(img_,P.r_center,2,Scalar(0,200,0),-1);
-    putText(img_, std::to_string(6), P.r_center, FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0,200,0), 0.2);    
-    
+    }
+    // 绘制R标中心
+    circle(img_, P.r_center, 3, Scalar(0, 0, 255), -1);
+    putText(img_, "R", P.r_center + cv::Point2f(5, -5), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(0, 0, 255), 1);
 }
 
 cv::Point2f BuffDetector::GetR(std::vector<FanBlade> & fanblades)
@@ -133,8 +137,12 @@ void SaveImg(Mat &input_image){
     if (input_image.empty()) cout << "warpPerspective失败，图像为空!" << endl;
     static int number = 1;
     number++;
-    string filename = "../train/train_bh/datasets/photos/" + to_string(number) + ".png";
-    imwrite(filename, input_image); 
+    if(number%5==0){
+        string filename = "../photos/" + to_string(number) + ".png";
+        imwrite(filename, input_image); 
+    }
+    
+    
 }
 
 bool BuffDetector::Verify(cv::Point2f points[4]) {
@@ -142,56 +150,49 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
     auto rotation_matrix = cv::getPerspectiveTransform(points, target_vertices);
     cv::Mat input_image;
     cv::warpPerspective(gray_img_, input_image, rotation_matrix, cv::Size(28, 28));
-    cv::Mat job_image = input_image.clone();\
-    SaveImg(job_image);
-    // 转换数据类型为 float32 并归一化到 [0, 1]
-    input_image.convertTo(input_image, CV_32F, 1.0 / 255.0);
-    
-    // blobFromImage: 创建 NCHW 格式的 blob，匹配训练时的格式
-    // scalefactor=1.0, size=(28,28), mean=0, swapRB=false, crop=false, ddepth=CV_32F
-    cv::Mat blob = cv::dnn::blobFromImage(input_image, 1.0, cv::Size(28, 28), 
-                                          cv::Scalar(0), false, false, CV_32F);
-    
+    // SaveImg(input_image);
+    input_image /= 255;
+    cv::Mat blob;
+    cv::dnn::blobFromImage(input_image, blob);
     mutex_bh.lock();
     net_.setInput(blob);
     cv::Mat outputs = net_.forward().clone();
     mutex_bh.unlock();
-    
-    // 获取类别1的 logit 值并应用 sigmoid 激活函数
+    // 获取类别1的概率
     float probability = outputs.at<float>(0, 0);
-    float sigmoid_prob = 1.0f / (1.0f + std::exp(-probability));
-    return sigmoid_prob < 0.5f;
+    float sigmoid_prob = 1.0f / (1.0f + exp(-probability));
+    return sigmoid_prob > 0.5f;
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
-    [[maybe_unused]] double min_ratio = 0.1;
-    [[maybe_unused]] double max_ratio = 1;
-    int min_size = 3000;
-    int max_size = 7000;
+    int min_area = 6000;
+    int max_area = 8500;
     for (const auto& contour : contours) {
-        double area = cv::contourArea(contour);
         cv::Point2f center;float radius;
         cv::minEnclosingCircle(contour, center, radius);
-        auto size = CV_PI * pow(radius,2);
-        double area_ratio = area / size;
+        double area = CV_PI * radius * radius;  // 使用外接圆面积
         if(this->debug_){
             circle(img_,center,radius,Scalar(200,0,200),2);
-            putText(img_,"Size: "+to_string(size)+"Ratio :"+to_string(area_ratio),center, cv::FONT_HERSHEY_COMPLEX, 0.6, Scalar(205, 100, 225), 1);
+            putText(img_,"Size: "+to_string(area)+"Radius: "+to_string(radius),center, cv::FONT_HERSHEY_COMPLEX, 0.6, Scalar(205, 100, 225), 1);
         }
-        
-        if ((size>min_size) && (size<max_size)  ){
-            
+
+        if ((area>min_area) && (area<max_area)){
             cv::RotatedRect rect = cv::minAreaRect(contour);
             cv::Point2f vertices[4];
             rect.points(vertices);
-            if(Verify(vertices))fanblades.emplace_back(center,radius,_light);
+            if(Verify(vertices)){
+                fanblades.emplace_back(center,radius,_light);
+                // 绘制符合条件的扇叶
+                circle(img_, center, radius, Scalar(0, 255, 0), 2);
+            }
         }
+
     }
 }
 
 void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2f>>> &rects){
-    float min_area = 500;
-    float max_area = 3000;
+    float min_area = 1500;
+    float max_area = 3500;
     float min_aspect = 0.05f;
     float max_aspect = 0.35f;
     for (const auto& contour : contours) {
@@ -205,7 +206,6 @@ void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2
             for (int i = 0; i < 4; ++i) cv::line(img_, vertices[i], vertices[(i+1)%4], cv::Scalar(0, 255, 0), 2, cv::LINE_AA); 
             putText(img_,"Size: "+to_string(area)+"Bili :"+to_string(aspect_ratio),vertices[1], cv::FONT_HERSHEY_COMPLEX,0.6, Scalar(0, 255, 0), 1);
         }
-        
         if ((area>min_area) && (area<max_area) && (aspect_ratio>min_aspect) && (aspect_ratio<max_aspect)) {
             if(w_h)rect.angle+=90;
             std::vector<cv::Point2f> points(vertices, vertices + 4);
@@ -234,35 +234,36 @@ std::vector<cv::Point2f> GetPoints(
     return all_points;
 }
 
-bool BuffDetector::GetLightBars(vector<FanBlade>& fanblades, std::vector<std::pair<float, std::vector<cv::Point2f>>>& rects) {
+void BuffDetector::GetLightBars(vector<FanBlade>& fanblades, std::vector<std::pair<float, std::vector<cv::Point2f>>>& rects) {
     for (auto& fan : fanblades) {
 
         float min_distance = std::numeric_limits<float>::max();
         const std::vector<cv::Point2f>* best_rect_points = nullptr;
 
         for (const auto& rect : rects) {
-            const cv::Point2f& ref_point = rect.second.back();
-            float ref_angle = tools::R2D(std::atan2(ref_point.y - fan.center.y, ref_point.x - fan.center.x));
-            float angle_diff = std::fabs(ref_angle - rect.first);
-            if (angle_diff > 180) angle_diff = 360 - angle_diff;
+            const cv::Point2f& ref_point = rect.second.back(); 
             float dist = cv::norm(ref_point - fan.center);
-            
-            bool is_valid = (angle_diff < 20 || angle_diff > 160) && dist > fan.radius;
-            
-            if (is_valid && dist < min_distance) {
+            if (dist < min_distance) {
                 min_distance = dist;
                 best_rect_points = &(rect.second);
             }
         }
 
-        if (best_rect_points) {
-            cv::Point2f ref_point = best_rect_points->back(); 
+        if (min_distance < fan.radius *3.5 && best_rect_points) {
+            cv::Point2f ref_point = best_rect_points->back();
             float r = fan.radius - 4;
             std::vector<cv::Point2f> all_points = GetPoints(fan.center, r, ref_point);
             fan.points = all_points;
+
         }
+
     }
-    return std::all_of(fanblades.begin(), fanblades.end(), [](const FanBlade& f) { return !f.points.empty(); });
+
+    // 剔除未匹配到灯条的扇叶，防止后续 GetR 越界访问
+    fanblades.erase(
+        std::remove_if(fanblades.begin(), fanblades.end(),
+            [](const FanBlade& f) { return f.points.empty(); }),
+        fanblades.end());
 }
 }// namespace
 

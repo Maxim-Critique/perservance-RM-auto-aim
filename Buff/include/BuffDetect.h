@@ -21,7 +21,7 @@ private:
     // 进行矩形拟合
     void DetectRect(std::vector<std::pair<float,std::vector<cv::Point2f>>> &rects);
     // 获得流水灯
-    bool GetLightBars(vector<FanBlade>& fanblades,std::vector<std::pair<float,std::vector<cv::Point2f>>> &rects);
+    void GetLightBars(vector<FanBlade>& fanblades,std::vector<std::pair<float,std::vector<cv::Point2f>>> &rects);
     // 获取R标
     cv::Point2f GetR(std::vector<FanBlade> & fanblades);
     // 验证待击打区域
@@ -36,8 +36,8 @@ private:
     Track_status status_;                                // 状态
     int lose_;                                           // 丢失的次数
     double lastlen_;
-    bool debug_ = true;                                 // debug
-    bool show_ = true;                                 // 可视化
+    bool debug_ = false;                                  // debug
+    bool show_ = true;                                   // 可视化
 
     cv::Mat img_;                                        // 原始图像
     cv::Mat gray_img_;                                   // 二值化后的图

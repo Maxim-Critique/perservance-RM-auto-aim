@@ -6,6 +6,8 @@
 #include <thread>
 
 #include <fmt/core.h>
+#include <yaml-cpp/yaml.h>
+
 #include "ArmorDetector.h"
 #include "logger.hpp"
 
@@ -17,7 +19,7 @@ Perceptron::Perceptron(
     io::USBCamera * usbcam2,
     io::USBCamera * usbcam3,
     int enemy_color,
-    const std::string & /*config_path*/)
+    const std::string & config_path)
 : detection_queue_(100),
     stop_flag_(false),
     active_(true),
@@ -30,12 +32,21 @@ Perceptron::Perceptron(
         throw std::runtime_error("Camera pointers are null");
     }
 
+    try {
+        auto yaml = YAML::LoadFile(config_path);
+        show_visualization_ = yaml["Camera"]["show"].as<int>();
+        tools::logger()->info("Camera visualization enabled: {}", show_visualization_);
+    } catch (const std::exception & e) {
+        tools::logger()->warn("Failed to load visualization config: {}", e.what());
+        show_visualization_ = false;
+    }
+
     detector1_ = std::make_unique<ArmorDetector>(
-        "../model/mlp.onnx", "../model/label.txt", 0.7, std::vector<std::string>{"negative","outpost","base"});
+        "../model/usb.onnx", "../model/label.txt", 0.7, 120, std::vector<std::string>{"negative","outpost","base"});
     detector2_ = std::make_unique<ArmorDetector>(
-        "../model/mlp.onnx", "../model/label.txt", 0.7, std::vector<std::string>{"negative","outpost","base"});
+        "../model/usb.onnx", "../model/label.txt", 0.7, 120, std::vector<std::string>{"negative","outpost","base"});
     detector3_ = std::make_unique<ArmorDetector>(
-        "../model/mlp.onnx", "../model/label.txt", 0.7, std::vector<std::string>{"negative","outpost","base"});
+        "../model/usb.onnx", "../model/label.txt", 0.7, 120, std::vector<std::string>{"negative","outpost","base"});
 
     tools::logger()->info("Initializing Perceptron with 2 cameras using Recognition module...enemy_color: {}", enemy_color);
 
@@ -92,7 +103,7 @@ void Perceptron::ParallelInfer(io::USBCamera * cam, ArmorDetector & detector, in
 
             if (show_visualization_)
                 DrawAndVisualize(usb_img, armors, cam->device_name);
-            
+
         }
     } catch (const std::exception & e) {
         tools::logger()->error("Exception in parallelInfer: {}", e.what());
@@ -150,9 +161,8 @@ void Perceptron::DrawAndVisualize(
         }
     }
 
-    cv::Mat resized;
-    cv::resize(vis_img, resized, {}, 0.5, 0.5);
-    cv::imshow(window_name, resized);
+    // cv::resize(vis_img, vis_img, {}, 0.5, 0.5);
+    cv::imshow(window_name, vis_img);
 }
 
 std::vector<DetectionResult> Perceptron::GetDetectionQueue()

@@ -26,18 +26,16 @@ void AutoBuff::show(const std::optional<auto_buff::PowerRune> &power_runes, cv::
 
 void AutoBuff::AutoAim(cv::Mat &img,const Data_Save &ds,Data_Get &dg){
 
-    // if(ds.armor_or_buff != last_mode){
-    //     if(ds.armor_or_buff == 1) target_ = std::make_unique<auto_buff::SmallTarget>();
-    //     else target_ = std::make_unique<auto_buff::BigTarget>();
-    //     last_mode = ds.armor_or_buff;
-    // }
+    if(ds.armor_or_buff != last_mode){
+        if(ds.armor_or_buff == 1) target_ = std::make_unique<auto_buff::SmallTarget>();
+        else target_ = std::make_unique<auto_buff::BigTarget>();
+        last_mode = ds.armor_or_buff;
+    }
     dg.Vision2Control();
     auto power_runes = discover_->Detect(img);
     slover_->UpdateStatus(ds);
     slover_->Solve(power_runes);
     target_->get_target(power_runes,ds.timestamp); 
-
-    // Call the renamed function to process power runes
     show(power_runes, img);
 
     auto target_copy =  target_->clone();
@@ -58,6 +56,7 @@ void AutoBuff::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Dat
     bool follow_dalta = gimbal_angle.manage_yaw && yaw!=0 && pitch !=0;
 
     if (fire_delta) {
+        dg.Vision2Control(yaw,pitch,0,0,2);
         cv::putText(img, "Fire", cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(0, 0, 255), 4);
     } else {
         std::string text = "target_yaw " + std::to_string(tools::R2D(gimbal_angle.target_yaw) ) +
@@ -67,8 +66,10 @@ void AutoBuff::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Dat
                           " now_pitch " + std::to_string(tools::R2D(ds.camera_pitch_angle) );                   
         cv::putText(img, text, cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(0, 0, 255), 4);
         cv::putText(img, text_now, cv::Point(40, 80), cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(0, 0, 255), 4);
+        dg.Vision2Control(yaw,pitch,0,0,0);
     }
-    dg.Vision2Control(yaw,pitch,0,follow_dalta,fire_delta);
+
+
 }
 
 YAML::Node AutoBuff::readYAML(const std::string& filename){

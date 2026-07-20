@@ -501,13 +501,11 @@ Armors ArmorDetector::Detect(Mat &img, int enemy_color) {
 // ---- 构造函数 (合并 Tradition + NumberClassifier) ----
 
 ArmorDetector::ArmorDetector(
-    const std::string &model_path, const std::string &label_path, const double threshold,
+    const std::string &model_path, const std::string &label_path,
+    const double classify_threshold, const int binary_threshold,
     const std::vector<std::string> &ignore_classes)
-    : ignore_classes_(ignore_classes), classify_threshold_(threshold) {
-    // 原Tradition部分
+    : ignore_classes_(ignore_classes), classify_threshold_(classify_threshold), threshold_(binary_threshold) {
     enemy_color_ = 0;
-    threshold_ = 180;
-    // 原NumberClassifier部分
     net_ = cv::dnn::readNetFromONNX(model_path);
 
     std::ifstream label_file(label_path);

@@ -1,17 +1,17 @@
 Camera:
-  exposure_armor: 2500 
+  exposure_armor: 2000 
   exposure_buff: 2000 
-  camera_matrix: [1730.7, 0.4, 731.1, 0, 1730.1, 559.6, 0, 0, 1]
-  distort_coeffs: [-0.0681, 0.1248, -0.0000634, 0.0005893, -0.0815]
+  camera_matrix: [2374.583734143874, 0, 700.7026376077414, 0, 2357.597221612343, 525.4234008238891, 0, 0, 1]
+  distort_coeffs: [-0.0196, 0.124545410117226, 0, 0, 0]
   show: 1
 
 USBCamera:
   usb_frame_rate: 120
-  new_usb_exposure: 110 
+  new_usb_exposure: 150 
 
 Transform:
   R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
-  t_camera2gimbal: [0.10, -0.05, 0]
+  t_camera2gimbal: [-0.05, -0.05, 0]
 
 Planer:
   max_yaw_acc: 100
@@ -22,12 +22,12 @@ EKF:
     da: 400
 
 Transmit:
-  compensate_pitch: 0.4 # 朝上为正
-  compensate_yaw: 0.8  # 朝左为正
-  predict_time: 0.05
+  compensate_pitch: -0.3 # 朝上为正
+  compensate_yaw: -0.1  # 朝左为正
+  predict_time: 0.10
  
 Buff:
-  compensate_pitch: 0.85 # 向上为正
+  compensate_pitch: 1.85 # 向上为正
   compensate_yaw: 0.4  # 向左为正
   predict_time: 0.05
 

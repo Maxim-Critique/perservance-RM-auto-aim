@@ -10,7 +10,8 @@
 class ArmorDetector {
 public:
     ArmorDetector(
-        const std::string &model_path, const std::string &label_path, const double threshold,
+        const std::string &model_path, const std::string &label_path,
+        const double classify_threshold, const int binary_threshold = 180,
         const std::vector<std::string> &ignore_classes = {});
 
     // 一体化主接口：灯条检测 → 装甲板匹配 → 数字分类 → 可视化
