@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <termios.h>
+#include <cstdlib>
 #include "SerialPort.h"
 #include "math_tools.hpp"
 #include <poll.h>
@@ -53,6 +54,7 @@ SerialPort::SerialPort(const char *filename):queue_(5000),file_name_(filename),b
 {
     data_ahead_.timestamp = std::chrono::steady_clock::now();
     data_behind_.timestamp = std::chrono::steady_clock::now();
+    last_receive_time_ = std::chrono::steady_clock::now();
     serial_quit = false;
     fd = open(file_name_, O_RDWR | O_NOCTTY | O_SYNC);
     last_fd = fd;
@@ -92,6 +94,10 @@ void SerialPort::read_data()
             fds[0].events = POLLIN;
             
             if (poll(fds, 1, 0) <= 0) {
+                if (std::chrono::steady_clock::now() - last_receive_time_ > std::chrono::seconds(5)) {
+                    tools::logger()->error("Serial timeout: no data received for 5 seconds, exiting.");
+                    std::exit(1);
+                }
                 continue;
             }
             
@@ -130,9 +136,10 @@ void SerialPort::read_data()
                 double refree_data = read_buffer[18];
                 double pitch4310 = read_buffer[19];
                 double dt7 = read_buffer[20];
-                tools::logger()->info("Received data: yaw {:.4f}, pitch {:.4f}, roll {:.4f}, color {}, go_back {}, armor_or_buff {}, refree_data {}, pitch4310 {}, dt7 {}", 
+                tools::logger()->info("Received data: yaw {:.4f}, pitch {:.4f}, roll {:.4f}, color {}, go_back {}, armor_or_buff {}, refree_data {}, pitch4310 {}, dt7 {}",
                     ds.camera_yaw_angle, ds.camera_pitch_angle, ds.camera_roll_angle, static_cast<int>(ds.color), static_cast<int>(ds.go_back), static_cast<int>(ds.armor_or_buff), refree_data, pitch4310,dt7);
                 queue_.push(ds);
+                last_receive_time_ = std::chrono::steady_clock::now();
             }
             
         }

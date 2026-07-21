@@ -29,6 +29,7 @@ private:
     int buadrate_;
     bool DEBUG_SERIAL;
     Data_Save data_ahead_, data_behind_;
+    std::chrono::steady_clock::time_point last_receive_time_;  // 看门狗：上次收到数据的时间
     std::atomic<bool> serial_quit;                        // 串口退出标准采集
 };
 }
