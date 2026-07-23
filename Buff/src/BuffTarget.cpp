@@ -640,9 +640,7 @@ void BigTarget::update(double nowtime, const PowerRune & p)
 
     Eigen::VectorXd z2{{B_ypd[0], B_ypd[1], B_ypd[2]}};
     ekf_.update(z2, H2, R2, h2, z_subtract2);
-    filtered_yaw += ekf_.x[4];
-    number ++;
-    ekf_.x[4] = filtered_yaw/number;
+
     // 更新lasttime
     lasttime_ = nowtime;
     unsolvable_ = false;

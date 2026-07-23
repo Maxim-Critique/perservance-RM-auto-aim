@@ -29,7 +29,7 @@ private:
     // 是否丢失
     void Lose();
     // 可视化
-    void Show(PowerRune &P);
+    void Show(vector<FanBlade>& fanblades, PowerRune &P);
 
     cv::dnn::Net net_;
     std::vector<std::vector<cv::Point>> contours;        // 存放二值化轮廓
@@ -38,6 +38,7 @@ private:
     double lastlen_;
     bool debug_ = true;                                 // debug
     bool show_ = true;                                   // 可视化
+    bool save_samples_ = false;                          // 是否保存样本
 
     cv::Mat img_;                                        // 原始图像
     cv::Mat gray_img_;                                   // 二值化后的图
