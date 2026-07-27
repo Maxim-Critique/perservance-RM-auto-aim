@@ -132,7 +132,7 @@ void BuffDetector::HandleImg(){
     // 找轮廓
     cv::findContours(gray_img_, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     auto it = std::remove_if(contours.begin(), contours.end(),
-        [](const std::vector<cv::Point>& c) { return c.size() < 2; });
+        [](const std::vector<cv::Point>& c) { return c.size() < 10; });
     contours.erase(it, contours.end());
 }
 
@@ -149,9 +149,8 @@ void BuffDetector::Lose()
 std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     // 存放扇叶
     vector<FanBlade> fanblades;                              
-    std::vector<std::pair<float,std::vector<cv::Point2f>>>rects;   
-    // ROI截取中心1080x1080区域
-    img_ = img(cv::Rect(180, 0, 1080, 1080)).clone();
+    std::vector<std::pair<float,std::vector<cv::Point2f>>>rects;
+    img_ = img;
     // 预处理
     HandleImg();         
     // 进行圆拟合，获得待机击打区域
@@ -183,16 +182,9 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     status_ = TRACK;
     lose_ = 0;
 
-    if (save_samples_) SaveObbSample(img_, powerrune);
-    if(show_)Show(fanblades, powerrune);
     
-    // 转换坐标回原图坐标系（x 坐标平移 180）
-    for (auto& blade : powerrune.fanblades) {
-        blade.center.x += 180;
-        for (auto& p : blade.points) p.x += 180;
-    }
-    powerrune.r_center.x += 180;
-    // cv::imshow("img_",img_);
+    if (save_samples_) SaveObbSample(img_, powerrune);
+    
     std::optional<PowerRune> P;
     P.emplace(std::move(powerrune));
     last_powerrune_ = P;
@@ -251,7 +243,7 @@ cv::Point2f BuffDetector::GetR(std::vector<FanBlade> & fanblades)
 
 void SaveImg(Mat &input_image){
     if (input_image.empty()) cout << "warpPerspective失败，图像为空!" << endl;
-    static int number = 40000;
+    static int number = 1;
     number++;
     if(number%5==0){
         string filename = "../photos/" + to_string(number) + ".png";
@@ -281,8 +273,8 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
-    int min_area = 3500;
-    int max_area = 6000;
+    int min_area = 6000;
+    int max_area = 9000;
     for (const auto& contour : contours) {
         cv::Point2f center;float radius;
         cv::minEnclosingCircle(contour, center, radius);
@@ -307,10 +299,10 @@ void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
 }
 
 void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2f>>> &rects){
-    float min_area = 800;
-    float max_area = 2000;
+    float min_area = 1500;
+    float max_area = 4000;
     float min_aspect = 0.05f;
-    float max_aspect = 0.35f;
+    float max_aspect = 0.4f;
     for (const auto& contour : contours) {
         cv::RotatedRect rect = cv::minAreaRect(contour);
         cv::Point2f vertices[4];
@@ -319,9 +311,10 @@ void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2
         bool w_h = (rect.size.width < rect.size.height);
         float aspect_ratio = w_h ? (rect.size.width / rect.size.height) : (rect.size.height / rect.size.width);
         if(debug_){
-            // for (int i = 0; i < 4; ++i) cv::line(img_, vertices[i], vertices[(i+1)%4], cv::Scalar(0, 255, 0), 2, cv::LINE_AA); 
-            // putText(img_,"Size: "+to_string(area)+"Bili :"+to_string(aspect_ratio),vertices[1], cv::FONT_HERSHEY_COMPLEX,0.6, Scalar(0, 255, 0), 1);
+            for (int i = 0; i < 4; ++i) cv::line(img_, vertices[i], vertices[(i+1)%4], cv::Scalar(0, 255, 0), 2, cv::LINE_AA); 
+            putText(img_,"Size: "+to_string(area)+"Bili :"+to_string(aspect_ratio),vertices[1], cv::FONT_HERSHEY_COMPLEX,0.6, Scalar(0, 255, 0), 1);
         }
+        
         if ((area>min_area) && (area<max_area) && (aspect_ratio>min_aspect) && (aspect_ratio<max_aspect)) {
             if(w_h)rect.angle+=90;
             std::vector<cv::Point2f> points(vertices, vertices + 4);

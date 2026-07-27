@@ -1,9 +1,10 @@
 test: 0
 Camera:
-  exposure_time: 1000
-  camera_matrix: [1730.7, 0.4, 731.1, 0, 1730.1, 559.6, 0, 0, 1]
-  distort_coeffs: [-0.0681, 0.1248, -0.0000634, 0.0005893, -0.0815]
+  exposure_time: 1500
+  camera_matrix: [2374.583734143874, 0, 700.7026376077414, 0, 2357.597221612343, 525.4234008238891, 0, 0, 1]
+  distort_coeffs: [-0.0196, 0.124545410117226, 0,0,0]
   show: 1
+
 Transform:
   R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
   t_camera2gimbal: [0.10, 0.0, 0.2]
@@ -14,7 +15,7 @@ Tradition:
   light_threshold: 180
   dim_threshold: 110
 Planer:
-  predict_time: 0.07
+  predict_time: 0.06
   max_yaw_acc: 50
 EKF:
   ProcessNoise:
@@ -27,8 +28,8 @@ Transmit:
   compensate_pitch: 2
   compensate_yaw: -0.8
 Buff:
-  compensate_pitch: -1.65 # 向上为正
-  compensate_yaw: -0.6  # 向左为正
+  compensate_pitch: -0.9 # 向上为正
+  compensate_yaw: -0.9  # 向左为正
 Find:
   is_get_from_ds: false #是否由电控发颜色
   enemy_color: 0  # 目标红色为1,蓝色为0
