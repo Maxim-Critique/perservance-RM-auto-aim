@@ -20,6 +20,5 @@ private:
     int last_mode = 1;
     double compensate_pitch = 0;
     double compensate_yaw = 0;
-    std::optional<time_point> last_fire_time_;  // 上次发射时刻，用于0.8s冷却
 };
 

@@ -1,122 +1,13 @@
 #include "BuffDetect.h"
 #include "SerialPort.h"
-#include <filesystem>
-#include <fstream>
-#include <iomanip>
-#include <sstream>
 cv::dnn::Net net_bh;
 std::mutex mutex_bh;
 
 
 namespace auto_buff{
-namespace {
-constexpr int kObbClassId = 1;
-const std::string kObbRootDir = "../obb_dataset";
-const std::string kObbImagesDir = kObbRootDir + "/images";
-const std::string kObbLabelsDir = kObbRootDir + "/labels";
-
-void EnsureObbDirs() {
-    static bool initialized = false;
-    if (initialized) return;
-    std::filesystem::create_directories(kObbImagesDir);
-    std::filesystem::create_directories(kObbLabelsDir);
-    initialized = true;
-}
-
-cv::Point2f NormalizePoint(const cv::Point2f& p, int width, int height) {
-    return cv::Point2f(p.x / static_cast<float>(width), p.y / static_cast<float>(height));
-}
-
-static void WriteObbLabelLine(std::ofstream& out, int class_id, int width, int height,
-                              const std::vector<cv::Point2f>& points, const cv::Point2f& r_center,
-                              cv::Mat* debug_img = nullptr) {
-    if (points.size() < 5) return;
-
-    cv::Point2f p1 = points[0];
-    cv::Vec2f line1 = r_center - p1;
-    float line1_length = cv::norm(line1);
-
-    // w: 第1个点和r_center相连的线段再往两端各延伸 x0.1
-    float w_pixel = line1_length * 1.2f;
-
-    // 旋转角度
-    float angle = atan2(line1[1], line1[0]) * 180.0f / CV_PI;
-
-    // 中心: p1 和 r_center 的中点
-    cv::Point2f center = (p1 + r_center) / 2.0f;
-
-    // h: points[1] 和 points[3] 相连线段延伸 x0.2
-    cv::Vec2f line2 = points[3] - points[1];
-    float line2_length = cv::norm(line2);
-    float h_pixel = line2_length * 1.4f;
-
-    float cx = center.x / static_cast<float>(width);
-    float cy = center.y / static_cast<float>(height);
-    float w = w_pixel / static_cast<float>(width);
-    float h = h_pixel / static_cast<float>(height);
-
-    out << class_id << " " << cx << " " << cy << " " << w << " " << h << " " << angle;
-    for (const auto& p : points) {
-        const auto np = NormalizePoint(p, width, height);
-        out << " " << np.x << " " << np.y;
-    }
-    const auto rc = NormalizePoint(r_center, width, height);
-    out << " " << rc.x << " " << rc.y << "\n";
-
-    if (debug_img) {
-        cv::Mat& dbg = *debug_img;
-        for (size_t i = 0; i < points.size(); ++i) {
-            cv::circle(dbg, points[i], 4, cv::Scalar(0, 255, 0), -1);
-            cv::putText(dbg, std::to_string(i), points[i] + cv::Point2f(6, -6),
-                        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
-        }
-        cv::circle(dbg, r_center, 5, cv::Scalar(0, 0, 255), -1);
-        cv::putText(dbg, "R", r_center + cv::Point2f(6, -6),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1);
-        cv::line(dbg, points[0], r_center, cv::Scalar(255, 0, 0), 2);
-        cv::RotatedRect rrect(center, cv::Size2f(w_pixel, h_pixel), angle);
-        cv::Point2f rect_pts[4];
-        rrect.points(rect_pts);
-        for (int i = 0; i < 4; ++i)
-            cv::line(dbg, rect_pts[i], rect_pts[(i + 1) % 4], cv::Scalar(255, 0, 255), 2);
-        cv::putText(dbg, cv::format("w=%.1f h=%.1f ang=%.1f", w_pixel, h_pixel, angle),
-                    center + cv::Point2f(-40, -20), cv::FONT_HERSHEY_SIMPLEX, 0.4,
-                    cv::Scalar(255, 255, 0), 1);
-    }
-}
-
-
-void SaveObbSample(const cv::Mat& image, const PowerRune& powerrune) {
-    if (image.empty() || image.cols <= 0 || image.rows <= 0) return;
-    cv::Mat gray_image;
-    cv::cvtColor(image, gray_image, cv::COLOR_BGR2GRAY);
-    EnsureObbDirs();
-
-    static uint64_t sample_id = 0;
-    ++sample_id;
-    std::ostringstream name;
-    name << std::setw(8) << std::setfill('0') << sample_id;
-
-    const std::string image_path = kObbImagesDir + "/" + name.str() + ".png";
-    const std::string label_path = kObbLabelsDir + "/" + name.str() + ".txt";
-
-    cv::imwrite(image_path, gray_image);
-
-    std::ofstream out(label_path);
-    if (!out.is_open()) return;
-    out << std::fixed << std::setprecision(6);
-
-    for (const auto& fan : powerrune.fanblades) {
-        std::vector<cv::Point2f> fit_points = fan.points;
-        fit_points.emplace_back(powerrune.r_center);
-        const auto rect = cv::minAreaRect(fit_points);
-        WriteObbLabelLine(out, kObbClassId, image.cols, image.rows, fan.points, powerrune.r_center);
-    }
-}
-}  // namespace
 
 BuffDetector::BuffDetector(){
-    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh2.onnx");
+    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh4.onnx");
 }
 
 void BuffDetector::HandleImg(){
@@ -124,7 +15,7 @@ void BuffDetector::HandleImg(){
     cv::cvtColor(img_, gray_img_, cv::COLOR_BGR2GRAY);  
     // cv::imshow("gray", gray_img_); 
     // 进行二值化 
-    cv::threshold(gray_img_, gray_img_, 60, 255, cv::THRESH_BINARY);
+    cv::threshold(gray_img_, gray_img_, 80, 255, cv::THRESH_BINARY);
     // 闭运算（3x3）
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
     cv::morphologyEx(gray_img_, gray_img_, cv::MORPH_CLOSE, kernel);
@@ -132,7 +23,7 @@ void BuffDetector::HandleImg(){
     // 找轮廓
     cv::findContours(gray_img_, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     auto it = std::remove_if(contours.begin(), contours.end(),
-        [](const std::vector<cv::Point>& c) { return c.size() < 2; });
+        [](const std::vector<cv::Point>& c) { return c.size() < 10; });
     contours.erase(it, contours.end());
 }
 
@@ -150,8 +41,7 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     // 存放扇叶
     vector<FanBlade> fanblades;                              
     std::vector<std::pair<float,std::vector<cv::Point2f>>>rects;   
-    // ROI截取中心1080x1080区域
-    img_ = img(cv::Rect(180, 0, 1080, 1080)).clone();
+    img_ = img;
     // 预处理
     HandleImg();         
     // 进行圆拟合，获得待机击打区域
@@ -183,16 +73,8 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     status_ = TRACK;
     lose_ = 0;
 
-    if (save_samples_) SaveObbSample(img_, powerrune);
     if(show_)Show(fanblades, powerrune);
-    
-    // 转换坐标回原图坐标系（x 坐标平移 180）
-    for (auto& blade : powerrune.fanblades) {
-        blade.center.x += 180;
-        for (auto& p : blade.points) p.x += 180;
-    }
-    powerrune.r_center.x += 180;
-    // cv::imshow("img_",img_);
+
     std::optional<PowerRune> P;
     P.emplace(std::move(powerrune));
     last_powerrune_ = P;
@@ -277,7 +159,7 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
     // 获取类别1的概率
     float probability = outputs.at<float>(0, 0);
     float sigmoid_prob = 1.0f / (1.0f + exp(-probability));
-    return sigmoid_prob < 0.5f;
+    return sigmoid_prob > 0.5f;
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
