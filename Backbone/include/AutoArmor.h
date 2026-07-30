@@ -32,4 +32,5 @@ private:
     double m_next_shoot_time;                         // 下一次开火时间
     double show;                                      // 可视化开关
     int m_aim_id = 0;                                  // 识别的ID
+    int last_mode_ = 0;                                // 上一次的模式，用于检测模式切换
 };

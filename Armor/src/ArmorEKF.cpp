@@ -83,7 +83,7 @@ ExtendedKalmanFilter::OutpostStrategy::compute() {
         0, 0, 1, 0, 0, 0, 0, sin(angle),  radius*cos(angle), 0,
         0, 0, 0, 0, index == 0, index == 1, index == 2, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 1, 0;
-    Eigen::Matrix4d H_armor_ypda = tools::xyz2ypd_jacobian(armor_xyz);
+    Eigen::Matrix4d H_armor_ypda = tools::xyza2ypda_jacobian(armor_xyz);
     Eigen::Matrix<double, 4, 10> H = H_armor_ypda * H_armor_xyza;
 
     Eigen::Matrix4d R = Eigen::Matrix4d::Identity();

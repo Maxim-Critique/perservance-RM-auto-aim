@@ -4,7 +4,7 @@ AutoArmor::AutoArmor(){
     readYAML(YamlPath);
     find_ptr = std::make_unique<ArmorDetector>(
         "../model/mlp.onnx", "../model/label.txt", 0.7, 180,
-        std::vector<std::string>{"negative"});
+        std::vector<std::string>{"negative","outpost","base"});
     planner_ptr = std::make_unique<Planner>();
     solve_ptr = std::make_unique<Slover>();
     last_time = std::chrono::steady_clock::now()-std::chrono::seconds(4);
@@ -12,11 +12,19 @@ AutoArmor::AutoArmor(){
 }
 bool AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     dg.Vision2Control();
+    if(ds.armor_or_buff != last_mode_){
+        if(ds.armor_or_buff == 3) find_ptr = std::make_unique<ArmorDetector>(
+            "../model/outpost.onnx", "../model/label.txt", 0.7, 100,
+            std::vector<std::string>{"negative","base"});
+        else find_ptr = std::make_unique<ArmorDetector>(
+            "../model/mlp.onnx", "../model/label.txt", 0.7, 180,
+            std::vector<std::string>{"negative","outpost","base"});
+        last_mode_ = ds.armor_or_buff;
+    }
 
-    // 一体化识别：灯条检测 + 装甲板匹配 + 数字分类 + 可视化
+    
     auto armors = find_ptr->Detect(img, ds.color);
     if(armors.empty())return false;
-
     auto armors_ = ChooseProcess(armors,ds);
     if(armors_.empty())return false;
     if(show)ShowArmors(armors_,img);

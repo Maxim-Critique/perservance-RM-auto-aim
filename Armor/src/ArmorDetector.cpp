@@ -245,12 +245,54 @@ LightBlobs ArmorDetector::FindLight(Mat &src, int enemy_color) {
 
     for (size_t i = 0; i < light_contours.size(); i++) {
         if (hierarchy[i][2] == -1) {
-            if (!isValidContourArea(light_contours[i])) continue;
+            // 1. 面积检查 (复用 isValidContourArea)
+            if (!isValidContourArea(light_contours[i])) {
+                cv::drawContours(src, light_contours, i, cv::Scalar(0, 0, 255), 1);
+                cv::Rect bbox = cv::boundingRect(light_contours[i]);
+                cv::putText(src, "A", cv::Point(bbox.x + bbox.width / 2, bbox.y + bbox.height / 2),
+                            cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
+                continue;
+            }
+
             cv::RotatedRect rect = cv::minAreaRect(light_contours[i]);
-            if (IsValidLightBlob(rect)) light_blobs.emplace_back(rect, GetBlobColor(src, rect));
+
+            // 2. 长宽比检查 (复用 IsValidLightBlob)
+            if (!IsValidLightBlob(rect)) {
+                cv::drawContours(src, light_contours, i, cv::Scalar(0, 0, 255), 1);
+                cv::Point2f vertices[4];
+                rect.points(vertices);
+                for (int j = 0; j < 4; j++)
+                    cv::line(src, vertices[j], vertices[(j + 1) % 4], cv::Scalar(0, 0, 255), 1);
+                cv::putText(src, "W", rect.center, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
+                continue;
+            }
+
+            // 3. 倾斜角度检查 — 构造 LightBlob 后复用 SlopeValidation 中的逻辑
+            LightBlob blob(rect, GetBlobColor(src, rect));
+            {
+                cv::Point2f direction = blob.top - blob.bottom;
+                float tilt_angle = std::atan2(std::abs(direction.x), std::abs(direction.y));
+                if (tilt_angle > tools::D2R(45)) {
+                    cv::drawContours(src, light_contours, i, cv::Scalar(0, 0, 255), 1);
+                    cv::Point2f vertices[4];
+                    rect.points(vertices);
+                    for (int j = 0; j < 4; j++)
+                        cv::line(src, vertices[j], vertices[(j + 1) % 4], cv::Scalar(0, 0, 255), 1);
+                    cv::putText(src, "S", rect.center, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
+                    continue;
+                }
+            }
+
+            // 通过所有检查
+            light_blobs.push_back(blob);
+
+            // 画有效灯条（绿色外框）
+            cv::Point2f vertices[4];
+            rect.points(vertices);
+            for (int j = 0; j < 4; j++)
+                cv::line(src, vertices[j], vertices[(j + 1) % 4], cv::Scalar(0, 255, 0), 2);
         }
     }
-    SlopeValidation(light_blobs);
     return light_blobs;
 }
 

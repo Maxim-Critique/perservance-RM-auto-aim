@@ -24,6 +24,10 @@ public:
         return mode_ == Mode::UsbSearch || mode_ == Mode::HoldUsb || mode_ == Mode::Lost;
     }
 
+    bool NeedPerceptron(const Data_Get& dg) const {
+        return !dg.raw_data[18] && UsbActive();
+    }
+
     const char* ModeName() const {
         switch (mode_) {
             case Mode::MainTrack: return "MainTrack";

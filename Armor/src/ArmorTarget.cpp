@@ -73,6 +73,7 @@ void Aim::visualizeState(const Armors &detected_armors, double dt)
     cv::putText(canvas, "Filtered", cv::Point(740, 779), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0), 1);
 
     cv::imshow("Motion State", canvas);
+    cv::waitKey(1);
 }
 
 std::shared_ptr<KinematicModel> Aim::createModel(const Eigen::VectorXd &state) const
@@ -84,7 +85,7 @@ std::shared_ptr<KinematicModel> Aim::createModel(const Eigen::VectorXd &state) c
 
 std::shared_ptr<KinematicModel> Aim::Estimate(const Armors &armors, double &time){
     Resolve(armors, time);
-    // visualizeState(armors, time);
+    visualizeState(armors, time);
     return createModel(target_state);
 }
 

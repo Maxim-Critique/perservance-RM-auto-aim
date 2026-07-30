@@ -65,20 +65,19 @@ int main()
         camera_->Query(img,t);
         serial_->Query(ds,t);
         // ds.armor_or_buff = 1;
-        if(!ds.armor_or_buff){
+        if(!ds.armor_or_buff||ds.armor_or_buff == 3){
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_armor);
             armor_->AutoAim(img,ds,dg);
             if(!perceptron) perceptron = std::make_unique<Omniperception::Perceptron>(usb_camera0.get(), usb_camera2.get(), usb_camera4.get(),ds.color, YamlPath);
-            uint8_t found = dg.raw_data[18];
-            bool usb_active = AimStateMachine::Instance().UsbActive();
-            if(!found && usb_active){
+            auto& state = AimStateMachine::Instance();
+            if(state.NeedPerceptron(dg)){
                 auto list = perceptron->GetDetectionQueue();
                 if(!list.empty()) dg.Vision2Control((tools::R2D(_std_radian(ds.camera_yaw_angle+ list[0].delta_yaw)))*1e4,tools::R2D(list[0].delta_pitch)*1e4,0,2,0);
                 ros2_->publish(ds.go_back);
             }else if(ds.go_back == 1) ros2_->publish(1);
             else ros2_->publish(0);
-            AimStateMachine::Instance().Step(t, dg);
-            perceptron->SetActive(usb_active);
+            state.Step(t, dg);
+            perceptron->SetActive(state.UsbActive());
         }else{
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_buff);
             ros2_->publish(ds.go_back);

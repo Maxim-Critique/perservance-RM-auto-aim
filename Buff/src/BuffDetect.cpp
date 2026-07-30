@@ -7,7 +7,6 @@ std::mutex mutex_bh;
 
 
 namespace auto_buff{
-
 BuffDetector::BuffDetector(){
     net_ = cv::dnn::readNetFromONNX("../model/mlp_bh4.onnx");
 }
@@ -74,8 +73,7 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     }
     status_ = TRACK;
     lose_ = 0;
-
-    if(show_)Show(powerrune);
+    
     std::optional<PowerRune> P;
     P.emplace(std::move(powerrune));
     last_powerrune_ = P;
@@ -83,10 +81,9 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     
 }
 
-void BuffDetector::Show(PowerRune &P){
+void BuffDetector::Show(vector<FanBlade>& fanblades, PowerRune &P){
     // 绘制所有扇叶（选扇叶前），每片6个关键点
-    auto & P_ = P;
-    for(auto &fan : P_.fanblades){
+    for(auto &fan : fanblades){
         for(int i = 0; i < 6; i++){
             circle(img_, fan.points[i], 2, Scalar(0, 200, 0), -1);
             putText(img_, std::to_string(i), fan.points[i],
@@ -166,7 +163,7 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
     int min_area = 6000;
-    int max_area = 8500;
+    int max_area = 9000;
     for (const auto& contour : contours) {
         cv::Point2f center;float radius;
         cv::minEnclosingCircle(contour, center, radius);
@@ -192,9 +189,9 @@ void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
 
 void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2f>>> &rects){
     float min_area = 1500;
-    float max_area = 3500;
+    float max_area = 4000;
     float min_aspect = 0.05f;
-    float max_aspect = 0.35f;
+    float max_aspect = 0.4f;
     for (const auto& contour : contours) {
         cv::RotatedRect rect = cv::minAreaRect(contour);
         cv::Point2f vertices[4];
@@ -206,6 +203,7 @@ void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2
             for (int i = 0; i < 4; ++i) cv::line(img_, vertices[i], vertices[(i+1)%4], cv::Scalar(0, 255, 0), 2, cv::LINE_AA); 
             putText(img_,"Size: "+to_string(area)+"Bili :"+to_string(aspect_ratio),vertices[1], cv::FONT_HERSHEY_COMPLEX,0.6, Scalar(0, 255, 0), 1);
         }
+        
         if ((area>min_area) && (area<max_area) && (aspect_ratio>min_aspect) && (aspect_ratio<max_aspect)) {
             if(w_h)rect.angle+=90;
             std::vector<cv::Point2f> points(vertices, vertices + 4);

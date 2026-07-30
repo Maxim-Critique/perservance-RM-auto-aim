@@ -127,7 +127,7 @@ void SerialPort::read_data()
                 
                 // 使用预计算的缩放因子
                 static constexpr double SCALE = PI / 180.0 / 10000.0;
-                ds.camera_yaw_angle = _std_radian(yaw_ * SCALE);
+                ds.camera_yaw_angle = _std_radian(yaw_ * SCALE * 10);
                 ds.camera_pitch_angle = pit_ * SCALE;
                 ds.camera_roll_angle = _std_radian(roll_ * SCALE - PI);
                 ds.color = read_buffer[15];
