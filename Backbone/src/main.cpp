@@ -56,7 +56,6 @@ int main()
     std::unique_ptr<AutoBuff> buff_ = std::make_unique<AutoBuff>();
     std::unique_ptr<io::USBCamera> usb_camera0 = std::make_unique<io::USBCamera>("video0", YamlPath);
     std::unique_ptr<io::USBCamera> usb_camera2 = std::make_unique<io::USBCamera>("video2", YamlPath);
-    std::unique_ptr<io::USBCamera> usb_camera4 = std::make_unique<io::USBCamera>("video4", YamlPath);
     std::unique_ptr<Omniperception::Perceptron> perceptron; 
     Mat img;time_point t;Data_Save ds;Data_Get dg;
     bool last_mode = false;
@@ -65,10 +64,11 @@ int main()
         camera_->Query(img,t);
         serial_->Query(ds,t);
         // ds.armor_or_buff = 1;
+        ds.camera_yaw_angle = 3*PI/2;
         if(!ds.armor_or_buff||ds.armor_or_buff == 3){
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_armor);
             armor_->AutoAim(img,ds,dg);
-            if(!perceptron) perceptron = std::make_unique<Omniperception::Perceptron>(usb_camera0.get(), usb_camera2.get(), usb_camera4.get(),ds.color, YamlPath);
+            if(!perceptron) perceptron = std::make_unique<Omniperception::Perceptron>(usb_camera0.get(), usb_camera2.get(), ds.color, YamlPath);
             auto& state = AimStateMachine::Instance();
             if(state.NeedPerceptron(dg)){
                 auto list = perceptron->GetDetectionQueue();

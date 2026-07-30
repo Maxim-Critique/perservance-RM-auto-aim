@@ -17,7 +17,6 @@ namespace Omniperception
 Perceptron::Perceptron(
     io::USBCamera * usbcam1,
     io::USBCamera * usbcam2,
-    io::USBCamera * usbcam3,
     int enemy_color,
     const std::string & config_path)
 : detection_queue_(100),
@@ -27,7 +26,7 @@ Perceptron::Perceptron(
     fov_h_(1.57),
     fov_v_(1.57)
 {
-    if (!usbcam1 || !usbcam2 || !usbcam3) {
+    if (!usbcam1 || !usbcam2) {
         tools::logger()->error("Invalid camera pointers in Perceptron initialization!");
         throw std::runtime_error("Camera pointers are null");
     }
@@ -42,11 +41,9 @@ Perceptron::Perceptron(
     }
 
     detector1_ = std::make_unique<ArmorDetector>(
-        "../model/usb.onnx", "../model/label.txt", 0.7, 120, std::vector<std::string>{"negative","outpost","base"});
+        "../model/usb.onnx", "../model/label.txt", 0.7, 100, std::vector<std::string>{"negative","outpost","base"});
     detector2_ = std::make_unique<ArmorDetector>(
-        "../model/usb.onnx", "../model/label.txt", 0.7, 120, std::vector<std::string>{"negative","outpost","base"});
-    detector3_ = std::make_unique<ArmorDetector>(
-        "../model/usb.onnx", "../model/label.txt", 0.7, 120, std::vector<std::string>{"negative","outpost","base"});
+        "../model/usb.onnx", "../model/label.txt", 0.7, 100, std::vector<std::string>{"negative","outpost","base"});
 
     tools::logger()->info("Initializing Perceptron with 2 cameras using Recognition module...enemy_color: {}", enemy_color);
 
@@ -56,12 +53,9 @@ Perceptron::Perceptron(
     threads_.emplace_back([this, usbcam2, enemy_color] {
         ParallelInfer(usbcam2, *detector2_, enemy_color);
     });
-    threads_.emplace_back([this, usbcam3, enemy_color] {
-        ParallelInfer(usbcam3, *detector3_, enemy_color);
-    });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    tools::logger()->info("Perceptron initialized with 3 cameras using Recognition module.");
+    tools::logger()->info("Perceptron initialized with 2 cameras using Recognition module.");
 }
 
 Perceptron::~Perceptron()
@@ -129,10 +123,13 @@ void Perceptron::CalculateDeltaAngles(const Armors & armors, io::USBCamera * cam
         armors[0].center.y / static_cast<float>(cam->new_image_height_));
 
     if (cam->device_name == "left") {
-        result.delta_yaw = tools::D2R(96) + (fov_h_ / 2) - norm_center.x * fov_h_;
+        result.delta_yaw = tools::D2R(120) + (fov_h_ / 2) - norm_center.x * fov_h_;
     } else if (cam->device_name == "right") {
-        result.delta_yaw = - tools::D2R(96)  + (fov_h_ / 2) - norm_center.x * fov_h_;
-    } else  result.delta_yaw = PI + (fov_h_ / 2) - norm_center.x * fov_h_;
+        result.delta_yaw = - tools::D2R(120)  + (fov_h_ / 2) - norm_center.x * fov_h_;
+    } else {
+        tools::logger()->warn("Unknown camera device: {}", cam->device_name);
+        return;
+    }
 
     result.delta_pitch = -tools::D2R(12) + (fov_v_ / 2) - norm_center.y * fov_v_;
 ;

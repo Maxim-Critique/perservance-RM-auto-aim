@@ -29,7 +29,6 @@ public:
     Perceptron(
         io::USBCamera * usbcam1,
         io::USBCamera * usbcam2,
-        io::USBCamera * usbcam3,
         int enemy_color,
         const std::string & config_path);
 
@@ -60,7 +59,6 @@ private:
     std::vector<std::thread> threads_;
     std::unique_ptr<ArmorDetector> detector1_;
     std::unique_ptr<ArmorDetector> detector2_;
-    std::unique_ptr<ArmorDetector> detector3_;
 
     bool stop_flag_;
     bool active_;
