@@ -42,7 +42,7 @@ void Slover::UpdateStatus(Data_Save ds){
                         -siny,                cosy*sinx,                cosx*cosy;
 
     cosx = cos(ds.camera_pitch_angle);sinx = sin(ds.camera_pitch_angle);
-    cosy = cos(-ds.camera_yaw_angle); siny = sin(-ds.camera_yaw_angle);
+    cosy = cos(0); siny = sin(0);
     cosz = cos(ds.camera_roll_angle); sinz = sin(ds.camera_roll_angle);                       
     p_R_armor2world_ << cosz*cosy - sinz*sinx*siny,   -sinz*cosx, cosz*siny + sinz*sinx*cosy,
                         sinz*cosy + cosz*sinx*siny,    cosz*cosx, sinz*siny - cosz*sinx*cosy,
@@ -70,7 +70,7 @@ void Slover::Solve(Armor &armor){
     double min_error = 1e10;
     double best_yaw = 0;
     for(int i=-70;i<70;i+=1){
-        double yaw = sys_yaw + tools::D2R(i);
+        double yaw = tools::D2R(i);
         auto image_points = Reprojection(yaw);
         double error = 0.0;
         for (int j = 0; j < 4; j++) {
@@ -82,8 +82,8 @@ void Slover::Solve(Armor &armor){
         }  
     }
     
-    armor.yaw = best_yaw+PI;
-    armor.predict_yaw = sys_yaw+PI;
+    armor.yaw = sys_yaw + best_yaw + PI;
+    armor.predict_yaw = sys_yaw +  PI;
     armor.re_points = Reprojection(best_yaw);
 }
 
