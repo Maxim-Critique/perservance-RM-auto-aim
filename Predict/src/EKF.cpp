@@ -36,12 +36,13 @@ ExtendedKalmanFilter::SingleArmorStrategy::compute() {
     Eigen::Vector3d armor_xyz = {x(0) + radius*cos(angle),x(2) + radius*sin(angle),x(4  + index % 2)};
     Eigen::Vector4d h;
     Eigen::Vector3d armor_pyd = tools::xyz2ypd(armor_xyz);
-    h << armor_pyd,x(8) + index*PI/2;
+    h << armor_pyd,angle;
     // 实际观测
     Eigen::Vector4d z;
     z << armor.abs_ypd.x(), armor.abs_ypd.y(), armor.abs_ypd.z(), _std_radian(armor.yaw);
     // 残差
     Eigen::Vector4d residual = z - h;
+    residual(0) = _std_radian(residual(0));
     residual(3) = _std_radian(residual(3));
     // 雅可比矩阵
     Eigen::Matrix<double, 4, 10> H_armor_xyza;
@@ -95,8 +96,10 @@ ExtendedKalmanFilter::DualArmorStrategy::compute() {
 
     // 残差
     Eigen::Matrix<double, 8, 1> residual = z - h;
-    residual(3) = _std_radian(residual(3));
-    residual(7) = _std_radian(residual(7));
+    residual(0) = _std_radian(residual(0));  // armor1 position yaw wrap (±π discontinuity)
+    residual(3) = _std_radian(residual(3));  // armor1 yaw wrap
+    residual(4) = _std_radian(residual(4));  // armor2 position yaw wrap (±π discontinuity)
+    residual(7) = _std_radian(residual(7));  // armor2 yaw wrap
     
     // 雅可比矩阵
     // 第一块装甲板部分
@@ -193,8 +196,10 @@ Eigen::VectorXd ExtendedKalmanFilter::predict(double dt) {
     Eigen::MatrixXd Q = computeProcessNoise();
     // 预测步骤
     x_pri = F * x_post;
+    x_pri(0) = _std_radian(x_pri(0));
+    x_pri(8) = _std_radian(x_pri(8));
     P_pri = F * P_post * F.transpose() + Q;
-    
+
     return x_pri;
 }
 
@@ -222,8 +227,6 @@ Eigen::VectorXd ExtendedKalmanFilter::update(const Armors& armors, const std::ve
     x_post = x_pri + K * residual;
     P_post = (I - K * H) * P_pri * (I - K * H).transpose() + K * R * K.transpose();
     
-    // 状态约束
-    constrainState(x_post);
     NIS(strategy->compute());   
     return x_post;
 }

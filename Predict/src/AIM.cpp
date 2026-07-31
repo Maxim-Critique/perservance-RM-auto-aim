@@ -9,6 +9,7 @@ Aim::Aim(Armor armor){
 
 Eigen::VectorXd Aim::Estimate(const Armors &armors, double &time){
     Resolve(armors, time);
+    visualizeState(armors, time);
     return target_state;
 }
 
@@ -32,15 +33,15 @@ void Aim::Resolve(const Armors &armors, double time)
 void Aim::InitEKF(Armor armor){
     // 初始半径设置为0.25
     target_state << armor.abs_pose.x() - 0.25 * cos(armor.yaw),   // xc
-                   0,                                           // vx
+                   0,                                             // vx
                    armor.abs_pose.y() - 0.25 * sin(armor.yaw),    // yc
-                   0,                                           // vy
+                   0,                                             // vy
                    armor.abs_pose.z(),                            // z1
                    armor.abs_pose.z(),                            // z2        
-                   0.25,                                        // r1
-                   0.25,                                        // r2
-                   armor.yaw,                                   // yaw
-                   0;                                           // vyaw
+                   0.25,                                          // r1
+                   0.25,                                          // r2
+                   armor.yaw,                                     // yaw
+                   0;                                             // vyaw
 }
 
 Eigen::MatrixXd Aim::GetScoreMat(const Armors &detect_armors, const Armors &standard_armors)
@@ -110,6 +111,87 @@ std::map<int, int> Aim::Match(const Eigen::MatrixXd &score)
         match[i] = index;
     }
     return match;
+}
+
+void Aim::visualizeState(const Armors &detected_armors, double dt)
+{
+    static cv::Mat canvas(cv::Size(800, 800), CV_8UC3);
+    canvas = cv::Scalar(255, 255, 255);
+
+    const cv::Point2f origin(400, 400);
+    const bool is_outpost = (aim_id == "outpost");
+    const float scale = is_outpost ? 50.0f : 100.0f;
+
+    // Build kinematic model from current EKF state
+    auto model = std::make_shared<StandardModel>(target_state);
+    Armors predicted = model->GetArmors(0);
+
+    // --- Draw rotation center (black) ---
+    cv::Point2f center_px = origin + cv::Point2f(target_state(0), target_state(2)) * scale;
+    cv::circle(canvas, center_px, 5, cv::Scalar(0, 0, 0), -1);
+
+    // --- Draw predicted (filtered) armors: RED circles + yaw lines + radial lines ---
+    for (auto &armor : predicted) {
+        cv::Point2f px = origin + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scale;
+        cv::line(canvas, center_px, px, cv::Scalar(200, 200, 200), 1);
+        cv::circle(canvas, px, 4, cv::Scalar(0, 0, 255), -1);
+        cv::line(canvas, px,
+                 px + cv::Point2f(12 * cos(armor.predict_yaw), 12 * sin(armor.predict_yaw)),
+                 cv::Scalar(0, 0, 255), 2);
+    }
+
+    // --- Draw observed armors: BLUE circles + yaw lines ---
+    for (auto &armor : detected_armors) {
+        cv::Point2f px = origin + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scale;
+        cv::circle(canvas, px, 4, cv::Scalar(255, 0, 0), -1);
+        cv::line(canvas, px,
+                 px + cv::Point2f(12 * cos(armor.yaw), 12 * sin(armor.yaw)),
+                 cv::Scalar(255, 0, 0), 2);
+    }
+
+    // --- Matching lines: connect matched detected→predicted pairs ---
+    Eigen::MatrixXd score = GetScoreMat(detected_armors, predicted);
+    std::map<int, int> match = m_match.GetMatch(score, 1, 4);
+    for (const auto &[det_idx, pred_idx] : match) {
+        if (pred_idx < 0 || det_idx >= (int)detected_armors.size() || pred_idx >= (int)predicted.size())
+            continue;
+        cv::Point2f det_px = origin + cv::Point2f(detected_armors[det_idx].abs_pose.x(),
+                                                    detected_armors[det_idx].abs_pose.y()) * scale;
+        cv::Point2f pred_px = origin + cv::Point2f(predicted[pred_idx].abs_pose.x(),
+                                                     predicted[pred_idx].abs_pose.y()) * scale;
+        cv::line(canvas, det_px, pred_px, cv::Scalar(0, 180, 0), 2);
+        cv::Point2f mid = (det_px + pred_px) / 2;
+        cv::putText(canvas, cv::format("%.2f", score(det_idx, pred_idx)),
+                    mid, cv::FONT_HERSHEY_SIMPLEX, 0.35, cv::Scalar(0, 120, 0), 1);
+    }
+
+    // --- State info overlay ---
+    cv::putText(canvas, cv::format("aim: %s  xc:%.2f yc:%.2f  vx:%.2f vy:%.2f  dt:%.1fms",
+                aim_id.c_str(), target_state(0), target_state(2), target_state(1), target_state(3), dt * 1000.0),
+                cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(0, 0, 0), 1);
+
+    if (is_outpost) {
+        cv::putText(canvas, cv::format("z: %.2f %.2f %.2f  r:%.2f",
+                    target_state(4), target_state(5), target_state(6), target_state(7)),
+                    cv::Point(10, 40), cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(0, 0, 0), 1);
+    } else {
+        cv::putText(canvas, cv::format("z1:%.2f z2:%.2f  r1:%.2f r2:%.2f",
+                    target_state(4), target_state(5), target_state(6), target_state(7)),
+                    cv::Point(10, 40), cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(0, 0, 0), 1);
+    }
+
+    cv::putText(canvas, cv::format("yaw:%.1fdeg  vyaw:%.2f rad/s",
+                tools::R2D(target_state(8)), target_state(9)),
+                cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(0, 0, 0), 1);
+
+    // Legend
+    cv::circle(canvas, cv::Point(650, 775), 4, cv::Scalar(255, 0, 0), -1);
+    cv::putText(canvas, "Observed", cv::Point(660, 779), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0), 1);
+    cv::circle(canvas, cv::Point(730, 775), 4, cv::Scalar(0, 0, 255), -1);
+    cv::putText(canvas, "Filtered", cv::Point(740, 779), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0), 1);
+
+    cv::imshow("AIM Matching", canvas);
+    cv::waitKey(1);
 }
 
 Aim::Match::Match() {}
