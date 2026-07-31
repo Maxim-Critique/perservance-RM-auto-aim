@@ -127,9 +127,9 @@ void AutoArmor::ShowArmors(const Armors &armors,Mat &img){
             }
         }
         cv::putText(img, cv::format("X:%.2f Y:%.2f Z:%.2f,Yaw:%.1f", 
-            armor.abs_pose.x(), 
-            armor.abs_pose.y(), 
-            armor.abs_pose.z(),
+            armor.gim_pose.x(), 
+            armor.gim_pose.y(), 
+            armor.gim_pose.z(),
             tools::R2D(armor.yaw-armor.predict_yaw)),
             armor.points[1], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
     }

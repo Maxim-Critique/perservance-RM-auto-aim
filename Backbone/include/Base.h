@@ -10,17 +10,17 @@
 
 #define PI 3.1415926
 // 弹速
-#define bullet_speed 21.5
+#define bullet_speed 22
 #define _std_radian(angle) ((angle) + round((0 - (angle)) / (2 * PI)) * (2 * PI))
 using time_point = std::chrono::steady_clock::time_point;
 
 struct Data_Save {
     time_point timestamp;
-    double camera_yaw_angle;
-    double camera_pitch_angle;  
-    double camera_roll_angle;
-    double armor_or_buff;       // 自瞄或大符
-    int color;               // 敌方颜色
+    double camera_yaw_angle = 0;
+    double camera_pitch_angle= 0;  
+    double camera_roll_angle= 0;
+    double armor_or_buff= 0;       // 自瞄或大符
+    int color= 0;               // 敌方颜色
 };
 
 struct Data_Get
@@ -54,5 +54,5 @@ struct Path_Point{
     Path_Point(double t, double a, double v,double acc) : time(t), angle(a), angle_vel(v), angle_acc(acc){}
 };
 
-static const std::string YamlPath = "/home/zhbit/auto-aim/text.yaml";
+static const std::string YamlPath = "/home/jxh/auto-aim/text.yaml";
 #endif

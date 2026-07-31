@@ -1,4 +1,2 @@
-#gnome-terminal
-cd /home/zhbit/auto-aim/build/
+cd /home/jxh/auto-aim/build/
 ./action
- 
