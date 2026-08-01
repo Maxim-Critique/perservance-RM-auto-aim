@@ -2,7 +2,6 @@
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <systemd/sd-daemon.h>
-#include "test.h"
 #include "AutoArmor.h"
 #include "AutoBuff.h"
 #include "hikrobot.hpp"
@@ -11,6 +10,7 @@
 #include "SerialPort.h"
 #include "ros2.hpp"
 #include "perceptron.hpp"
+#include "recorder.hpp"
 #include "State.h"
 
 
@@ -59,10 +59,12 @@ int main()
     std::unique_ptr<Omniperception::Perceptron> perceptron; 
     Mat img;time_point t;Data_Save ds;Data_Get dg;
     bool last_mode = false;
-    
+    tools::Recorder recorder(165);  // 30fps录制
+
     while(!exiter.exit()){
         camera_->Query(img,t);
         serial_->Query(ds,t);
+        recorder.record(img, ds);
         
         if(!ds.armor_or_buff||ds.armor_or_buff == 3){
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_armor);

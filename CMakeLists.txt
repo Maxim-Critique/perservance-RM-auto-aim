@@ -60,23 +60,51 @@ include_directories(
 # 设置库文件目录
 link_directories("/opt/MVS/lib")
 
-# 查找源文件
-file(GLOB_RECURSE sourceFiles
+# 查找共同源文件（不含main）
+file(GLOB_RECURSE commonSources
     "${CMAKE_SOURCE_DIR}/Backbone/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/io/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/Armor/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/Buff/src/*.cpp"
-    "${CMAKE_SOURCE_DIR}/Test/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/tools/*.cpp"
     "${CMAKE_SOURCE_DIR}/Omniperception/*.cpp"
 )
-list(FILTER sourceFiles EXCLUDE REGEX ".*/build/.*")
+list(FILTER commonSources EXCLUDE REGEX ".*/build/.*")
+# 从common中排除所有含main的文件，避免重复定义
+list(FILTER commonSources EXCLUDE REGEX ".*main\\.cpp$")
 
-add_executable(action ${sourceFiles})
+# 实时运行程序 (live)
+add_executable(action
+    "${CMAKE_SOURCE_DIR}/Backbone/src/main.cpp"
+    ${commonSources}
+)
+
+# 离线复盘程序 (review)
+add_executable(review
+    "${CMAKE_SOURCE_DIR}/Test/src/test.cpp"
+    ${commonSources}
+)
 
 find_library(MVS libMvCameraControl.so PATHS /opt/MVS/lib /opt/MVS/lib/64)
 
 target_link_libraries(action
+    ${OpenCV_LIBS}
+    fmt::fmt
+    Threads::Threads
+    ${EIGEN3_LIBRARIES}
+    ${CERES_LIBRARIES}
+    ${MVS}
+    ${YAML_CPP_LIBRARIES}
+    ${LIBUSB_LIBRARIES}
+    ${OPENVINO_LIBRARIES}
+    ${rclcpp_LIBRARIES}
+    ${rcl_LIBRARIES}
+    ${rmw_LIBRARIES}
+    ${rosidl_runtime_c_LIBRARIES}
+    ${rosidl_typesupport_interface_LIBRARIES}
+)
+
+target_link_libraries(review
     ${OpenCV_LIBS}
     fmt::fmt
     Threads::Threads

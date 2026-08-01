@@ -1,271 +1,149 @@
-#include "ArmorTarget.h"
-#include "Base.h"
-#include "test.h"
-#include <random>
-#include <algorithm>
-#include <cstdlib>  
-#include <ctime>   
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <limits>
-#include "ArmorPlanner.h"
-// 使用录制数据进行仿真
-// #define USE_DATA
-int random_seed = 42;
-#ifdef USE_DATA
-// 数据文件路径
-const std::string DATA_FILE_PATH = "/home/killer_machine/WRITE/build/input_data.txt";
-// 记录最后时间戳
-double last_timestamp = 0;
-// 数据索引
-size_t data_index = 0;
-// 存储的数据
-std::vector<std::pair<double, Armors>> recorded_data;
-#endif
+#include <opencv2/opencv.hpp>
 
-// 观察点坐标
-cv::Point2f observation_point(0, 0);
-// 仿真画面
-cv::Mat background;
-// 原点（画面中心点）
-cv::Point2f base_point = cv::Point2f(512, 512);
+#include "AutoArmor.h"
+#include "AutoBuff.h"
+#include "exiter.hpp"
+#include "logger.hpp"
+#include "perceptron.hpp"
+#include "player.hpp"
+#include "State.h"
+#include "usbcamera.hpp"
 
-// 仿真参数（这些就是真实状态）
-cv::Point2f center(3, 0);  // 中心点初始位置
-float z[2] = {0.25, 0.1};  // 装甲板高度
-float r[2] = {0.2, 0.4};   // 装甲板旋转半径
-float palstance = 4;       // 角速度
-float scaling = 100;       // 放大比例
-double angle = 0;          // 起始角度
-float dt = 1e-2;           // 默认时间步长
-float sigma = 0.02;        // 噪声大小
-double big_angle = 0;
-std::default_random_engine rng;
 
-// 路径点定义
-std::vector<cv::Point2f> waypoints = {
-    cv::Point2f(2, 2),
-    cv::Point2f(-2, 2)
-};
-int current_target_index = 0;
-float movement_speed = 0.8; // 移动速度
-
-/**
- * @brief 获取当前时间（秒）
- */
-double now()
+void drawAngleInfo(cv::Mat & img, const Data_Save & data, const Data_Get & dg)
 {
-    timeval tv;
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+    cv::putText(
+        img,
+        cv::format(
+            "Y:%.1f P:%.1f R:%.1f",
+            tools::R2D(data.camera_yaw_angle),
+            tools::R2D(data.camera_pitch_angle),
+            tools::R2D(data.camera_roll_angle)),
+        cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+    cv::putText(
+        img, cv::format("Mode:%s", AimStateMachine::Instance().ModeName()),
+        cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+
+    const uint32_t x_u =
+        (static_cast<uint32_t>(dg.raw_data[2]) << 24) |
+        (static_cast<uint32_t>(dg.raw_data[3]) << 16) |
+        (static_cast<uint32_t>(dg.raw_data[4]) << 8) |
+        static_cast<uint32_t>(dg.raw_data[5]);
+    const uint32_t y_u =
+        (static_cast<uint32_t>(dg.raw_data[6]) << 24) |
+        (static_cast<uint32_t>(dg.raw_data[7]) << 16) |
+        (static_cast<uint32_t>(dg.raw_data[8]) << 8) |
+        static_cast<uint32_t>(dg.raw_data[9]);
+    const int32_t x = static_cast<int32_t>(x_u);
+    const int32_t y = static_cast<int32_t>(y_u);
+    cv::putText(
+        img,
+        cv::format(
+            "dg x:%.4f y:%.4f id:%u f:%u fire:%u",
+            x * 1e-4, y * 1e-4,
+            static_cast<unsigned>(dg.raw_data[17]),
+            static_cast<unsigned>(dg.raw_data[18]),
+            static_cast<unsigned>(dg.raw_data[19])),
+        cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
 }
 
-Rate::Rate() : Rate(30) {}
 
-/**
- * @brief 帧率控制器构造函数
- */
-Rate::Rate(unsigned int r)
-:   m_LoopRate(r),
-    m_start_time_with_usec(0)
-{}
-
-/**
- * @brief 控制帧率
- */
-void Rate::sleep()
+int main(int argc, char * argv[])
 {
-    double period = 1. / m_LoopRate;
-    double cur_time = now();
-    double expect_end_time = m_start_time_with_usec + period;
-
-    if (expect_end_time > cur_time)
-    {
-        usleep((expect_end_time - cur_time) * 1000000);
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0]
+                  << " <record_prefix> [show=1] [start_frame=0]"
+                  << std::endl;
+        std::cerr << "  record_prefix: path without extension,"
+                  << " e.g. records/2026-08-01_12-34-56_0000"
+                  << std::endl;
+        return 1;
     }
-    m_start_time_with_usec = now();
-}
 
-bool init_flag = false;
-// 帧率控制器
-Rate rate(70);
-int i = 1;
+    std::string record_path = argv[1];
+    int show = 1;
+    int start_frame = 0;
+    if (argc >= 3) show = std::stoi(argv[2]);
+    if (argc >= 4) start_frame = std::stoi(argv[3]);
 
-/**
- * @brief 生成仿真装甲板数据并只保留距离最近的1个
- */
-Armors generateSimulatedArmors() {
-    Armors armors;
-    armors.resize(4);
-    
-    // === 更新中心位置：围绕原点做圆周运动，半径2 ===
-    big_angle += PI * 1e-3;  // 更新公转角度
-    
-    // 圆周运动参数方程
-    center.x = 5.0f * cos(big_angle);
-    center.y = 5.0f * sin(big_angle);
-    angle += PI * dt * palstance; 
-    angle = _std_radian(angle);
-    
-    // 生成4个装甲板
-    for (size_t i = 0; i < armors.size(); i++) {
-        // 添加高斯噪声
-        std::normal_distribution<float> dist_pos(0, sigma);
-        std::normal_distribution<float> dist_angle(0, sigma * 10);
-        
-        // 计算装甲板位置（相对中心的自转）
-        float armor_r = r[i % 2];
-        float armor_z = z[i % 2];
-        float armor_angle = angle + 0.5 * i * PI;  // 自转角度 = 公转角度 + 固定偏移
-        
-        armors[i].abs_pose = {
-            center.x + armor_r * cos(armor_angle) + dist_pos(rng),
-            center.y + armor_r * sin(armor_angle) + dist_pos(rng),
-            armor_z + dist_pos(rng)
-        };
-        armors[i].abs_ypd = tools::xyz2ypd(armors[i].abs_pose);
-        // 计算装甲板朝向角
-        armors[i].yaw = _std_radian(armor_angle + dist_angle(rng));
-        armors[i].predict_yaw = _std_radian(armor_angle);
-        armors[i].confidence = armor_r;
+    tools::Player player(record_path);
+    if (!player.is_opened()) {
+        std::cerr << "Failed to open: " << record_path << std::endl;
+        return 1;
     }
-    
+    if (start_frame > 0) player.seek(start_frame);
 
-    if(init_flag == false){
-        init_flag = true;
-    }else{
-        // 按距离观察点的距离排序（从近到远）
-        std::sort(armors.begin(), armors.end(), 
-            [](const Armor& a, const Armor& b) {
-                return a.abs_pose.norm() < b.abs_pose.norm();
-            });
-    }
-    armors.resize(1 + rand() % 2);
-    // 在仿真图上绘制装甲板
-    for (const auto& armor : armors) {
-        cv::circle(background, 
-                  base_point + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scaling, 
-                  3, cv::Scalar(255, 0, 0), -1, 8);
-        cv::line(background,
-                base_point + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scaling,
-                base_point + cv::Point2f(armor.abs_pose.x(), armor.abs_pose.y()) * scaling + 
-                    cv::Point2f(10 * cos(armor.yaw), 10 * sin(armor.yaw)),
-                cv::Scalar(255, 0, 0), 2, 8);
-    }
-    
-    // 绘制中心点和观察点
-    cv::circle(background, base_point + center * scaling, 5, cv::Scalar(0, 0, 0), -1, 8);
-    cv::circle(background, base_point + observation_point * scaling, 5, cv::Scalar(127, 127, 127), -1, 8);
-    
-    return armors;
-}
+    tools::Exiter exiter;
 
-int Test() {
-    srand(time(nullptr));
-    
-    // 初始化随机数生成器
-    rng.seed(random_seed);
-    srand(random_seed);
-    
-#ifdef USE_DATA
-    // 加载录制的数据
-    if (!loadRecordedData()) {
-        std::cout << "使用模拟数据替代" << std::endl;
-    } else {
-        std::cout << "使用录制的数据进行仿真" << std::endl;
+    std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>();
+    std::unique_ptr<AutoBuff> buff_ = std::make_unique<AutoBuff>();
+    std::unique_ptr<Omniperception::Perceptron> perceptron;
+
+    // usb相机用于全感知模型，离线模式下可能不可用
+    std::unique_ptr<io::USBCamera> usb_camera0;
+    std::unique_ptr<io::USBCamera> usb_camera2;
+    try {
+        usb_camera0 = std::make_unique<io::USBCamera>("video0", YamlPath);
+        usb_camera2 = std::make_unique<io::USBCamera>("video2", YamlPath);
+    } catch (const std::exception & e) {
+        tools::logger()->warn("USB cameras unavailable, perceptron disabled: {}", e.what());
     }
-#endif
-    
-    // 初始化预测器和模型
-    std::unique_ptr<Aim> aim_ptr;
-    std::shared_ptr<KinematicModel> m_status;
-    std::unique_ptr<Planner> planner = std::make_unique<Planner>();
-    io::SerialPort serial_("/dev/ttyACM0");
+
+    cv::Mat img;
+    Data_Save ds;
     Data_Get dg;
-    
-    while (true) {
-        // 清空背景
-        background = cv::Mat(cv::Size(1024, 1024), CV_8UC3, cv::Scalar(255, 255, 255));
-        
-        // 获取装甲板数据
-        Armors armors;
-        double actual_dt = dt;  // 默认使用固定时间步长
-        
-#ifdef USE_DATA
-        if (!recorded_data.empty() && data_index < recorded_data.size()) {
-            // 使用录制的数据，获取实际的时间步长
-            armors = getRecordedArmors(actual_dt);
-            // 如果装甲板数据为空，跳过
-            if (armors.empty()) {
-                if (recorded_data.empty() || data_index >= recorded_data.size()) {
-                    std::cout << "数据播放完毕" << std::endl;
-                }
-                rate.sleep();
-                continue;
-            }
-        } 
-        else 
-#endif
-        {
-            // 使用模拟数据，使用固定时间步长
-            armors = generateSimulatedArmors();
-            actual_dt = dt;  // 对于模拟数据，使用固定的dt
-        }
-        
-        // 如果是第一次运行，初始化预测器
-        if (!aim_ptr) {
-            aim_ptr = std::make_unique<Aim>(armors[0]);
-            m_status = aim_ptr->createModel(aim_ptr->target_state);
-        }
+    bool last_mode = false;
 
-        // 预测器解算，使用实际的时间步长
-        aim_ptr->Resolve(armors, actual_dt);
-        m_status = aim_ptr->createModel(aim_ptr->target_state);
-        // 获取当前状态估计
-        Armors filter_armors = m_status->GetArmors(0);
-        // MPC轨迹规划
-        // auto target = mpc->TrajectoryPlanning(*m_status);
-        // dg.Vision2Control((target.manage_yaw)*1e4,target.target_pitch*1e4,target.yaw_vel*1e4,target.yaw_acc*1e4,1,0);
-        // std::cout<<target.target_pitch*57.3<<",";
-        // serial_.SendData(dg);
-        // 绘制状态估计和预测结果
-        for (size_t i = 0; i < filter_armors.size(); i++) {
-            // 当前状态估计量（红色）
-            cv::circle(background, 
-                    base_point + cv::Point2f(filter_armors[i].abs_pose.x(), filter_armors[i].abs_pose.y()) * scaling, 
-                    3, cv::Scalar(0, 0, 255), -1, 8);
-            
-            // 计算无噪声的理想装甲板位置（绿色）
-            float armor_r = r[i % 2];
-            float armor_angle = angle + 0.5 * i * PI;
-            
-            cv::Point2f ideal_position(
-                center.x + armor_r * cos(armor_angle),
-                center.y + armor_r * sin(armor_angle)
-            );
-            
-            cv::circle(background, 
-                    base_point + ideal_position * scaling, 
-                    2, cv::Scalar(0, 255, 0), -1, 10);
-        }
-        
-        // 显示目标装甲板（紫色圆圈）
-        cv::circle(background, base_point + cv::Point2f(m_status->center.x, m_status->center.y) * scaling, 
-            10, cv::Scalar(255, 0, 255), 2, 8);
-        
-        // 显示结果
-        cv::imshow("background", background);
-
-        // 检查按键输入
-        char c = cv::waitKey(1);
-        if (c == 'q'||i==200) {
+    while (!exiter.exit()) {
+        if (!player.read(img, ds)) {
+            tools::logger()->info("Playback finished");
             break;
-        } 
-        i++;
-        // 控制帧率
-        rate.sleep();
+        }
+
+        if (!ds.armor_or_buff || ds.armor_or_buff == 3) {
+            // 自瞄模式
+            if (ds.armor_or_buff != last_mode)
+                tools::logger()->info("Switch to armor mode");
+
+            armor_->AutoAim(img, ds, dg);
+
+            if (!perceptron && usb_camera0 && usb_camera2)
+                perceptron = std::make_unique<Omniperception::Perceptron>(
+                    usb_camera0.get(), usb_camera2.get(), ds.color, YamlPath);
+
+            auto & state = AimStateMachine::Instance();
+
+            if (perceptron && state.NeedPerceptron(dg)) {
+                auto list = perceptron->GetDetectionQueue();
+                if (!list.empty())
+                    dg.Vision2Control(
+                        (tools::R2D(
+                             _std_radian(ds.camera_yaw_angle + list[0].delta_yaw))) *
+                            1e4,
+                        tools::R2D(list[0].delta_pitch) * 1e4, 0, 2, 0);
+            }
+
+            state.Step(ds.timestamp, dg);
+            if (perceptron) perceptron->SetActive(state.UsbActive());
+
+        } else {
+            // 大符模式
+            if (ds.armor_or_buff != last_mode)
+                tools::logger()->info("Switch to buff mode");
+
+            buff_->AutoAim(img, ds, dg);
+        }
+
+        last_mode = ds.armor_or_buff;
+        tools::logger()->info("ds.go_back {} ,mode {}", ds.go_back, ds.armor_or_buff);
+
+        if (show) {
+            drawAngleInfo(img, ds, dg);
+            cv::imshow("playback", img);
+            int key = cv::waitKey(30);
+            if (key == 'q' || key == 27) break;
+        }
     }
-    
+
     return 0;
 }
