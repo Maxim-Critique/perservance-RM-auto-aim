@@ -8,7 +8,7 @@ std::mutex mutex_bh;
 
 namespace auto_buff{
 BuffDetector::BuffDetector(){
-    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh4.onnx");
+    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh3.onnx");
 }
 
 void BuffDetector::HandleImg(){
@@ -158,12 +158,12 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
     // 获取类别1的概率
     float probability = outputs.at<float>(0, 0);
     float sigmoid_prob = 1.0f / (1.0f + exp(-probability));
-    return sigmoid_prob > 0.5f;
+    return sigmoid_prob < 0.5f;
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
-    int min_area = 6000;
-    int max_area = 9000;
+    int min_area = 5000;
+    int max_area = 8000;
     for (const auto& contour : contours) {
         cv::Point2f center;float radius;
         cv::minEnclosingCircle(contour, center, radius);

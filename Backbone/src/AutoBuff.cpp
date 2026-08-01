@@ -48,8 +48,8 @@ void AutoBuff::AutoAim(cv::Mat &img,const Data_Save &ds,Data_Get &dg){
 void AutoBuff::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg,cv::Mat &img, const std::optional<auto_buff::PowerRune> &power_runes){
     int32_t yaw = (tools::R2D(gimbal_angle.target_yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
-    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 0.4;
-    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 0.4;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 1;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 1;
     bool fire_delta = (yaw_delta && pitch_delta);
     if(!gimbal_angle.manage_yaw){
         yaw = (tools::R2D(ds.camera_yaw_angle)) * 1e4;
@@ -58,7 +58,7 @@ void AutoBuff::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Dat
     bool follow_dalta = gimbal_angle.manage_yaw && yaw!=0 && pitch !=0;
 
     // 必须同时识别到两片扇叶才允许发射
-    bool two_blades = (last_mode ==1 || (power_runes.has_value() && power_runes->light_num == 2));
+    bool two_blades = (power_runes.has_value() && power_runes->light_num == 2);
     bool fire = fire_delta && two_blades;
 
     if (fire) {

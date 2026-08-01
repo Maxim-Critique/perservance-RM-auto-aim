@@ -63,8 +63,7 @@ int main()
     while(!exiter.exit()){
         camera_->Query(img,t);
         serial_->Query(ds,t);
-        // ds.armor_or_buff = 1;
-        ds.camera_yaw_angle = 3*PI/2;
+        
         if(!ds.armor_or_buff||ds.armor_or_buff == 3){
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_armor);
             armor_->AutoAim(img,ds,dg);

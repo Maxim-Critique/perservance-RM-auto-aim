@@ -27,7 +27,7 @@ Transmit:
   predict_time: 0.07
  
 Buff:
-  compensate_pitch: 1.0 # 向上为正
-  compensate_yaw: 0.4  # 向左为正
+  compensate_pitch: 1.25 # 向上为正
+  compensate_yaw: 0.7  # 向左为正
   predict_time: 0.05
 
