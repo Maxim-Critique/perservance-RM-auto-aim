@@ -39,7 +39,6 @@ ExtendedKalmanFilter::SingleArmorStrategy::compute() {
     // 残差
     Eigen::Vector4d residual = z - h;
     residual(3) = _std_radian(residual(3));
-    residual(0) = _std_radian(residual(0));  // position yaw wrap (±π discontinuity)
     // 雅可比矩阵
     Eigen::Matrix<double, 4, 10> H_armor_xyza;
     H_armor_xyza <<  1, 0, 0, 0,           0,       0, ((index+1)%2)*cos(angle), (index%2)*cos(angle), -radius*sin(angle), 0,
@@ -77,7 +76,6 @@ ExtendedKalmanFilter::OutpostStrategy::compute() {
     // 残差
     Eigen::Vector4d residual = z - h;
     residual(3) = _std_radian(residual(3));
-    residual(0) = _std_radian(residual(0));  // position yaw wrap (±π discontinuity)
 
     Eigen::Matrix<double, 4, 10> H_armor_xyza = Eigen::Matrix<double, 4, 10>::Zero();
     H_armor_xyza <<
@@ -126,15 +124,13 @@ ExtendedKalmanFilter::DualArmorStrategy::compute() {
 
     // 实际观测
     Eigen::Matrix<double, 8, 1> z;
-    z << armor1.abs_ypd.x(), armor1.abs_ypd.y(), armor1.abs_ypd.z(), _std_radian(armor1.yaw),
-         armor2.abs_ypd.x(), armor2.abs_ypd.y(), armor2.abs_ypd.z(), _std_radian(armor2.yaw);
+    z << armor1.abs_ypd.x(), armor1.abs_ypd.y(), armor1.abs_ypd.z(), armor1.yaw,
+         armor2.abs_ypd.x(), armor2.abs_ypd.y(), armor2.abs_ypd.z(), armor2.yaw;
 
     // 残差
     Eigen::Matrix<double, 8, 1> residual = z - h;
     residual(3) = _std_radian(residual(3));
-    residual(0) = _std_radian(residual(0));  // position yaw wrap (±π discontinuity)
     residual(7) = _std_radian(residual(7));
-    residual(4) = _std_radian(residual(4));  // position yaw wrap (±π discontinuity)
     
     // 雅可比矩阵
     // 第一块装甲板部分

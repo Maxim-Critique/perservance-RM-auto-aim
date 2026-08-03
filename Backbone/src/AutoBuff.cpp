@@ -58,7 +58,7 @@ void AutoBuff::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Dat
     bool follow_dalta = gimbal_angle.manage_yaw && yaw!=0 && pitch !=0;
 
     // 必须同时识别到两片扇叶才允许发射
-    bool two_blades = (power_runes.has_value() && power_runes->light_num == 2);
+    bool two_blades = (last_mode ==1 || (power_runes.has_value() && power_runes->light_num == 2));
     bool fire = fire_delta && two_blades;
 
     if (fire) {

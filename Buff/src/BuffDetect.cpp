@@ -16,11 +16,11 @@ void BuffDetector::HandleImg(){
     cv::cvtColor(img_, gray_img_, cv::COLOR_BGR2GRAY);  
     // cv::imshow("gray", gray_img_); 
     // 进行二值化 
-    cv::threshold(gray_img_, gray_img_, 60, 255, cv::THRESH_BINARY);
+    cv::threshold(gray_img_, gray_img_, 40, 255, cv::THRESH_BINARY);
     // 闭运算（3x3）
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
     cv::morphologyEx(gray_img_, gray_img_, cv::MORPH_CLOSE, kernel);
-    // cv::imshow("gray", gray_img_);
+    cv::imshow("gray", gray_img_);
     // 找轮廓
     cv::findContours(gray_img_, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     auto it = std::remove_if(contours.begin(), contours.end(),
@@ -162,8 +162,8 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
-    int min_area = 5000;
-    int max_area = 8000;
+    int min_area = 8000;
+    int max_area = 12000;
     for (const auto& contour : contours) {
         cv::Point2f center;float radius;
         cv::minEnclosingCircle(contour, center, radius);

@@ -65,7 +65,7 @@ int main()
         camera_->Query(img,t);
         serial_->Query(ds,t);
         recorder.record(img, ds);
-        
+        ds.armor_or_buff =1;
         if(!ds.armor_or_buff||ds.armor_or_buff == 3){
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_armor);
             armor_->AutoAim(img,ds,dg);

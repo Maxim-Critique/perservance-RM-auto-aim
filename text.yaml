@@ -22,12 +22,12 @@ EKF:
     da: 400
 
 Transmit:
-  compensate_pitch: 0.8 # 朝上为正
-  compensate_yaw: 0.4  # 朝左为正
-  predict_time: 0.07
+  compensate_pitch: 1.05 # 朝上为正
+  compensate_yaw: 1.05  # 朝左为正
+  predict_time: 0.055
  
 Buff:
-  compensate_pitch: 1.25 # 向上为正
-  compensate_yaw: 0.7  # 向左为正
+  compensate_pitch: 1.05 # 向上为正
+  compensate_yaw: 1.05  # 向左为正
   predict_time: 0.05
 
