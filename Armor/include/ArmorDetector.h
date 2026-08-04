@@ -12,7 +12,8 @@ public:
     ArmorDetector(
         const std::string &model_path, const std::string &label_path,
         const double classify_threshold, const int binary_threshold = 180,
-        const std::vector<std::string> &ignore_classes = {});
+        const std::vector<std::string> &ignore_classes = {},
+        const int adaptive_block_size = 19, const int adaptive_c = -3);
 
     // 一体化主接口：灯条检测 → 装甲板匹配 → 数字分类 → 可视化
     Armors Detect(Mat &img, int enemy_color);
@@ -32,6 +33,8 @@ private:
     // 检测参数
     int enemy_color_;
     int threshold_;
+    int adaptive_block_size_;
+    int adaptive_c_;
 
     // 分类参数
     cv::dnn::Net net_;

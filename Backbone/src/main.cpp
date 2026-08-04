@@ -47,9 +47,10 @@ int main()
     auto yaml = YAML::LoadFile(YamlPath);
     auto exposure_armor = yaml["Camera"]["exposure_armor"].as<double>();
     auto exposure_buff = yaml["Camera"]["exposure_buff"].as<double>();
+    auto exposure_outpost = yaml["Camera"]["exposure_outpost"].as<double>();
     auto show = yaml["Camera"]["show"].as<int>();
     tools::Exiter exiter;
-    std::unique_ptr<io::HikRobot> camera_ = std::make_unique<io::HikRobot>(exposure_buff, 0, "2bdf:0001");
+    std::unique_ptr<io::HikRobot> camera_ = std::make_unique<io::HikRobot>(exposure_armor, 0, "2bdf:0001");
     std::unique_ptr<io::SerialPort> serial_ = std::make_unique<io::SerialPort>("/dev/ttyACM0");
     std::unique_ptr<io::ROS2>ros2_ = std::make_unique<io::ROS2>();
     std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>();
@@ -58,15 +59,14 @@ int main()
     std::unique_ptr<io::USBCamera> usb_camera2 = std::make_unique<io::USBCamera>("video2", YamlPath);
     std::unique_ptr<Omniperception::Perceptron> perceptron; 
     Mat img;time_point t;Data_Save ds;Data_Get dg;
-    bool last_mode = false;
+    double last_mode = 0;
     tools::Recorder recorder(165);  // 30fps录制
 
     while(!exiter.exit()){
         camera_->Query(img,t);
         serial_->Query(ds,t);
         recorder.record(img, ds);
-        ds.armor_or_buff =1;
-        if(!ds.armor_or_buff||ds.armor_or_buff == 3){
+        if(!ds.armor_or_buff){
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_armor);
             armor_->AutoAim(img,ds,dg);
             if(!perceptron) perceptron = std::make_unique<Omniperception::Perceptron>(usb_camera0.get(), usb_camera2.get(), ds.color, YamlPath);
@@ -79,6 +79,10 @@ int main()
             else ros2_->publish(0);
             state.Step(t, dg);
             perceptron->SetActive(state.UsbActive());
+        }else if(ds.armor_or_buff == 3){
+            if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_outpost);
+            ros2_->publish(ds.go_back);
+            armor_->AutoAim(img,ds,dg);
         }else{
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_buff);
             ros2_->publish(ds.go_back);

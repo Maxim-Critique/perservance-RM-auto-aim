@@ -1,5 +1,8 @@
 #include "player.hpp"
 
+#include <algorithm>
+#include <iterator>
+
 #include <fmt/core.h>
 
 #include "logger.hpp"
@@ -18,6 +21,16 @@ Player::Player(const std::string & input_path)
 
   fps_ = video_.get(cv::CAP_PROP_FPS);
   total_frames_ = static_cast<int>(video_.get(cv::CAP_PROP_FRAME_COUNT));
+
+  // 某些编码格式 (MJPG/FFV1 等) CAP_PROP_FRAME_COUNT 返回 0，
+  // 改为统计 txt 文件行数作为帧数（每行一帧）
+  if (total_frames_ <= 0 && text_.is_open()) {
+    total_frames_ = static_cast<int>(std::count(
+        std::istreambuf_iterator<char>(text_),
+        std::istreambuf_iterator<char>(), '\n'));
+    text_.clear();               // 清除 eof 标志
+    text_.seekg(0);              // 回到文件开头
+  }
 
   if (is_opened()) {
     tools::logger()->info(

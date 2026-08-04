@@ -17,7 +17,7 @@ void Aim::visualizeState(const Armors &detected_armors, double dt)
 
     const cv::Point2f origin(400, 400);
     const bool is_outpost = (aim_id == "outpost");
-    const float scale = is_outpost ? 50.0f : 100.0f;
+    const float scale = 30;
 
     // Build kinematic model from current EKF state
     auto model = createModel(target_state);

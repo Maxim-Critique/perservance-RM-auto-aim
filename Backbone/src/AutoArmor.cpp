@@ -15,10 +15,10 @@ bool AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     if(ds.armor_or_buff != last_mode_){
         if(ds.armor_or_buff == 3) find_ptr = std::make_unique<ArmorDetector>(
             "../model/outpost.onnx", "../model/label.txt", 0.7, 100,
-            std::vector<std::string>{"negative","base"});
+            std::vector<std::string>{"negative","base"}, 11, 0);
         else find_ptr = std::make_unique<ArmorDetector>(
             "../model/mlp.onnx", "../model/label.txt", 0.7, 180,
-            std::vector<std::string>{"negative","outpost","base"});
+            std::vector<std::string>{"negative","outpost","base"}, 19, -2);
         last_mode_ = ds.armor_or_buff;
     }
 
@@ -38,11 +38,10 @@ void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Da
     int32_t yaw = (tools::R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
     int32_t yaw_val = tools::R2D(gimbal_angle.yaw_vel)*1e4;
-    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 1.5;
-    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 1.5;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 2;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 2;
     bool fire_delta = (yaw_delta && pitch_delta);
     dg.Vision2Control(yaw,pitch,m_aim_id,1,fire_delta);
-    
 }
 
 // 处理倒影
