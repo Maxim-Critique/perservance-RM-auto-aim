@@ -1,9 +1,9 @@
 Camera:
   exposure_armor: 2500
-  exposure_buff: 1500
+  exposure_buff: 2000
   camera_matrix: [1730.7, 0.4, 731.1, 0, 1730.1, 559.6, 0, 0, 1]
   distort_coeffs: [-0.0681, 0.1248, -0.0000634, 0.0005893, -0.0815]
-  show: 0
+  show: 1
 
 Transform:
   R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
@@ -21,11 +21,11 @@ EKF:
     da: 400
 
 Transmit:
-  compensate_pitch: 0.5 # 向上为正 0.5 
-  compensate_yaw: -0.4  # 向左为正 -0.1 
-  predict_time: 0.065 #before small,after large 0.06
+  compensate_pitch: 0.65 # 向上为正 0.5 
+  compensate_yaw: -0.2  # 向左为正 -0.1 
+  predict_time: 0.075 #before small,after large 0.06
 
 Buff:
-  compensate_pitch: 0.0 # 向上为正
-  compensate_yaw: 0.7  # 向左为正
-  predict_time: 0.05
+  compensate_pitch: 0.65 # 向上为正
+  compensate_yaw: -0.2  # 向左为正
+  predict_time: 0.085

@@ -47,7 +47,6 @@ int main()
         camera_->Query(img,t);
         serial_->Query(ds,t);
 
-        // ds.armor_or_buff = 1;
         if(!ds.armor_or_buff){
             armor_->AutoAim(img,ds,dg);
             if(last_mode != ds.armor_or_buff) camera_->SetExposureTime(exposure_armor);
