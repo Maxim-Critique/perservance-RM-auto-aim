@@ -65,7 +65,7 @@ int main()
     while(!exiter.exit()){
         camera_->Query(img,t);
         serial_->Query(ds,t);
-        recorder.record(img, ds);
+        // recorder.record(img, ds);
         if(!ds.armor_or_buff){
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_armor);
             armor_->AutoAim(img,ds,dg);
@@ -83,10 +83,12 @@ int main()
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_outpost);
             ros2_->publish(ds.go_back);
             armor_->AutoAim(img,ds,dg);
+            perceptron->SetActive(false);
         }else{
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_buff);
             ros2_->publish(ds.go_back);
             buff_->AutoAim(img,ds,dg);
+            perceptron->SetActive(false);
         }
 
         last_mode = ds.armor_or_buff;

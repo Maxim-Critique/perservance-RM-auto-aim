@@ -183,8 +183,8 @@ Eigen::MatrixXd ExtendedKalmanFilter::computeProcessNoise() {
     double t3 = pow(dt_, 3)/2;
     double t2 = pow(dt_, 2);
     if(armor_number_ == "outpost"){
-        dd = 0.0001;
-        da = 0.0001;
+        dd = 1;
+        da = 10;
     }else{
         dd = 100;
         da = 400;
@@ -250,8 +250,13 @@ Eigen::VectorXd ExtendedKalmanFilter::update(const Armors& armors, const std::ve
     // 状态更新
     x_post = x_pri + K * residual;
     P_post = (I - K * H) * P_pri * (I - K * H).transpose() + K * R * K.transpose();
-    
-    NIS(strategy->compute());   
+
+    if (armor_number_ == "outpost") {
+        if (outpost_cnt_ < 100) outpost_vyaw_sum_ += x_post(9), outpost_cnt_++;
+        else x_post(9) = outpost_vyaw_sum_ >= 0 ? 2.51 : -2.51;
+    }
+    else NIS(strategy->compute()); 
+      
     return x_post;
 }
 

@@ -15,7 +15,7 @@ bool AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     if(ds.armor_or_buff != last_mode_){
         if(ds.armor_or_buff == 3) find_ptr = std::make_unique<ArmorDetector>(
             "../model/outpost.onnx", "../model/label.txt", 0.7, 100,
-            std::vector<std::string>{"negative","base"}, 11, 0);
+            std::vector<std::string>{"negative","base"}, 21, 0);
         else find_ptr = std::make_unique<ArmorDetector>(
             "../model/mlp.onnx", "../model/label.txt", 0.7, 180,
             std::vector<std::string>{"negative","outpost","base"}, 19, -2);
@@ -29,6 +29,9 @@ bool AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     if(armors_.empty())return false;
     if(show)ShowArmors(armors_,img);
     auto model = aim_ptr->Estimate(armors_, time_interval);
+
+    if (ds.armor_or_buff == 3 &&(std::abs(model->palstance) < 2.0 || std::abs(model->palstance) > 3.0))return true;
+
     auto gimbal_angle = planner_ptr->TrajectoryPlanning(model);
     Transmit(gimbal_angle,ds,dg);
     return true;
@@ -38,8 +41,8 @@ void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Da
     int32_t yaw = (tools::R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
     int32_t yaw_val = tools::R2D(gimbal_angle.yaw_vel)*1e4;
-    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 2;
-    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 2;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 2.5;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 2.5;
     bool fire_delta = (yaw_delta && pitch_delta);
     dg.Vision2Control(yaw,pitch,m_aim_id,1,fire_delta);
 }
@@ -60,7 +63,7 @@ Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
     time_interval = (ds.timestamp-last_time).count() / 1e9;
     solve_ptr->UpdateStatus(ds);
 
-    if(time_interval>0.5|| !aim_ptr){
+    if(time_interval>1.5|| !aim_ptr){
         for(auto armor : armors){
             solve_ptr->Solve(armor);
             if(armor.gim_pose.norm()<12){
