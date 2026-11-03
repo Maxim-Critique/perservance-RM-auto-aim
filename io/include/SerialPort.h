@@ -7,6 +7,8 @@
 #include "Base.h"
 #include <deque>
 #include <mutex>
+#include <thread>
+#include <atomic>
 #include "logger.hpp"
 #include "thread_safe_queue.hpp"
 namespace io{

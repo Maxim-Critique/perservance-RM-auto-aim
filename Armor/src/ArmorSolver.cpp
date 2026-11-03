@@ -16,10 +16,10 @@ vector<Point3f> GetWorldPoints(double width,double height){
     };
 }
 
-Slover::Slover()
+Slover::Slover(const std::string & config_path)
 {
 
-    auto yaml = YAML::LoadFile(YamlPath);
+    auto yaml = YAML::LoadFile(config_path);
     auto R_camera2gimbal_data = yaml["Transform"]["R_camera2gimbal"].as<std::vector<double>>();
     auto t_camera2gimbal_data = yaml["Transform"]["t_camera2gimbal"].as<std::vector<double>>();
     R_camera2gimbal_ = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>(R_camera2gimbal_data.data());
@@ -54,16 +54,21 @@ void Slover::UpdateStatus(Data_Save ds){
 }
     
 
-void Slover::Solve(Armor &armor){
+bool Slover::Solve(Armor &armor){
+    if (armor.type == ArmorType::INVALID || armor.points.size() != 4) return false;
+    for (const auto & p : armor.points)
+        if (!std::isfinite(p.x) || !std::isfinite(p.y)) return false;
+    if (std::abs(cv::contourArea(armor.points)) < 1e-6) return false;
     if(armor.type == ArmorType::LARGE){
         world_points = world_points_big;
     }else{
         world_points = world_points_small;
     }
     is_outpost_ = armor.number == "outpost";
-    cv::solvePnP(world_points, armor.points, camera_matrix_, distort_coeffs_, rvec, tvec, false, cv::SOLVEPNP_IPPE);
+    if (!cv::solvePnP(world_points, armor.points, camera_matrix_, distort_coeffs_, rvec, tvec, false, cv::SOLVEPNP_IPPE)) return false;
     Eigen::Vector3d xyz_in_camera;
     cv::cv2eigen(tvec, xyz_in_camera);
+    if (!xyz_in_camera.allFinite() || xyz_in_camera.z() <= 0) return false;
     armor.gim_pose = R_camera2gimbal_ * xyz_in_camera + t_camera2gimbal_;
     armor.abs_pose = R_gimbal2world_ * armor.gim_pose;
     armor.abs_ypd = tools::xyz2ypd(armor.abs_pose);
@@ -87,6 +92,7 @@ void Slover::Solve(Armor &armor){
     armor.yaw = sys_yaw + best_yaw + PI;
     armor.predict_yaw = sys_yaw +  PI;
     armor.re_points = Reprojection(best_yaw);
+    return armor.abs_pose.allFinite() && std::isfinite(armor.yaw);
 }
 
 vector<Point2f> Slover::Reprojection(const double &yaw){

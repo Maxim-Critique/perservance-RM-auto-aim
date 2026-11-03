@@ -75,7 +75,7 @@ int main(int argc, char * argv[])
 
     tools::Exiter exiter;
 
-    std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>();
+    std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>(YamlPath, false);
     std::unique_ptr<AutoBuff> buff_ = std::make_unique<AutoBuff>();
     std::unique_ptr<Omniperception::Perceptron> perceptron;
 
@@ -92,12 +92,18 @@ int main(int argc, char * argv[])
     cv::Mat img;
     Data_Save ds;
     Data_Get dg;
-    bool last_mode = false;
+    int last_mode = -1;
+    int last_color = -1;
 
     while (!exiter.exit()) {
         if (!player.read(img, ds)) {
             tools::logger()->info("Playback finished");
             break;
+        }
+
+        if (ds.armor_or_buff != last_mode || ds.color != last_color) {
+            AimStateMachine::Instance().Reset();
+            armor_->Reset();
         }
 
         if (!ds.armor_or_buff || ds.armor_or_buff == 3) {
@@ -110,6 +116,7 @@ int main(int argc, char * argv[])
             if (!perceptron && usb_camera0 && usb_camera2)
                 perceptron = std::make_unique<Omniperception::Perceptron>(
                     usb_camera0.get(), usb_camera2.get(), ds.color, YamlPath);
+            if (perceptron) perceptron->SetEnemyColor(ds.color);
 
             auto & state = AimStateMachine::Instance();
 
@@ -127,6 +134,7 @@ int main(int argc, char * argv[])
             if (perceptron) perceptron->SetActive(state.UsbActive());
 
         } else {
+            if (perceptron) perceptron->SetActive(false);
             // 大符模式
             if (ds.armor_or_buff != last_mode)
                 tools::logger()->info("Switch to buff mode");
@@ -135,6 +143,7 @@ int main(int argc, char * argv[])
         }
 
         last_mode = ds.armor_or_buff;
+        last_color = ds.color;
         tools::logger()->info("ds.go_back {} ,mode {}", ds.go_back, ds.armor_or_buff);
 
         if (show) {

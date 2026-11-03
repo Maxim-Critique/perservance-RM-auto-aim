@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(VISION)
+option(AUTO_AIM_CORE_ONLY "Build hardware-free sentry regression checks" OFF)
+if(AUTO_AIM_CORE_ONLY)
+    enable_testing()
+    add_subdirectory(Test/sentry)
+    return()
+endif()
 list(APPEND CMAKE_PREFIX_PATH "/opt/ros/humble")
 # 设置构建类型为 Release
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -38,6 +44,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/Backbone/include
     ${CMAKE_SOURCE_DIR}/io/include
     ${CMAKE_SOURCE_DIR}/Armor/include
+    ${CMAKE_SOURCE_DIR}/Armor
     ${CMAKE_SOURCE_DIR}/Buff/include
     ${CMAKE_SOURCE_DIR}/Test/include
     ${CMAKE_SOURCE_DIR}/tools
@@ -65,6 +72,7 @@ file(GLOB_RECURSE commonSources
     "${CMAKE_SOURCE_DIR}/Backbone/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/io/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/Armor/src/*.cpp"
+    "${CMAKE_SOURCE_DIR}/Armor/sentry/*.cpp"
     "${CMAKE_SOURCE_DIR}/Buff/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/tools/*.cpp"
     "${CMAKE_SOURCE_DIR}/Omniperception/*.cpp"
@@ -72,6 +80,8 @@ file(GLOB_RECURSE commonSources
 list(FILTER commonSources EXCLUDE REGEX ".*/build/.*")
 # 从common中排除所有含main的文件，避免重复定义
 list(FILTER commonSources EXCLUDE REGEX ".*main\\.cpp$")
+# Replaced by the coherent B tracker/target/aimer stack; retain the source for reference.
+list(FILTER commonSources EXCLUDE REGEX "/Armor/src/Armor(Target|EKF|Predictor|Planner)\\.cpp$")
 
 # 实时运行程序 (live)
 add_executable(action
