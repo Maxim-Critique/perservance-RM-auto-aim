@@ -40,7 +40,8 @@ bool AutoArmor::AutoAim(Mat & img, const Data_Save & ds, Data_Get & dg)
             model_dir_ + (outpost ? "/outpost.onnx" : "/mlp.onnx"),
             model_dir_ + "/label.txt", 0.7, outpost ? 100 : 180,
             outpost ? std::vector<std::string>{"negative", "base"} :
-                      std::vector<std::string>{"negative", "outpost", "base"});
+                      std::vector<std::string>{"negative", "outpost", "base"},
+            outpost ? 21 : 19, outpost ? 0 : -2);
         tracker_->reset();
         aimer_->reset();
         shooter_->reset();

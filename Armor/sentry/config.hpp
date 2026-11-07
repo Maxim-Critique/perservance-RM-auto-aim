@@ -12,14 +12,16 @@ struct Config
   int outpost_max_temp_lost_count = 75;
   double max_frame_gap = 0.1;
   double max_distance = 12;
-  double predict_time = 0.07;
+  double predict_time = 0.08;
   double yaw_offset = 0;
   double pitch_offset = 0;
   double coming_angle = 70;
   double leaving_angle = 20;
   double min_spin_speed = 2;
-  double first_tolerance = 1.5;
-  double second_tolerance = 1.5;
+  double first_tolerance = 2.5;
+  double second_tolerance = 2.5;
+  double outpost_min_speed = 2.0;  // rad/s, origin2/suntry's control gate
+  double outpost_max_speed = 3.0;
   double judge_distance = 2;
   bool auto_fire = true;
   // A's IDs, in priority order. Referee invincibility data is not present in A's input contract.

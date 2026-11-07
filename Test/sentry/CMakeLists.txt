@@ -19,6 +19,7 @@ add_library(sentry_regression_core STATIC
     ${aim_root}/tools/trajectory.cpp
     ${aim_root}/tools/extended_kalman_filter.cpp
     ${aim_root}/tools/logger.cpp
+    ${aim_root}/tools/player.cpp
     ${aim_root}/io/src/SerialPort.cpp
     ${aim_root}/Armor/src/ArmorSolver.cpp
     ${aim_root}/Armor/src/ArmorDetector.cpp
@@ -40,6 +41,26 @@ add_executable(sentry_regression regression.cpp)
 target_link_libraries(sentry_regression PRIVATE sentry_regression_core)
 target_compile_definitions(sentry_regression PRIVATE AIM_CONFIG_PATH="${aim_root}/text.yaml")
 foreach(check IN ITEMS bridge wire model association tracker timing priority shooter static_aim
-                       moving_aim trajectory hold config solver blank_pipeline)
+                       moving_aim trajectory hold config solver blank_pipeline
+                       baseline_parameters outpost_gate player)
     add_test(NAME sentry_${check} COMMAND sentry_regression ${check})
 endforeach()
+
+# Compile the updated real review entry without linking any MVS/ROS runtime.
+add_library(sentry_review_compile OBJECT ${aim_root}/Test/src/test.cpp)
+target_include_directories(sentry_review_compile PRIVATE ${aim_root}/Buff/include)
+target_link_libraries(sentry_review_compile PRIVATE sentry_regression_core)
+
+# Compile updated Buff code without constructing it or linking vehicle hardware.
+add_library(sentry_buff_compile OBJECT
+    ${aim_root}/Backbone/src/AutoBuff.cpp
+    ${aim_root}/Buff/src/BuffDetect.cpp
+    ${aim_root}/Buff/src/BuffSlove.cpp
+    ${aim_root}/Buff/src/BuffPlan.cpp
+    ${aim_root}/Buff/src/BuffTarget.cpp
+    ${aim_root}/Buff/src/BuffType.cpp)
+target_include_directories(sentry_buff_compile PRIVATE ${aim_root}/Buff/include)
+target_link_libraries(sentry_buff_compile PRIVATE sentry_regression_core)
+
+add_executable(sentry_offline_replay offline_replay.cpp)
+target_link_libraries(sentry_offline_replay PRIVATE sentry_regression_core)

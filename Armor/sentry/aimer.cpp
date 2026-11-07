@@ -15,6 +15,12 @@ Command Aimer::aim(const Target & source, std::chrono::steady_clock::time_point 
   debug_aim_point = {};
   if (source.diverged() || !std::isfinite(muzzle_speed) || muzzle_speed <= 0 ||
       !std::isfinite(processing_delay) || processing_delay < 0 || processing_delay > 0.5) return {};
+  // A's new baseline suppresses all outpost control until estimated |omega| is 2..3 rad/s.
+  // B's corresponding angular-velocity state is index 7, not the legacy A index 9.
+  if (source.name == ArmorName::outpost) {
+    const double speed = std::abs(source.ekf_x()[7]);
+    if (speed < config_.outpost_min_speed || speed > config_.outpost_max_speed) return {};
+  }
   const auto future = timestamp + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
     std::chrono::duration<double>(config_.predict_time + processing_delay));
   auto target = source;

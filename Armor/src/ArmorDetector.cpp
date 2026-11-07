@@ -43,7 +43,7 @@ void SlopeValidation(LightBlobs &lightblobs)
 static void ImagePreProcessDim(cv::Mat &src) {
 
     static cv::Mat kernel_dilate = getStructuringElement(cv::MORPH_RECT, cv::Size(3, 5));
-    cv::morphologyEx(src, src, cv::MORPH_CLOSE, kernel_dilate);
+    cv::morphologyEx(src, src, cv::MORPH_DILATE, kernel_dilate);
 }
 
 static int GetBlobColor(const cv::Mat &src, const cv::RotatedRect &blobPos) {
@@ -247,10 +247,6 @@ LightBlobs ArmorDetector::FindLight(Mat &src, int enemy_color) {
         if (hierarchy[i][2] == -1) {
             // 1. 面积检查 (复用 isValidContourArea)
             if (!isValidContourArea(light_contours[i])) {
-                cv::drawContours(src, light_contours, i, cv::Scalar(0, 0, 255), 1);
-                cv::Rect bbox = cv::boundingRect(light_contours[i]);
-                cv::putText(src, "A", cv::Point(bbox.x + bbox.width / 2, bbox.y + bbox.height / 2),
-                            cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
                 continue;
             }
 
@@ -258,12 +254,6 @@ LightBlobs ArmorDetector::FindLight(Mat &src, int enemy_color) {
 
             // 2. 长宽比检查 (复用 IsValidLightBlob)
             if (!IsValidLightBlob(rect)) {
-                cv::drawContours(src, light_contours, i, cv::Scalar(0, 0, 255), 1);
-                cv::Point2f vertices[4];
-                rect.points(vertices);
-                for (int j = 0; j < 4; j++)
-                    cv::line(src, vertices[j], vertices[(j + 1) % 4], cv::Scalar(0, 0, 255), 1);
-                cv::putText(src, "W", rect.center, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
                 continue;
             }
 
@@ -273,24 +263,12 @@ LightBlobs ArmorDetector::FindLight(Mat &src, int enemy_color) {
                 cv::Point2f direction = blob.top - blob.bottom;
                 float tilt_angle = std::atan2(std::abs(direction.x), std::abs(direction.y));
                 if (tilt_angle > tools::D2R(45)) {
-                    cv::drawContours(src, light_contours, i, cv::Scalar(0, 0, 255), 1);
-                    cv::Point2f vertices[4];
-                    rect.points(vertices);
-                    for (int j = 0; j < 4; j++)
-                        cv::line(src, vertices[j], vertices[(j + 1) % 4], cv::Scalar(0, 0, 255), 1);
-                    cv::putText(src, "S", rect.center, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
                     continue;
                 }
             }
 
             // 通过所有检查
             light_blobs.push_back(blob);
-
-            // 画有效灯条（绿色外框）
-            cv::Point2f vertices[4];
-            rect.points(vertices);
-            for (int j = 0; j < 4; j++)
-                cv::line(src, vertices[j], vertices[(j + 1) % 4], cv::Scalar(0, 255, 0), 2);
         }
     }
     return light_blobs;
@@ -393,13 +371,9 @@ void ArmorDetector::ExtractNumbers(const cv::Mat &src, std::vector<Armor> &armor
         === blockSize (第六个参数)：增大该值会使得阈值的计算更加平滑，适用于更大尺寸的图像区域。但是也会导致细节信息丢失，因此需要根据具体情况选择一个合适的值。
         === C (第七个参数)：增大该值会使得阈值升高，这意味着更多的像素可能会被视为背景或非目标物体。减小该值则会降低阈值，这样更多的像素会被视为目标物体。
         */
-        cv::adaptiveThreshold(number_image, number_image, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 19, -3);
+        cv::adaptiveThreshold(number_image, number_image, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, adaptive_block_size_, adaptive_c_);
 
         cv::resize(number_image, number_image, input_size);
-        // Set the top 2 rows and bottom 2 rows to black (value 0)
-        // number_image.rowRange(0, 2).setTo(cv::Scalar(0));  // Top 2 rows
-        // number_image.rowRange(number_image.rows - 2, number_image.rows).setTo(cv::Scalar(0));  // Bottom 2 rows
-
         armor.number_img = number_image;
 
     }
@@ -545,8 +519,10 @@ Armors ArmorDetector::Detect(Mat &img, int enemy_color) {
 ArmorDetector::ArmorDetector(
     const std::string &model_path, const std::string &label_path,
     const double classify_threshold, const int binary_threshold,
-    const std::vector<std::string> &ignore_classes)
-    : ignore_classes_(ignore_classes), classify_threshold_(classify_threshold), threshold_(binary_threshold) {
+    const std::vector<std::string> &ignore_classes,
+    const int adaptive_block_size, const int adaptive_c)
+    : threshold_(binary_threshold), adaptive_block_size_(adaptive_block_size), adaptive_c_(adaptive_c),
+      ignore_classes_(ignore_classes), classify_threshold_(classify_threshold) {
     enemy_color_ = 0;
     net_ = cv::dnn::readNetFromONNX(model_path);
 

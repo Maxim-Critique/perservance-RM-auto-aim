@@ -27,6 +27,8 @@ Config Config::from_yaml(const YAML::Node & yaml)
     c.min_spin_speed = n["min_spin_speed"].as<double>(c.min_spin_speed);
     c.first_tolerance = n["first_tolerance"].as<double>(c.first_tolerance);
     c.second_tolerance = n["second_tolerance"].as<double>(c.second_tolerance);
+    c.outpost_min_speed = n["outpost_min_speed"].as<double>(c.outpost_min_speed);
+    c.outpost_max_speed = n["outpost_max_speed"].as<double>(c.outpost_max_speed);
     c.judge_distance = n["judge_distance"].as<double>(c.judge_distance);
     c.auto_fire = n["auto_fire"].as<bool>(c.auto_fire);
     if (n["priority_ids"]) {
@@ -50,7 +52,9 @@ void Config::validate() const
       !positive(coming_angle) || coming_angle > 90 ||
       !std::isfinite(leaving_angle) || leaving_angle < 0 || leaving_angle > coming_angle ||
       !positive(min_spin_speed) || !positive(first_tolerance) ||
-      !positive(second_tolerance) || !positive(judge_distance))
+      !positive(second_tolerance) || !positive(judge_distance) ||
+      !positive(outpost_min_speed) || !positive(outpost_max_speed) ||
+      outpost_max_speed < outpost_min_speed)
     throw std::invalid_argument("invalid Sentry configuration");
   std::set<int> ids(priority_ids.begin(), priority_ids.end());
   if (ids != std::set<int>({1, 2, 3, 4, 5, 6, 7, 8}))

@@ -33,6 +33,7 @@ public:
   int total_frames() const;
 
 private:
+  std::string video_path_;
   cv::VideoCapture video_;
   std::ifstream text_;
   std::chrono::steady_clock::time_point t0_;

@@ -32,6 +32,8 @@ private:
     double dd;      // 平面距离过程噪声
     double da;      // 角度过程噪声
     double dt_;     // 时间步长
+    int outpost_cnt_ = 0;                            // Outpost帧计数
+    double outpost_vyaw_sum_ = 0.0;                  // vyaw累加
     std::deque<bool> nis_history_;                  // NIS历史记录队列
     static constexpr size_t nis_window = 15;        // 历史窗口大小
     static constexpr size_t nis_threshold_count = 7;// 触发阈值次数

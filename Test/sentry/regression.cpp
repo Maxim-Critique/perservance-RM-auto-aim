@@ -3,6 +3,9 @@
 #include <limits>
 #include <stdexcept>
 #include <map>
+#include <filesystem>
+#include <fstream>
+#include <unistd.h>
 #include <opencv2/calib3d.hpp>
 
 #include "sentry/adapter.hpp"
@@ -13,6 +16,7 @@
 #include "State.h"
 #include "trajectory.hpp"
 #include "AutoArmor.h"
+#include "player.hpp"
 
 namespace sa = sentry_aim;
 using Clock = std::chrono::steady_clock;
@@ -290,9 +294,9 @@ void hold()
 void config()
 {
   const auto c = sa::Config::from_yaml(YAML::LoadFile(AIM_CONFIG_PATH));
-  near(c.yaw_offset, .4, 1e-10, "keep A yaw compensation");
-  near(c.pitch_offset, .8, 1e-10, "keep A pitch compensation");
-  near(c.predict_time, .07, 1e-10, "keep A prediction delay");
+  near(c.yaw_offset, 1.5, 1e-10, "use origin2 yaw compensation");
+  near(c.pitch_offset, 1.1, 1e-10, "use origin2 pitch compensation");
+  near(c.predict_time, .08, 1e-10, "use origin2 prediction delay");
   bool rejected = false;
   try { sa::Config::from_yaml(YAML::Load("Sentry: {min_detect_count: 0}")); }
   catch (const std::invalid_argument &) { rejected = true; }
@@ -301,6 +305,83 @@ void config()
   try { sa::Config::from_yaml(YAML::Load("Sentry: {priority_ids: [1,1,3,4,5,6,7,8]}")); }
   catch (const std::invalid_argument &) { rejected = true; }
   require(rejected, "duplicate priority IDs rejected");
+  rejected = false;
+  try { sa::Config::from_yaml(YAML::Load("Sentry: {outpost_min_speed: 4, outpost_max_speed: 3}")); }
+  catch (const std::invalid_argument &) { rejected = true; }
+  require(rejected, "reversed outpost speed range rejected");
+}
+
+void baseline_parameters()
+{
+  const auto yaml = YAML::LoadFile(AIM_CONFIG_PATH);
+  const auto c = sa::Config::from_yaml(yaml);
+  near(bullet_speed, 22.0, 1e-12, "origin2 bullet speed in m/s");
+  near(yaml["Camera"]["exposure_outpost"].as<double>(),2500,1e-12,"dedicated outpost exposure");
+  near(yaml["Buff"]["compensate_pitch"].as<double>(),.9,1e-12,"updated buff pitch");
+  near(yaml["Buff"]["compensate_yaw"].as<double>(),.5,1e-12,"updated buff yaw");
+  auto t=target();sa::Aimer aimer(c);
+  const auto cmd=aimer.aim(t,at(0),bullet_speed);
+  require(cmd.control,"new baseline ballistic solution");
+  const tools::Trajectory expected(22.,4.,.5);
+  near(cmd.yaw,1.5*CV_PI/180,1e-10,"new yaw compensation reaches command");
+  near(cmd.pitch,expected.pitch+1.1*CV_PI/180,1e-10,"22m/s and new pitch reach command");
+  sa::Shooter shooter(c);sa::Command aligned{true,2*CV_PI/180,.1};
+  sa::AimPoint point{true,{4,0,.5,0}};Eigen::Vector3d gimbal{0,.1,0};
+  require(!shooter.shoot(aligned,point,&t,gimbal,true,true),"first command still cannot fire");
+  require(shooter.shoot(aligned,point,&t,gimbal,true,true),"new 2.5 degree tolerance accepts 2 degrees");
+  aligned.yaw=2.6*CV_PI/180;
+  require(!shooter.shoot(aligned,point,&t,gimbal,true,true),"2.6 degrees still rejected");
+}
+
+void outpost_gate()
+{
+  const auto c=sa::Config::from_yaml(YAML::LoadFile(AIM_CONFIG_PATH));
+  auto a=observation(sa::ArmorName::outpost);
+  sa::Target stationary(a,at(0),.2765,3,Eigen::VectorXd::Ones(11));
+  sa::Aimer aimer(c);
+  require(!aimer.aim(stationary,at(0),bullet_speed).control,"stationary outpost suppresses control");
+  for (const double speed : {1.0,2.51,10.0}) {
+    sa::Target rotating(a,at(0),.2765,3,Eigen::VectorXd::Ones(11));
+    const int updates=speed>3 ? 5 : 150;
+    for(int i=1;i<=updates;++i) {
+      const double angle=speed*i*.01;
+      auto seen=observation(sa::ArmorName::outpost,4+.2765-.2765*cos(angle),-.2765*sin(angle),angle);
+      rotating.predict(at(i*.01));rotating.update(seen);
+    }
+    const double estimated=std::abs(rotating.ekf_x()[7]);
+    const bool ready=estimated>=2 && estimated<=3;
+    require(ready==(speed==2.51),"outpost fixture reaches intended speed range");
+    const auto cmd=aimer.aim(rotating,at(updates*.01),bullet_speed);
+    if (!ready) require(!cmd.control && !aimer.debug_aim_point.valid,"out-of-range spin clears all control");
+    else require(cmd.control && aimer.debug_aim_point.valid,"2.51 rad/s outpost reaches aiming pipeline");
+  }
+}
+
+void player()
+{
+  const auto dir=std::filesystem::temp_directory_path()/std::filesystem::path("sentry-player-"+std::to_string(getpid()));
+  std::filesystem::create_directories(dir);
+  const auto prefix=(dir/"record").string();
+  cv::VideoWriter video(prefix+".avi",cv::VideoWriter::fourcc('M','J','P','G'),30,{64,48});
+  require(video.isOpened(),"open synthetic recording writer");
+  for(int i=0;i<3;++i) video.write(cv::Mat(48,64,CV_8UC3,cv::Scalar(20+i*60,20+i*60,20+i*60)));
+  video.release();
+  { std::ofstream text(prefix+".txt");text<<"0 0 0 0 0 0 0\n1 0 0 0 0 0 0\n3600 0 0 0 0 3 1"; }
+  tools::Player playback(prefix);cv::Mat image;Data_Save ds{};
+  require(playback.total_frames()==3,"frame count supports final line without newline");
+  require(playback.read(image,ds),"first paired frame");const auto initial=ds.timestamp;
+  playback.seek(2);require(playback.read(image,ds),"forward seek keeps image/metadata together");
+  near(cv::mean(image)[0],140,3,"seek image corresponds to frame 2");
+  near(std::chrono::duration<double>(ds.timestamp-initial).count(),3600,1e-6,"long timestamp does not overflow int32 microseconds");
+  require(ds.armor_or_buff==3 && ds.color==1,"seek metadata corresponds to frame 2");
+  playback.seek(0);require(playback.read(image,ds),"backward seek works");
+  near(cv::mean(image)[0],20,3,"backward seek returns first image");
+  bool rejected=false;try { playback.seek(-1); } catch(const std::out_of_range&) { rejected=true; }
+  require(rejected,"negative seek rejected");
+  { std::ofstream text(prefix+".txt");text<<"0 0 0 0 0 0 0\ninvalid\n"; }
+  tools::Player broken(prefix);
+  require(broken.read(image,ds),"valid prefix before bad metadata");
+  require(!broken.read(image,ds) && image.empty(),"bad metadata cannot return uninitialized feedback");
 }
 
 void solver()
@@ -357,7 +438,8 @@ int main(int argc, char ** argv)
     {"model",model},{"association",association},{"tracker",tracker},{"timing",timing},
     {"priority",priority},{"shooter",shooter},{"static_aim",static_aim},{"moving_aim",moving_aim},
     {"trajectory",trajectory},{"hold",hold},{"config",config},{"solver",solver},
-    {"blank_pipeline",blank_pipeline}};
+    {"blank_pipeline",blank_pipeline},{"baseline_parameters",baseline_parameters},
+    {"outpost_gate",outpost_gate},{"player",player}};
   try {
     for (const auto & [name,check] : checks) {
       if (argc > 1 && name != argv[1]) continue;

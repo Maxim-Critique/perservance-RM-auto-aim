@@ -4,10 +4,24 @@
 #include "AutoBuff.h"
 #include "exiter.hpp"
 #include "logger.hpp"
-#include "perceptron.hpp"
 #include "player.hpp"
 #include "State.h"
-#include "usbcamera.hpp"
+
+
+// 进度条状态
+struct PlaybackSlider
+{
+    int pos = 0;
+    bool seek_requested = false;
+    tools::Player * player = nullptr;
+};
+
+static void onFrameSlider(int pos, void * userdata)
+{
+    auto * slider = static_cast<PlaybackSlider *>(userdata);
+    slider->pos = pos;
+    slider->seek_requested = true;
+}
 
 
 void drawAngleInfo(cv::Mat & img, const Data_Save & data, const Data_Get & dg)
@@ -73,21 +87,29 @@ int main(int argc, char * argv[])
     }
     if (start_frame > 0) player.seek(start_frame);
 
+    const int total_frames = player.total_frames();
+    if (total_frames <= 0) {
+        std::cerr << "Error: recording has 0 frames" << std::endl;
+        return 1;
+    }
+
+    // 创建进度条
+    PlaybackSlider slider;
+    slider.pos = start_frame;
+    slider.player = &player;
+    if (show) {
+        cv::namedWindow("playback", cv::WINDOW_AUTOSIZE);
+        cv::createTrackbar(
+            "Frame", "playback", &slider.pos, total_frames - 1, onFrameSlider, &slider);
+    }
+
+    int current_frame = start_frame;
+    bool paused = false;
+
     tools::Exiter exiter;
 
     std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>(YamlPath, false);
     std::unique_ptr<AutoBuff> buff_ = std::make_unique<AutoBuff>();
-    std::unique_ptr<Omniperception::Perceptron> perceptron;
-
-    // usb相机用于全感知模型，离线模式下可能不可用
-    std::unique_ptr<io::USBCamera> usb_camera0;
-    std::unique_ptr<io::USBCamera> usb_camera2;
-    try {
-        usb_camera0 = std::make_unique<io::USBCamera>("video0", YamlPath);
-        usb_camera2 = std::make_unique<io::USBCamera>("video2", YamlPath);
-    } catch (const std::exception & e) {
-        tools::logger()->warn("USB cameras unavailable, perceptron disabled: {}", e.what());
-    }
 
     cv::Mat img;
     Data_Save ds;
@@ -96,61 +118,89 @@ int main(int argc, char * argv[])
     int last_color = -1;
 
     while (!exiter.exit()) {
-        if (!player.read(img, ds)) {
-            tools::logger()->info("Playback finished");
-            break;
-        }
-
-        if (ds.armor_or_buff != last_mode || ds.color != last_color) {
-            AimStateMachine::Instance().Reset();
+        // 用户拖动了进度条
+        if (slider.seek_requested) {
+            slider.seek_requested = false;
+            player.seek(slider.pos);
             armor_->Reset();
+            AimStateMachine::Instance().Reset();
+            dg.Vision2Control();
+            last_mode = last_color = -1;
+            current_frame = slider.pos;
+            paused = false;  // 拖动进度条时自动恢复播放
         }
 
-        if (!ds.armor_or_buff || ds.armor_or_buff == 3) {
-            // 自瞄模式
-            if (ds.armor_or_buff != last_mode)
-                tools::logger()->info("Switch to armor mode");
-
-            armor_->AutoAim(img, ds, dg);
-
-            if (!perceptron && usb_camera0 && usb_camera2)
-                perceptron = std::make_unique<Omniperception::Perceptron>(
-                    usb_camera0.get(), usb_camera2.get(), ds.color, YamlPath);
-            if (perceptron) perceptron->SetEnemyColor(ds.color);
-
-            auto & state = AimStateMachine::Instance();
-
-            if (perceptron && state.NeedPerceptron(dg)) {
-                auto list = perceptron->GetDetectionQueue();
-                if (!list.empty())
-                    dg.Vision2Control(
-                        (tools::R2D(
-                             _std_radian(ds.camera_yaw_angle + list[0].delta_yaw))) *
-                            1e4,
-                        tools::R2D(list[0].delta_pitch) * 1e4, 0, 2, 0);
+        if (!paused) {
+            if (!player.read(img, ds)) {
+                tools::logger()->info("Playback finished");
+                break;
             }
 
-            state.Step(ds.timestamp, dg);
-            if (perceptron) perceptron->SetActive(state.UsbActive());
+            if (ds.armor_or_buff != last_mode || ds.color != last_color) {
+                AimStateMachine::Instance().Reset();
+                armor_->Reset();
+            }
 
-        } else {
-            if (perceptron) perceptron->SetActive(false);
-            // 大符模式
-            if (ds.armor_or_buff != last_mode)
-                tools::logger()->info("Switch to buff mode");
+            if (!ds.armor_or_buff || ds.armor_or_buff == 3) {
+                // 自瞄模式
+                if (ds.armor_or_buff != last_mode)
+                    tools::logger()->info("Switch to armor mode");
 
-            buff_->AutoAim(img, ds, dg);
+                armor_->AutoAim(img, ds, dg);
+
+                auto & state = AimStateMachine::Instance();
+
+                if (ds.armor_or_buff == 0) state.Step(ds.timestamp, dg);
+
+            } else {
+                // 大符模式
+                if (ds.armor_or_buff != last_mode)
+                    tools::logger()->info("Switch to buff mode");
+
+                buff_->AutoAim(img, ds, dg);
+            }
+
+            last_mode = ds.armor_or_buff;
+            last_color = ds.color;
+            tools::logger()->info("ds.go_back {} ,mode {}", ds.go_back, ds.armor_or_buff);
         }
 
-        last_mode = ds.armor_or_buff;
-        last_color = ds.color;
-        tools::logger()->info("ds.go_back {} ,mode {}", ds.go_back, ds.armor_or_buff);
-
         if (show) {
-            drawAngleInfo(img, ds, dg);
+            if (!paused) {
+                drawAngleInfo(img, ds, dg);
+                cv::putText(
+                    img,
+                    cv::format("Frame: %d / %d", current_frame, total_frames),
+                    cv::Point(10, 130), cv::FONT_HERSHEY_SIMPLEX, 0.7,
+                    cv::Scalar(0, 255, 255), 2);
+            }
+
+            if (paused) {
+                cv::putText(
+                    img, "PAUSED",
+                    cv::Point(10, 170), cv::FONT_HERSHEY_SIMPLEX, 1.0,
+                    cv::Scalar(0, 0, 255), 2);
+            }
+
             cv::imshow("playback", img);
+
+            if (!paused) {
+                // 更新进度条（setTrackbarPos 会触发回调，需抑制 seek）
+                current_frame++;
+                slider.seek_requested = false;
+                cv::setTrackbarPos("Frame", "playback", current_frame);
+                slider.seek_requested = false;
+            }
+
+            // 始终使用 30ms 延时，避免 waitKey(0) 在某些 OpenCV 后端上的兼容问题
             int key = cv::waitKey(30);
-            if (key == 'q' || key == 27) break;
+            if (key == ' ') {
+                paused = !paused;
+            } else if (key == 'q' || key == 27) {
+                break;
+            }
+        } else {
+            ++current_frame;
         }
     }
 

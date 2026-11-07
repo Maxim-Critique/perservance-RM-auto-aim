@@ -150,3 +150,26 @@ message(STATUS "std_msgs include dirs: ${std_msgs_INCLUDE_DIRS}")
 message(STATUS "rclcpp libraries: ${rclcpp_LIBRARIES}")
 message(STATUS "rcl libraries: ${rcl_LIBRARIES}")
 message(STATUS "rmw libraries: ${rmw_LIBRARIES}")
+
+# 独立单相机自瞄测试，不包含整车main入口
+add_executable(aim_preview
+    "${CMAKE_SOURCE_DIR}/Test/src/aim_preview.cpp"
+    ${commonSources}
+)
+
+target_link_libraries(aim_preview
+    ${OpenCV_LIBS}
+    fmt::fmt
+    Threads::Threads
+    ${EIGEN3_LIBRARIES}
+    ${CERES_LIBRARIES}
+    ${MVS}
+    ${YAML_CPP_LIBRARIES}
+    ${LIBUSB_LIBRARIES}
+    ${OPENVINO_LIBRARIES}
+    ${rclcpp_LIBRARIES}
+    ${rcl_LIBRARIES}
+    ${rmw_LIBRARIES}
+    ${rosidl_runtime_c_LIBRARIES}
+    ${rosidl_typesupport_interface_LIBRARIES}
+)

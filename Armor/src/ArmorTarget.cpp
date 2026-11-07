@@ -17,7 +17,7 @@ void Aim::visualizeState(const Armors &detected_armors, double dt)
 
     const cv::Point2f origin(400, 400);
     const bool is_outpost = (aim_id == "outpost");
-    const float scale = is_outpost ? 50.0f : 100.0f;
+    const float scale = 30;
 
     // Build kinematic model from current EKF state
     auto model = createModel(target_state);
@@ -85,7 +85,7 @@ std::shared_ptr<KinematicModel> Aim::createModel(const Eigen::VectorXd &state) c
 
 std::shared_ptr<KinematicModel> Aim::Estimate(const Armors &armors, double &time){
     Resolve(armors, time);
-    visualizeState(armors, time);
+    // visualizeState(armors, time);
     return createModel(target_state);
 }
 
@@ -109,8 +109,8 @@ void Aim::Resolve(const Armors &armors, double time)
 
 void Aim::InitEKF(Armor armor){
     if(aim_id == "outpost"){
-        target_state << armor.abs_pose.x() - 0.25 * cos(armor.yaw),0,       // xc,vx                                                     // vx
-                armor.abs_pose.y() - 0.25 * sin(armor.yaw),0,               // yc,vy
+        target_state << armor.abs_pose.x() - 0.225 * cos(armor.yaw),0,       // xc,vx                                                     // vx
+                armor.abs_pose.y() - 0.225 * sin(armor.yaw),0,               // yc,vy
                 armor.abs_pose.z(),armor.abs_pose.z(),armor.abs_pose.z(),   // z1,z2,z3
                 0.225,   armor.yaw,0;                                       // r1,yaw,vyaw 
     }else{

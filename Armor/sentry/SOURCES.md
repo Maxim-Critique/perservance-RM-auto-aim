@@ -5,7 +5,8 @@
 - 主要来源：`auto_aim_sentry`，`b2c7dc5ddfce77f8c5e7557c2293d759789e787d`。
 - 补充来源：`main`，`bd9f5e798fa3c6dd3b483ae6627796afb41c608d`。
 - 本目录的 `LICENSE` 保留来源仓库 `main:LICENSE` 的 MIT 版权声明。
-- A 基线：`suntry`，`04fcc30b37e1b59a3831d639cb7cf4a5e53619f8`。
+- 初次融合 A 基线：`suntry`，`04fcc30b37e1b59a3831d639cb7cf4a5e53619f8`。
+- 本轮工作区升级 A 基线：`origin2/suntry`，`405b40812b72705b8d5b173a5ef2529ecab84efa`。按要求不提交，融合分支 HEAD 仍为 `a3b75d2`；这表示新增修改尚未进入提交历史，不表示仍使用旧参数。
 
 ## 实际模块选择
 
@@ -37,7 +38,7 @@
 
 ## 配置与边界
 
-`text.yaml:Sentry` 给出跟踪计数、最大帧间隔、距离、旋转选板和开火阈值。延迟与 yaw/pitch 补偿继续读取原 `Transmit` 配置。默认 1.5 度开火容差与 A 一致。普通目标、平衡、前哨站半径初始化采用 B 的 0.2 / 0.2 / 0.2765 m，仍需实测调参。
+`text.yaml:Sentry` 给出跟踪计数、最大帧间隔、距离、旋转选板和开火阈值。延迟与 yaw/pitch 补偿继续读取原 `Transmit` 配置。默认 2.5 度开火容差与新版 A 一致，弹速已改为 22 m/s；yaw/pitch补偿为1.50/1.10度，延迟为0.08秒。前哨控制另要求原始角速度状态的绝对值处于2–3 rad/s，取B的状态索引7；范围外同时清空控制和开火历史。普通目标、平衡、前哨站半径初始化采用 B 的 0.2 / 0.2 / 0.2765 m，仍需实测调参。
 
 `priority_ids` 使用 A 的 ID，可配置目标优先级；默认延续 A USB 的 1、3、4、哨兵优先顺序。没有引入 B 的赛季特定 2/5 号过滤。A 未提供 B 的裁判无敌状态输入，本次未伪造该状态，也未新增 ROS 话题。主相机换目标遵循该配置，USB 继续 A 的已有优先级。
 
@@ -59,4 +60,17 @@ ctest --test-dir /tmp/auto-aim-sentry-core --output-on-failure
 
 这些检查不能证明检测精度、整机延迟、命中率或三相机负载提升。完整工程依赖 ROS 2、MVS、OpenVINO；安装包缺失时核心回归可独立构建。完整工程配置或编译未通过时，不应把核心回归通过表述为整机验证完成。
 
-本次验证：15 项核心回归通过（ASan + UBSan）。完整工程的 CMake 配置在 `find_package(rclcpp REQUIRED)` 处失败；`/opt/ros/humble` 和 `/opt/MVS/include/MvCameraControl.h` 均不存在。OpenVINO 2024.6 实际位于 `/opt/intel/openvino_2024.6.0`，设置其 `runtime/lib/intel64/pkgconfig` 路径后可被找到。未执行 `action`、`review` 或任何串口发送/机器人操作；尚无真实回放与新旧效果对比。
+初次融合验证：15 项核心回归通过（ASan + UBSan）。完整工程的 CMake 配置在 `find_package(rclcpp REQUIRED)` 处失败；`/opt/ros/humble` 和 `/opt/MVS/include/MvCameraControl.h` 均不存在。OpenVINO 2024.6 实际位于 `/opt/intel/openvino_2024.6.0`，设置其 `runtime/lib/intel64/pkgconfig` 路径后可被找到。未执行 `action`、`review` 或任何串口发送/机器人操作；尚无真实回放与新旧效果对比。
+
+
+## origin2/suntry 405b408 工作区升级
+
+仅在`sentry毅同融合`工作区整合新旧A差异，没有merge/cherry-pick/rebase、没有修改分支提交、没有暂存或提交。`suntry`及同济仓库保持原状。逐文件取舍、参数对照与实际验证结果见`docs/suntry_upgrade_405b408.md`。
+
+- 主检测器采用新版A的DILATE和按模式的自适应阈值：普通19/-2，前哨21/0；继续使用A模型，不宣称迁入同济YOLO。
+- 主入口初始采用armor曝光；前哨独立使用exposure_outpost，暂停USB；继续保留融合版本的模式/颜色重置、空指针保护和导航长度检查。
+- Buff参数、阈值/圆面积与小符双扇叶条件按新A更新。保留源分支开启调试窗口的行为，尚未在无显示器机载环境运行。
+- 旧ArmorEKF/ArmorTarget参考源同步新A，但仍排除在执行目标之外；不把旧10维滤波的噪声、100帧锁速或1.5秒重捕获规则硬套到B的11维模型。
+- 新回放进度条保留，跳帧清空跟踪/开火/外部保持；show=0不创建窗口，也不构造USB相机。Player逐帧跳过保证图像与7列原车记录一致，拒绝错误记录，避免32位微秒溢出。
+- 增加`sentry_offline_replay`仅视频夹具及新参数/前哨速度/回放回归。更新后18项核心回归（ASan+UBSan）通过，review编译单元及全部Buff编译单元通过。
+- 录像夹具只比较模块能否运行，不证明检测精度或姿态。已发现退出阶段的libtbb分配泄漏报告，详情和未通过事项保留在升级报告中，不把录像内存检查记为通过。
