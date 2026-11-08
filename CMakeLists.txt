@@ -89,11 +89,18 @@ add_executable(action
     ${commonSources}
 )
 
-# 离线复盘程序 (review)
+# 键盘云台与识别预览程序 (review)
+# Keyboard preview uses native press/release/focus events (no key-repeat timeout).
+option(BUILD_KEYBOARD_REVIEW "Build Qt keyboard camera preview" ON)
+if(BUILD_KEYBOARD_REVIEW)
+find_package(QT NAMES Qt5 Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 add_executable(review
     "${CMAKE_SOURCE_DIR}/Test/src/test.cpp"
     ${commonSources}
 )
+
+endif()
 
 find_library(MVS libMvCameraControl.so PATHS /opt/MVS/lib /opt/MVS/lib/64)
 
@@ -114,7 +121,9 @@ target_link_libraries(action
     ${rosidl_typesupport_interface_LIBRARIES}
 )
 
+if(BUILD_KEYBOARD_REVIEW)
 target_link_libraries(review
+    Qt${QT_VERSION_MAJOR}::Widgets
     ${OpenCV_LIBS}
     fmt::fmt
     Threads::Threads
@@ -130,6 +139,8 @@ target_link_libraries(review
     ${rosidl_runtime_c_LIBRARIES}
     ${rosidl_typesupport_interface_LIBRARIES}
 )
+
+endif()
 
 # 设置Release模式的编译选项，使用-O2优化
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2 -Wall")

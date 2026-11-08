@@ -50,7 +50,7 @@ bool SerialPort::configure_serial(int fd)
     return true;
 }
 
-SerialPort::SerialPort(const char *filename):queue_(5000),file_name_(filename),buadrate_(B115200),DEBUG_SERIAL(false)
+SerialPort::SerialPort(const char *filename, bool exit_on_timeout):queue_(5000),file_name_(filename),buadrate_(B115200),DEBUG_SERIAL(false),exit_on_timeout_(exit_on_timeout)
 {
     data_ahead_.timestamp = std::chrono::steady_clock::now();
     data_behind_.timestamp = std::chrono::steady_clock::now();
@@ -94,7 +94,7 @@ void SerialPort::read_data()
             fds[0].events = POLLIN;
             
             if (poll(fds, 1, 0) <= 0) {
-                if (std::chrono::steady_clock::now() - last_receive_time_ > std::chrono::seconds(5)) {
+                if (exit_on_timeout_ && std::chrono::steady_clock::now() - last_receive_time_ > std::chrono::seconds(5)) {
                     tools::logger()->error("Serial timeout: no data received for 5 seconds, exiting.");
                     std::exit(1);
                 }
@@ -161,6 +161,18 @@ void SerialPort::Query(Data_Save &ds,const time_point &t){
     ds.camera_yaw_angle = (data_behind_.camera_yaw_angle+data_ahead_.camera_yaw_angle)/2;
     ds.camera_pitch_angle = (data_behind_.camera_pitch_angle+data_ahead_.camera_pitch_angle)/2;
     ds.camera_roll_angle = (data_behind_.camera_roll_angle+data_ahead_.camera_roll_angle)/2;
+}
+
+bool SerialPort::TryLatest(Data_Save &ds)
+{
+    bool received = false;
+    Data_Save sample{};
+    // Bounded drain so a busy producer cannot starve the GUI event loop.
+    for (int i = 0; i < 5000 && queue_.pop_for(sample, std::chrono::milliseconds(0)); ++i) {
+        ds = sample;
+        received = true;
+    }
+    return received;
 }
 
 void SerialPort::SendData(const struct Data_Get &data)

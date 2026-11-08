@@ -18,6 +18,8 @@ public:
   HikRobot(double exposure_us, double gain, const std::string & vid_pid);
   ~HikRobot();
   void Query(cv::Mat& img,time_point& timestamp);
+  // Non-blocking preview input; preserves Query for existing callers.
+  bool TryQuery(cv::Mat& img, time_point& timestamp);
   void SetExposure(double exposure_us);
 
 private:

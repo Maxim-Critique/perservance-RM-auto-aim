@@ -51,6 +51,15 @@ void HikRobot::Query(cv::Mat & img, time_point & timestamp)
   timestamp = data.timestamp;
 }
 
+bool HikRobot::TryQuery(cv::Mat & img, time_point & timestamp)
+{
+  CameraData data;
+  if (!queue_.pop_for(data, std::chrono::milliseconds(0))) return false;
+  img = data.img;
+  timestamp = data.timestamp;
+  return true;
+}
+
 void HikRobot::SetExposure(double exposure_us)
 {
   exposure_us_ = exposure_us;
