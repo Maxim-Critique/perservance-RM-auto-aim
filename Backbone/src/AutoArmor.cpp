@@ -1,91 +1,144 @@
 #include "AutoArmor.h"
-
-#include "logger.hpp"
 #include <filesystem>
 
-AutoArmor::AutoArmor(const std::string & config_path, bool realtime) : realtime_(realtime)
-{
-    const auto yaml = YAML::LoadFile(config_path);
-    config_ = sentry_aim::Config::from_yaml(yaml);
-    show_ = yaml["Camera"]["show"].as<int>(0) != 0;
-    solve_ptr_ = std::make_unique<Slover>(config_path);
-    model_dir_ = (std::filesystem::path(config_path).parent_path() / "model").string();
-    tracker_ = std::make_unique<sentry_aim::Tracker>(config_);
-    aimer_ = std::make_unique<sentry_aim::Aimer>(config_);
-    shooter_ = std::make_unique<sentry_aim::Shooter>(config_);
+AutoArmor::AutoArmor(const std::string &path, bool input_rgb) : input_rgb_(input_rgb) {
+    readYAML(path);
+    const auto yaml = YAML::LoadFile(path);
+    const auto backend = yaml["Algorithm"] ? yaml["Algorithm"]["backend"].as<std::string>() : "legacy";
+    planner_ptr = std::make_unique<Planner>(path);
+    if (backend == "tongji") {
+        auto algorithm = std::filesystem::path(yaml["Algorithm"]["config"].as<std::string>());
+        if (algorithm.is_relative()) algorithm = std::filesystem::path(path).parent_path() / algorithm;
+        tongji_ = std::make_unique<fusion::TongjiAdapter>(path, algorithm.string());
+    } else if (backend == "legacy") {
+        find_ptr = std::make_unique<ArmorDetector>("../model/mlp.onnx", "../model/label.txt", 0.7, 180,
+            std::vector<std::string>{"negative","outpost","base"});
+        solve_ptr = std::make_unique<Slover>();
+    } else throw std::invalid_argument("Unknown Algorithm.backend: " + backend);
+    last_time = std::chrono::steady_clock::now()-std::chrono::seconds(4);
+    time_interval = 4.0;
 }
-
-void AutoArmor::Reset()
-{
-    tracker_->reset();
-    aimer_->reset();
-    shooter_->reset();
-    last_mode_ = last_color_ = -1;
+void AutoArmor::Reset() {
+    if (tongji_) tongji_->reset();
+    aim_ptr.reset();
+    last_time = std::chrono::steady_clock::now()-std::chrono::seconds(4);
 }
-
-bool AutoArmor::AutoAim(Mat & img, const Data_Save & ds, Data_Get & dg)
-{
+bool AutoArmor::AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg){
     dg.Vision2Control();
-    const auto enemy = sentry_aim::color_from_a(ds.color);
-    if (img.empty() || !enemy || !std::isfinite(ds.camera_yaw_angle) ||
-        !std::isfinite(ds.camera_pitch_angle) || !std::isfinite(ds.camera_roll_angle)) {
-        tracker_->reset();
-        aimer_->reset();
-        shooter_->reset();
-        return false;
+    if (tongji_) {
+        auto model = tongji_->process(img, ds, input_rgb_);
+        if (!model) return false;
+        m_aim_id = 0; // A405b408 的 FoundID 更新被注释：保持实际协议 ID 输出为 0。
+        auto gimbal_angle = planner_ptr->TrajectoryPlanning(model);
+        if (!std::isfinite(gimbal_angle.manage_yaw) || !std::isfinite(gimbal_angle.target_pitch) ||
+            !std::isfinite(gimbal_angle.target_yaw)) return false;
+        Transmit(gimbal_angle, ds, dg);
+        return true;
     }
-    if (ds.armor_or_buff != last_mode_ || ds.color != last_color_) {
-        const bool outpost = ds.armor_or_buff == 3;
-        find_ptr_ = std::make_unique<ArmorDetector>(
-            model_dir_ + (outpost ? "/outpost.onnx" : "/mlp.onnx"),
-            model_dir_ + "/label.txt", 0.7, outpost ? 100 : 180,
-            outpost ? std::vector<std::string>{"negative", "base"} :
-                      std::vector<std::string>{"negative", "outpost", "base"},
-            outpost ? 21 : 19, outpost ? 0 : -2);
-        tracker_->reset();
-        aimer_->reset();
-        shooter_->reset();
+    if (img.empty()) return false;
+    if(ds.armor_or_buff != last_mode_){
+        if(ds.armor_or_buff == 3) find_ptr = std::make_unique<ArmorDetector>(
+            "../model/outpost.onnx", "../model/label.txt", 0.7, 100,
+            std::vector<std::string>{"negative","base"}, 21, 0);
+        else find_ptr = std::make_unique<ArmorDetector>(
+            "../model/mlp.onnx", "../model/label.txt", 0.7, 180,
+            std::vector<std::string>{"negative","outpost","base"}, 19, -2);
         last_mode_ = ds.armor_or_buff;
-        last_color_ = ds.color;
     }
-    const auto armors = find_ptr_->Detect(img, ds.color);
-    solve_ptr_->UpdateStatus(ds);
-    std::vector<sentry_aim::Armor> observations;
-    Armors solved;
-    for (auto armor : armors) {
-        if (sentry_aim::name_from_a(armor.number) == sentry_aim::ArmorName::not_armor) continue;
-        try {
-            if (!solve_ptr_->Solve(armor)) continue;
-            const auto observation = sentry_aim::observation_from_a(armor, ds.color, config_);
-            if (observation) {
-                observations.push_back(*observation);
-                solved.push_back(std::move(armor));
+
+
+    auto armors = find_ptr->Detect(img, ds.color);
+    if(armors.empty())return false;
+    auto armors_ = ChooseProcess(armors,ds);
+    if(armors_.empty())return false;
+    if(show)ShowArmors(armors_,img);
+    auto model = aim_ptr->Estimate(armors_, time_interval);
+
+    if (ds.armor_or_buff == 3 &&(std::abs(model->palstance) < 2.0 || std::abs(model->palstance) > 3.0))return true;
+
+    auto gimbal_angle = planner_ptr->TrajectoryPlanning(model);
+    Transmit(gimbal_angle,ds,dg);
+    return true;
+}
+
+void AutoArmor::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg){
+    int32_t yaw = (tools::R2D(gimbal_angle.manage_yaw) + compensate_yaw) * 1e4;
+    int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
+    int32_t yaw_val = tools::R2D(gimbal_angle.yaw_vel)*1e4;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 2.5;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 2.5;
+    bool fire_delta = (yaw_delta && pitch_delta);
+    dg.Vision2Control(yaw,pitch,m_aim_id,1,fire_delta);
+}
+
+// 处理倒影
+void SortArmors(Armors& armors) {
+    std::sort(armors.begin(), armors.end(),
+        [](const Armor& a, const Armor& b) {
+            return a.points[0].y < b.points[0].y;
+        });
+}
+
+// 从多个装甲板中按照ID选择进整车观测的装甲板
+Armors AutoArmor::ChooseProcess(Armors &armors,const Data_Save &ds){
+
+    Armors armors_;
+    SortArmors(armors);
+    time_interval = (ds.timestamp-last_time).count() / 1e9;
+    solve_ptr->UpdateStatus(ds);
+
+    if(time_interval>1.5|| !aim_ptr){
+        for(auto armor : armors){
+            solve_ptr->Solve(armor);
+            if(armor.gim_pose.norm()<12){
+                armors_.push_back(armor);
+                aim_ptr = std::make_unique<Aim>(armor);
+                last_time = ds.timestamp;
+                break;
             }
-        } catch (const cv::Exception & e) {
-            tools::logger()->warn("[AutoArmor] Invalid PnP observation: {}", e.what());
+        }
+    }else{
+        if(!aim_ptr)return armors_;
+
+        for(auto armor : armors){
+            if(armor.number == aim_ptr->aim_id){
+                solve_ptr->Solve(armor);
+                if(armor.gim_pose.norm()<12){
+                    armors_.push_back(armor);
+                    last_time = ds.timestamp;
+                }
+            }
+            if(armors_.size()>2){
+                break;
+            }
         }
     }
-    // Empty detections still advance the tracker, allowing prediction through brief occlusion.
-    const auto * target = tracker_->track(std::move(observations), ds.timestamp, *enemy, img.size());
-    if (show_) ShowArmors(solved, img);
-    if (tracker_->generation() != generation_) {
-        aimer_->reset();
-        shooter_->reset();
-        generation_ = tracker_->generation();
+    // if(!armors_.empty())m_aim_id = FoundID(aim_ptr->aim_id);
+    return armors_;
+}
+
+int AutoArmor::FoundID(string x) {
+    if (x == "outpost") {
+        return 6;
+    } else if (x == "guard") {
+        return 7;
+    } else if (x == "base") {
+        return 8;
+    } else {
+        return std::stoi(x);
     }
-    if (!target) {
-        aimer_->reset();
-        shooter_->reset();
-        return false;
+}
+
+YAML::Node AutoArmor::readYAML(const std::string& filename){
+    try {
+        YAML::Node config = YAML::LoadFile(filename);
+        compensate_pitch = config["Transmit"]["compensate_pitch"].as<double>();
+        compensate_yaw = config["Transmit"]["compensate_yaw"].as<double>();
+        show = config["Camera"]["show"].as<int>();
+    } catch (const YAML::Exception& e) {
+        throw std::runtime_error("YAML Error: " + std::string(e.what()) + "AutoArmor");
     }
-    const double latency = realtime_ ? std::max(0.0,
-        tools::delta_time(std::chrono::steady_clock::now(), ds.timestamp)) : 0.0;
-    const auto command = aimer_->aim(*target, ds.timestamp, bullet_speed, latency);
-    const bool fire = shooter_->shoot(command, aimer_->debug_aim_point, target,
-        Eigen::Vector3d(ds.camera_yaw_angle, ds.camera_pitch_angle, ds.camera_roll_angle),
-        tracker_->state() == sentry_aim::Tracker::State::tracking, tracker_->observed());
-    sentry_aim::write_command(command, target->name, fire, dg);
-    return command.control;
+    return YAML::LoadFile(filename);
 }
 
 void AutoArmor::ShowArmors(const Armors &armors,Mat &img){

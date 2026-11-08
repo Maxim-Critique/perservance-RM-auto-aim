@@ -1,30 +1,41 @@
 #pragma once
-
+#include "tongji_adapter.hpp"
+#include "ArmorTarget.h"
+#include "ArmorPlanner.h"
 #include "ArmorSolver.h"
+#include "ArmorTypes.h"
 #include "ArmorDetector.h"
-#include "sentry/adapter.hpp"
-#include "sentry/aimer.hpp"
-#include "sentry/shooter.hpp"
-#include "sentry/tracker.hpp"
+#include <algorithm>
+#include <sys/time.h>
 
-class AutoArmor
-{
+class AutoArmor{
 public:
-    explicit AutoArmor(const std::string & config_path = YamlPath, bool realtime = true);
+    explicit AutoArmor(const std::string &config_path = YamlPath, bool input_rgb = true);
     void Reset();
-    bool AutoAim(Mat & img, const Data_Save & ds, Data_Get & dg);
+    bool AutoAim(Mat &img,const Data_Save &ds,Data_Get &dg);
 private:
-    void ShowArmors(const Armors & armors, Mat & img);
-    sentry_aim::Config config_;
-    std::unique_ptr<ArmorDetector> find_ptr_;
-    std::unique_ptr<Slover> solve_ptr_;
-    std::unique_ptr<sentry_aim::Tracker> tracker_;
-    std::unique_ptr<sentry_aim::Aimer> aimer_;
-    std::unique_ptr<sentry_aim::Shooter> shooter_;
-    unsigned generation_ = 0;
-    int last_mode_ = -1;
-    int last_color_ = -1;
-    bool show_ = false;
-    bool realtime_ = true;
-    std::string model_dir_;
+    // 发ID
+    int FoundID(string x);
+    // 从多个装甲板中按照ID选择进整车观测的装甲板
+    Armors ChooseProcess(Armors &armors,const Data_Save &ds);
+    // 发送给电控
+    void Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg);
+    // 读取配置文件
+    YAML::Node readYAML(const std::string& filename);
+    // 可视化
+    void ShowArmors(const Armors &armor,Mat &img);
+    /////////////////////////////////变量/////////////////////////////
+    std::unique_ptr<fusion::TongjiAdapter> tongji_;
+    bool input_rgb_;
+    double time_interval;                             // 两次时间间隔
+    std::unique_ptr<Aim> aim_ptr;                     // 整车观测的指针
+    std::unique_ptr<Planner> planner_ptr;             // 轨迹规划指针
+    std::unique_ptr<Slover> solve_ptr;                // 姿态解算指针
+    time_point last_time;                             // 上一次时间
+    double compensate_pitch,compensate_yaw;           // pitch,yaw的补偿角
+    std::unique_ptr<ArmorDetector> find_ptr;          // 识别指针（灯条+装甲板+数字分类）
+    double m_next_shoot_time;                         // 下一次开火时间
+    double show;                                      // 可视化开关
+    int m_aim_id = 0;                                 // 识别的ID
+    double last_mode_ = 0;                            // 上一次的模式，用于检测模式切换
 };

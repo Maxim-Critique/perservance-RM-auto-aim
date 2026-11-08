@@ -22,24 +22,6 @@ EKF:
     dd: 100
     da: 400
 
-# B auto_aim_sentry tracking/model/aimer with A detector, calibration and hardware interfaces.
-Sentry:
-  min_detect_count: 5
-  max_temp_lost_count: 15
-  outpost_max_temp_lost_count: 75
-  max_frame_gap: 0.1             # seconds; reset after camera interruption
-  max_distance: 12              # metres
-  coming_angle: 70              # degrees
-  leaving_angle: 20             # degrees
-  min_spin_speed: 2             # rad/s
-  first_tolerance: 2.5          # degrees, origin2/suntry 405b408
-  second_tolerance: 2.5
-  outpost_min_speed: 2.0        # rad/s; both bounds gate control, not only firing
-  outpost_max_speed: 3.0
-  judge_distance: 2             # metres
-  auto_fire: true
-  priority_ids: [1, 3, 4, 7, 6, 8, 2, 5]  # A IDs; 6=outpost, 7=guard, 8=base
-
 Transmit:
   compensate_pitch: 1.10 # 朝上为正
   compensate_yaw: 1.50  # 朝左为正
@@ -50,3 +32,7 @@ Buff:
   compensate_yaw: 0.50  # 向左为正
   predict_time: 0.05
 
+
+Algorithm:
+  backend: tongji # legacy 可切换回原车算法
+  config: configs/tongji_sentry.yaml

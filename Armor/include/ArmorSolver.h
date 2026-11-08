@@ -4,7 +4,7 @@
 #pragma once
 #include <queue>
 #include "Base.h"
-#include "SerialPort.h"
+// Solver consumes Data_Save only; no serial driver dependency.
 #include <fstream>
 #include "ArmorTypes.h"
 #include <yaml-cpp/yaml.h>
@@ -15,11 +15,11 @@ class Slover
 {
 public:
     // 初始化
-    explicit Slover(const std::string & config_path = YamlPath);
+    Slover();
     // 更新状态
     void UpdateStatus(Data_Save ds);
     // 解算主接口
-    bool Solve(Armor &armor);
+    void Solve(Armor &armor);
     // BuffPNP
     void BuffPnP(vector<Point2f> Buff_points, Point3d &pose, Point3d &Rpose, Point3d &Aimpose, double &roll, double &yaw);
 private:

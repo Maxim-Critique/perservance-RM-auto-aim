@@ -28,8 +28,7 @@ int main(int argc, char** argv)
 
     std::cout << "Starting Hikrobot camera..." << std::endl;
 
-    const auto config = YAML::LoadFile(YamlPath);
-    io::HikRobot camera(config["Camera"]["exposure_armor"].as<double>(), 0.0, "2bdf:0001");
+    io::HikRobot camera(2500.0, 0.0, "2bdf:0001");
 
     std::cout << "Initializing AutoArmor..." << std::endl;
 

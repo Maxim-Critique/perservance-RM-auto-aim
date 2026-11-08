@@ -1,0 +1,9 @@
+{
+  "path": "/home/yuningli/RM-auto-aim/sp_vision_25/assets/demo/demo.avi",
+  "sha256": "20d518e69b917a7d50d4548c628e69083a57aa3c7fb40582aa9e353f569a9d45",
+  "bytes": 62652416,
+  "tracked_in_main": "bd9f5e798fa3c6dd3b483ae6627796afb41c608d",
+  "git_blob": "95f1dbc56545a6d972da082d1c186363c4dc90e2",
+  "tracked_in_b2c7dc5": false,
+  "note": "Test footage only; algorithm and models stay pinned to b2c7dc5."
+}

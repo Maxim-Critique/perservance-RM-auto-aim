@@ -1,0 +1,13 @@
+Consolidate compiler generated dependencies of target tongji_core
+[ 35%] Built target tongji_core
+Consolidate compiler generated dependencies of target fusion_review_compile
+Consolidate compiler generated dependencies of target fusion_test_core
+[ 68%] Built target fusion_review_compile
+[ 80%] Built target fusion_test_core
+[ 91%] Built target fusion_serial_mock
+Consolidate compiler generated dependencies of target fusion_regression
+Consolidate compiler generated dependencies of target fusion_offline
+[ 97%] Built target fusion_offline
+[ 95%] Building CXX object fusion/CMakeFiles/fusion_regression.dir/__/Test/rebuild/regression.cpp.o
+[100%] Linking CXX executable fusion_regression
+[100%] Built target fusion_regression

@@ -1,0 +1,15 @@
+{
+  "yolov5": {
+    "exit": 0,
+    "pass": true
+  },
+  "yolov8": {
+    "exit": 0,
+    "pass": true
+  },
+  "missing_model": {
+    "exit": 1,
+    "expected_exit": 1,
+    "pass": true
+  }
+}

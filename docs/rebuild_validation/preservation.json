@@ -1,0 +1,29 @@
+{
+  "original_yaml_groups_equal": {
+    "Camera": true,
+    "USBCamera": true,
+    "Transform": true,
+    "Planer": true,
+    "EKF": true,
+    "Transmit": true,
+    "Buff": true
+  },
+  "source_refs": {
+    "A": "405b40812b72705b8d5b173a5ef2529ecab84efa",
+    "B": "3a52df8d805d5972364984fce242eb8b737537dd",
+    "C_canonical_local": "b2c7dc5ddfce77f8c5e7557c2293d759789e787d"
+  },
+  "A_nested_status": "",
+  "C_status": "",
+  "isolated_parent": "3a52df8d805d5972364984fce242eb8b737537dd",
+  "driver_files_equal_to_A": {
+    "io/src/hikrobot.cpp": true,
+    "io/src/SerialPort.cpp": true,
+    "io/src/ros2.cpp": true,
+    "io/src/publish2nav.cpp": true,
+    "io/src/subscribe2nav.cpp": true,
+    "io/include/hikrobot.hpp": true,
+    "Backbone/include/Base.h": true,
+    "tools/trajectory.cpp": true
+  }
+}

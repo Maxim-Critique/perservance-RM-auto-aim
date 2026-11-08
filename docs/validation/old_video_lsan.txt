@@ -1,9 +1,0 @@
-
-=================================================================
-==25127==ERROR: LeakSanitizer: detected memory leaks
-
-Direct leak of 792 byte(s) in 3 object(s) allocated from:
-    #0 0x7c3d110b6357 in operator new[](unsigned long) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:102
-    #1 0x7c3d094e9c36  (/lib/x86_64-linux-gnu/libtbb.so.2+0x27c36)
-
-SUMMARY: AddressSanitizer: 792 byte(s) leaked in 3 allocation(s).

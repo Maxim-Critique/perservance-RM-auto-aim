@@ -21,8 +21,6 @@ struct DetectionResult
     Armors armors;
     double delta_pitch = 0.0;
     double delta_yaw = 0.0;
-    time_point timestamp{};
-    int enemy_color = -1;
 };
 
 class Perceptron
@@ -39,7 +37,6 @@ public:
     void ParallelInfer(io::USBCamera * cam, ArmorDetector & detector, int enemy_color);
 
     void SetActive(bool active);
-    void SetEnemyColor(int color);
 
     // 获取检测队列中的所有结果
     std::vector<DetectionResult> GetDetectionQueue();
@@ -51,8 +48,7 @@ private:
         const std::string & window_name);
 
     // 计算delta角度并将结果存入检测队列
-    void CalculateDeltaAngles(const Armors & armors, io::USBCamera * cam,
-                              int enemy_color, time_point timestamp);
+    void CalculateDeltaAngles(const Armors & armors, io::USBCamera * cam);
 
     // 根据points的第1和第3个点向外延伸armor的points
     void ExpandArmorPoints(Armors & armors);
@@ -66,7 +62,6 @@ private:
 
     bool stop_flag_;
     bool active_;
-    int enemy_color_;
     bool show_visualization_;
     double fov_h_;
     double fov_v_;

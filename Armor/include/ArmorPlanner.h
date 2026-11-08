@@ -10,7 +10,7 @@
 class Planner
 {
 public:
-    Planner();
+    explicit Planner(const std::string &config_path = YamlPath);
     Gimbal_Angle TrajectoryPlanning(std::shared_ptr<KinematicModel> model);
 private:
 

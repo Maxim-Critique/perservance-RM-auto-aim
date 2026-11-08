@@ -2,6 +2,7 @@
 #define AIM_STATE_MACHINE_H
 
 #include <chrono>
+#include <algorithm>
 #include "Base.h"
 
 class AimStateMachine {
@@ -13,24 +14,20 @@ public:
         return instance;
     }
 
-    void Reset() {
-        mode_ = Mode::Lost;
-        hold_deadline_ = {};
-        last_dg_ = Data_Get{};
-    }
-
     void Step(const time_point& now, Data_Get& dg) {
         const uint8_t found = dg.raw_data[18];
         UpdateMode(now, found);
         if(mode_ == Mode::MainTrack || mode_ == Mode::UsbSearch) last_dg_ = dg;
         else if (mode_ == Mode::HoldMain || mode_ == Mode::HoldUsb) {
-            // Hold only the vision angles and identity; keep the current navigation fields.
-            std::memcpy(dg.raw_data + 2, last_dg_.raw_data + 2, 8);
+            // 仅保持视觉角度和状态，不复用旧发射位或覆盖本帧导航字段。
+            std::copy(last_dg_.raw_data + 2, last_dg_.raw_data + 10, dg.raw_data + 2);
             dg.raw_data[17] = last_dg_.raw_data[17];
             dg.raw_data[18] = last_dg_.raw_data[18];
             dg.raw_data[19] = 0;
         }
     }
+
+    void Reset() { mode_ = Mode::Lost; hold_deadline_ = {}; last_dg_.Vision2Control(); }
 
     bool UsbActive() const {
         return mode_ == Mode::UsbSearch || mode_ == Mode::HoldUsb || mode_ == Mode::Lost;

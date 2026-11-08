@@ -1,0 +1,8 @@
+{
+  "MVS_directory_present": false,
+  "ROS_Humble_directory_present": false,
+  "ttyACM_devices": [],
+  "video_devices": [],
+  "lsusb_exit": 1,
+  "lsusb_output": ""
+}

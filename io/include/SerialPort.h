@@ -3,12 +3,12 @@
 #pragma once
 
 #include <iostream>
+#include <thread>
+#include <atomic>
 #include <opencv2/opencv.hpp>
 #include "Base.h"
 #include <deque>
 #include <mutex>
-#include <thread>
-#include <atomic>
 #include "logger.hpp"
 #include "thread_safe_queue.hpp"
 namespace io{

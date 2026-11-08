@@ -1,0 +1,4 @@
+# Preserve upstream model bytes/CRLF and review them through SHA256 manifests.
+third_party/tongji/assets/*.xml -text -diff
+third_party/tongji/assets/*.bin -text -diff
+third_party/tongji/assets/*.onnx -text -diff
