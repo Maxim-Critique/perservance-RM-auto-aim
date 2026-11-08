@@ -1,0 +1,18 @@
+{
+  "old-single": {
+    "frames": 200,
+    "found_frames": 0,
+    "mean_pipeline_ms": 5.5775161,
+    "p95_pipeline_ms": 8.28827,
+    "fire_output_all_zero": true,
+    "has_leak_report": true
+  },
+  "new-single": {
+    "frames": 200,
+    "found_frames": 0,
+    "mean_pipeline_ms": 4.52154825,
+    "p95_pipeline_ms": 5.86175,
+    "fire_output_all_zero": true,
+    "has_leak_report": true
+  }
+}

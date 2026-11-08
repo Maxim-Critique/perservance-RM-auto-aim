@@ -22,6 +22,7 @@ Perceptron::Perceptron(
 : detection_queue_(100),
     stop_flag_(false),
     active_(true),
+    enemy_color_(enemy_color),
     show_visualization_(false),
     fov_h_(1.57),
     fov_v_(1.57)
@@ -87,13 +88,16 @@ void Perceptron::ParallelInfer(io::USBCamera * cam, ArmorDetector & detector, in
                 std::unique_lock<std::mutex> lock(mutex_);
                 condition_.wait(lock, [this] { return stop_flag_ || active_; });
                 if (stop_flag_) break;
+                enemy_color = enemy_color_;
             }
 
-            cv::Mat usb_img = cam->read();
+            cv::Mat usb_img;
+            time_point timestamp;
+            cam->read(usb_img, timestamp);
             if (usb_img.empty()) continue;
 
             Armors armors = detector.Detect(usb_img, enemy_color);
-            if (!armors.empty()) CalculateDeltaAngles(armors, cam);
+            if (!armors.empty()) CalculateDeltaAngles(armors, cam, enemy_color, timestamp);
 
             if (show_visualization_)
                 DrawAndVisualize(usb_img, armors, cam->device_name);
@@ -109,14 +113,27 @@ void Perceptron::SetActive(bool active)
     {
         std::unique_lock<std::mutex> lock(mutex_);
         active_ = active;
+        if (!active) detection_queue_.clear();
     }
     condition_.notify_all();
 }
 
-void Perceptron::CalculateDeltaAngles(const Armors & armors, io::USBCamera * cam)
+void Perceptron::SetEnemyColor(int color)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (enemy_color_ != color) {
+        enemy_color_ = color;
+        detection_queue_.clear();
+    }
+}
+
+void Perceptron::CalculateDeltaAngles(const Armors & armors, io::USBCamera * cam,
+                                     int enemy_color, time_point timestamp)
 {
     DetectionResult result;
     result.armors = armors;
+    result.enemy_color = enemy_color;
+    result.timestamp = timestamp;
 
     cv::Point2f norm_center(
         armors[0].center.x / static_cast<float>(cam->new_image_width_),
@@ -132,8 +149,8 @@ void Perceptron::CalculateDeltaAngles(const Armors & armors, io::USBCamera * cam
     }
 
     result.delta_pitch = -tools::D2R(12) + (fov_v_ / 2) - norm_center.y * fov_v_;
-;
-    detection_queue_.push(result);
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (active_ && enemy_color == enemy_color_) detection_queue_.push(result);
 }
 
 void Perceptron::DrawAndVisualize(
@@ -164,18 +181,21 @@ void Perceptron::DrawAndVisualize(
 
 std::vector<DetectionResult> Perceptron::GetDetectionQueue()
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     std::vector<DetectionResult> result;
     DetectionResult temp;
     while (!detection_queue_.empty()) {
         detection_queue_.pop(temp);
-        if (!temp.armors.empty()) result.push_back(std::move(temp));
+        const auto age = tools::delta_time(std::chrono::steady_clock::now(), temp.timestamp);
+        if (!temp.armors.empty() && temp.enemy_color == enemy_color_ && age >= 0 && age <= 0.15)
+            result.push_back(std::move(temp));
     }
 
     auto detectionPriority = [](const DetectionResult & detection_result) {
         int highest_priority = 0;
         for (const auto & armor : detection_result.armors) {
             const int priority = armor.number == "1" ? 4 : armor.number == "3" ? 3 
-                : armor.number == "4" ? 2 : armor.number == "groud" ? 1 : 0;
+                : armor.number == "4" ? 2 : armor.number == "guard" ? 1 : 0;
             highest_priority = std::max(highest_priority, priority);
             if (highest_priority == 4) break;
         }

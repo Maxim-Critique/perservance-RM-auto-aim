@@ -521,8 +521,8 @@ ArmorDetector::ArmorDetector(
     const double classify_threshold, const int binary_threshold,
     const std::vector<std::string> &ignore_classes,
     const int adaptive_block_size, const int adaptive_c)
-    : ignore_classes_(ignore_classes), classify_threshold_(classify_threshold), threshold_(binary_threshold),
-      adaptive_block_size_(adaptive_block_size), adaptive_c_(adaptive_c) {
+    : threshold_(binary_threshold), adaptive_block_size_(adaptive_block_size), adaptive_c_(adaptive_c),
+      ignore_classes_(ignore_classes), classify_threshold_(classify_threshold) {
     enemy_color_ = 0;
     net_ = cv::dnn::readNetFromONNX(model_path);
 

@@ -4,10 +4,8 @@
 #include "AutoBuff.h"
 #include "exiter.hpp"
 #include "logger.hpp"
-#include "perceptron.hpp"
 #include "player.hpp"
 #include "State.h"
-#include "usbcamera.hpp"
 
 
 // 进度条状态
@@ -68,7 +66,7 @@ int main(int argc, char * argv[])
 {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0]
-                  << " <record_prefix> [show=1] [start_frame=0] [input_rgb=1]"
+                  << " <record_prefix> [show=1] [start_frame=0]"
                   << std::endl;
         std::cerr << "  record_prefix: path without extension,"
                   << " e.g. records/2026-08-01_12-34-56_0000"
@@ -79,7 +77,6 @@ int main(int argc, char * argv[])
     std::string record_path = argv[1];
     int show = 1;
     int start_frame = 0;
-    const bool input_rgb = argc >= 5 ? std::stoi(argv[4]) != 0 : true;
     if (argc >= 3) show = std::stoi(argv[2]);
     if (argc >= 4) start_frame = std::stoi(argv[3]);
 
@@ -100,22 +97,24 @@ int main(int argc, char * argv[])
     PlaybackSlider slider;
     slider.pos = start_frame;
     slider.player = &player;
-    if (show) cv::namedWindow("playback", cv::WINDOW_AUTOSIZE);
-    if (show) cv::createTrackbar(
-        "Frame", "playback", &slider.pos, total_frames - 1, onFrameSlider, &slider);
+    if (show) {
+        cv::namedWindow("playback", cv::WINDOW_AUTOSIZE);
+        cv::createTrackbar(
+            "Frame", "playback", &slider.pos, total_frames - 1, onFrameSlider, &slider);
+    }
 
     int current_frame = start_frame;
     bool paused = false;
 
     tools::Exiter exiter;
 
-    std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>(YamlPath, input_rgb);
+    std::unique_ptr<AutoArmor> armor_ = std::make_unique<AutoArmor>(YamlPath, false);
     std::unique_ptr<AutoBuff> buff_ = std::make_unique<AutoBuff>();
 
     cv::Mat img;
     Data_Save ds;
     Data_Get dg;
-    double last_mode = -1;
+    int last_mode = -1;
     int last_color = -1;
 
     while (!exiter.exit()) {
@@ -126,6 +125,7 @@ int main(int argc, char * argv[])
             armor_->Reset();
             AimStateMachine::Instance().Reset();
             dg.Vision2Control();
+            last_mode = last_color = -1;
             current_frame = slider.pos;
             paused = false;  // 拖动进度条时自动恢复播放
         }
@@ -137,9 +137,10 @@ int main(int argc, char * argv[])
             }
 
             if (ds.armor_or_buff != last_mode || ds.color != last_color) {
-                armor_->Reset(); AimStateMachine::Instance().Reset();
+                AimStateMachine::Instance().Reset();
+                armor_->Reset();
             }
-            last_color = ds.color;
+
             if (!ds.armor_or_buff || ds.armor_or_buff == 3) {
                 // 自瞄模式
                 if (ds.armor_or_buff != last_mode)
@@ -160,6 +161,7 @@ int main(int argc, char * argv[])
             }
 
             last_mode = ds.armor_or_buff;
+            last_color = ds.color;
             tools::logger()->info("ds.go_back {} ,mode {}", ds.go_back, ds.armor_or_buff);
         }
 
@@ -197,6 +199,8 @@ int main(int argc, char * argv[])
             } else if (key == 'q' || key == 27) {
                 break;
             }
+        } else {
+            ++current_frame;
         }
     }
 

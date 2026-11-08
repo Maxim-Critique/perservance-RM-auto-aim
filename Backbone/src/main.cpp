@@ -59,7 +59,7 @@ int main()
     std::unique_ptr<io::USBCamera> usb_camera2 = std::make_unique<io::USBCamera>("video2", YamlPath);
     std::unique_ptr<Omniperception::Perceptron> perceptron; 
     Mat img;time_point t;Data_Save ds;Data_Get dg;
-    double last_mode = 0;
+    int last_mode = -1;
     int last_color = -1;
     tools::Recorder recorder(165);  // 30fps录制
 
@@ -68,14 +68,15 @@ int main()
         serial_->Query(ds,t);
         // recorder.record(img, ds);
         if (ds.armor_or_buff != last_mode || ds.color != last_color) {
-            armor_->Reset();
             AimStateMachine::Instance().Reset();
+            armor_->Reset();
         }
-        last_color = ds.color;
+        
         if(!ds.armor_or_buff){
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_armor);
             armor_->AutoAim(img,ds,dg);
             if(!perceptron) perceptron = std::make_unique<Omniperception::Perceptron>(usb_camera0.get(), usb_camera2.get(), ds.color, YamlPath);
+            perceptron->SetEnemyColor(ds.color);
             auto& state = AimStateMachine::Instance();
             if(state.NeedPerceptron(dg)){
                 auto list = perceptron->GetDetectionQueue();
@@ -91,13 +92,14 @@ int main()
             armor_->AutoAim(img,ds,dg);
             if (perceptron) perceptron->SetActive(false);
         }else{
+            if (perceptron) perceptron->SetActive(false);
             if(ds.armor_or_buff != last_mode) camera_->SetExposure(exposure_buff);
             ros2_->publish(ds.go_back);
             buff_->AutoAim(img,ds,dg);
-            if (perceptron) perceptron->SetActive(false);
         }
 
         last_mode = ds.armor_or_buff;
+        last_color = ds.color;
         tools::logger()->info("ds.go_back {} ,mode {}",ds.go_back,ds.armor_or_buff);
 
         std::vector<int16_t> received_data = ros2_->subscribe_autoaim_target();

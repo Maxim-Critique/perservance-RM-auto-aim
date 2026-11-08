@@ -31,8 +31,8 @@ Subscribe2Nav::~Subscribe2Nav()
 void Subscribe2Nav::autoaim_target_callback(std::shared_ptr<const std_msgs::msg::Int16MultiArray> msg)
 {
 
-  if (msg->data.size() < 1) {  // 修改为至少需要1个元素
-    RCLCPP_WARN(this->get_logger(), "Received Int16MultiArray with no data: size %zu", msg->data.size());
+  if (msg->data.size() < 2) {
+    RCLCPP_WARN(this->get_logger(), "Received Int16MultiArray requires two coordinates: size %zu", msg->data.size());
     return;
   }
 

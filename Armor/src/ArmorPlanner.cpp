@@ -2,8 +2,8 @@
 #include <yaml-cpp/yaml.h>
 #include <cmath>
 #include <fstream>
-Planner::Planner(const std::string &config_path){
-    YAML::Node config = YAML::LoadFile(config_path);
+Planner::Planner(){
+    YAML::Node config = YAML::LoadFile(YamlPath);
     predict_time = config["Transmit"]["predict_time"].as<double>();
     max_yaw_acc = config["Planer"]["max_yaw_acc"].as<double>();
 }
