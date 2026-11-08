@@ -33,7 +33,9 @@ public:
     void InitEKF(Armor armor);
     // 计算得分，匹配装甲板
     Eigen::MatrixXd GetScoreMat(const Armors &detect_armors, const Armors &standard_armors);
-    
+    // 可视化状态量
+    void visualizeState(const Armors &detected_armors, double dt);
+
     ///////////////////////////          变量               ////////////////////////////////////////////
     double m_score_tolerance;                                    // 装甲板匹配得分最大值
     std::shared_ptr<ExtendedKalmanFilter> m_model_observer;      // 状态观测器

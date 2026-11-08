@@ -59,9 +59,7 @@ static bool ContainLight(const LightBlob &light_blob_i, const LightBlob &light_b
 // 判断两个灯条是否可以匹配
 static bool IsCoupleLight(const LightBlob &light_blob_i, const LightBlob &light_blob_j, int enemy_color)
 {
-    return light_blob_i.blob_color == enemy_color &&
-           light_blob_j.blob_color == enemy_color &&
-           LengthRatioJudge(light_blob_i, light_blob_j) &&
+    return LengthRatioJudge(light_blob_i, light_blob_j) &&
            LengthWidthJudge(light_blob_i, light_blob_j) &&
            AngleJudge(light_blob_i, light_blob_j);
 }

@@ -14,6 +14,7 @@
 #include "Base.h"
 namespace auto_buff
 {
+class Solver;  // 前向声明
 class Voter
 {
 public:
@@ -41,6 +42,10 @@ public:
 
     bool is_unsolve() const;
 
+    void set_unsolvable(bool v) { unsolvable_ = v; }
+
+    void set_solver(Solver* s) { solver_ = s; }
+
     Eigen::VectorXd ekf_x() const;
 
     double spd = 0;  //调试用
@@ -63,6 +68,7 @@ protected:
     bool first_in_;
     bool unsolvable_;
     double fire_mode = 0;
+    Solver* solver_ = nullptr;  // 由AutoBuff注入，用于重投影偏差检查
     
 };
 
@@ -89,8 +95,7 @@ private:
     Eigen::MatrixXd h_jacobian() const;
 
     const double SMALL_W = CV_PI / 3;
-    double filtered_yaw = 0;
-    int number = 0;
+
     // const double SMALL_W = 0;
 };
 
@@ -115,8 +120,8 @@ private:
     void update(double nowtime, const PowerRune & p) override;
 
     Eigen::MatrixXd h_jacobian() const;
-    double filtered_yaw = 0;
-    int number = 0;
+
+    int jump_counter_ = 0;  // 扇叶跳变连续帧计数
 };
 
 }  // namespace auto_buff

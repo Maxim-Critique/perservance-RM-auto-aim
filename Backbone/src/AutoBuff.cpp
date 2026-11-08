@@ -6,6 +6,7 @@ AutoBuff::AutoBuff(){
     discover_ = std::make_unique<auto_buff::BuffDetector>();
     slover_ = std::make_unique<auto_buff::Solver>();
     target_ = std::make_unique<auto_buff::SmallTarget>();
+    target_->set_solver(slover_.get());
     planner_ = std::make_unique<auto_buff::Planner>();
 }
 
@@ -20,7 +21,8 @@ void AutoBuff::show(const std::optional<auto_buff::PowerRune> &power_runes, cv::
         auto ekf_points = slover_->reproject_buff(ekf_Rxyz, target_->ekf_x()[4], target_->ekf_x()[5]);
         float pixel_diff = cv::norm(ekf_points[4] - p.fanblades[0].points[4]);
         tools::logger()->info("[AutoBuff] Pixel Diff: {:.2f} pixels", pixel_diff);
-        cv::circle(img, ekf_points[4], 4, cv::Scalar(128, 0, 128), -1);
+        // 绘制所有ekf点
+        for (auto point : ekf_points) cv::circle(img, point, 4, cv::Scalar(128, 0, 128), -1);
     }
 }
 
@@ -42,14 +44,14 @@ void AutoBuff::AutoAim(cv::Mat &img,const Data_Save &ds,Data_Get &dg){
 
     auto target_copy =  target_->clone();
     auto gimbal_angle = planner_->Plan(*target_copy,ds.timestamp);
-    Transmit(gimbal_angle,ds,dg,img);
+    Transmit(gimbal_angle,ds,dg,img,power_runes);
 }
 
-void AutoBuff::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg,cv::Mat &img){
+void AutoBuff::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Data_Get &dg,cv::Mat &img, const std::optional<auto_buff::PowerRune> &power_runes){
     int32_t yaw = (tools::R2D(gimbal_angle.target_yaw) + compensate_yaw) * 1e4;
     int32_t pitch = (tools::R2D(gimbal_angle.target_pitch) + compensate_pitch) * 1e4;
-    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 0.8;
-    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 0.8;
+    bool yaw_delta = abs(tools::R2D(gimbal_angle.target_yaw) + compensate_yaw - tools::R2D(ds.camera_yaw_angle)) < 0.4;
+    bool pitch_delta = abs(tools::R2D(gimbal_angle.target_pitch) + compensate_pitch - tools::R2D(ds.camera_pitch_angle)) < 0.4;
     bool fire_delta = (yaw_delta && pitch_delta);
     if(!gimbal_angle.manage_yaw){
         yaw = (tools::R2D(ds.camera_yaw_angle)) * 1e4;
@@ -57,18 +59,22 @@ void AutoBuff::Transmit(const Gimbal_Angle &gimbal_angle,const Data_Save &ds,Dat
     }
     bool follow_dalta = gimbal_angle.manage_yaw && yaw!=0 && pitch !=0;
 
-    if (fire_delta) {
+    // 必须同时识别到两片扇叶才允许发射
+    bool two_blades = (last_mode ==1 || (power_runes.has_value() && power_runes->light_num == 2));
+    bool fire = fire_delta;
+
+    if (fire) {
         cv::putText(img, "Fire", cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(0, 0, 255), 4);
     } else {
-        std::string text = "target_yaw " + std::to_string(tools::R2D(gimbal_angle.target_yaw) ) +
-                          " target_pitch " + std::to_string(tools::R2D(gimbal_angle.target_pitch) )
+        std::string text = "target_yaw " + std::to_string(tools::R2D(gimbal_angle.target_yaw)+ compensate_yaw ) +
+                          " target_pitch " + std::to_string(tools::R2D(gimbal_angle.target_pitch)+ compensate_pitch )
                            + " found " + std::to_string(follow_dalta);
         std::string text_now = "now_yaw " + std::to_string(tools::R2D(ds.camera_yaw_angle) ) +
                           " now_pitch " + std::to_string(tools::R2D(ds.camera_pitch_angle) );                   
         cv::putText(img, text, cv::Point(40, 40), cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(0, 0, 255), 4);
         cv::putText(img, text_now, cv::Point(40, 80), cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(0, 0, 255), 4);
     }
-    dg.Vision2Control(yaw,pitch,0,0,follow_dalta,fire_delta);
+    dg.Vision2Control(yaw,pitch,0,0,follow_dalta,fire);
 }
 
 YAML::Node AutoBuff::readYAML(const std::string& filename){

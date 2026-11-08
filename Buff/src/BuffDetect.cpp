@@ -7,7 +7,7 @@ std::mutex mutex_bh;
 namespace auto_buff{
 
 BuffDetector::BuffDetector(){
-    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh2.onnx");
+    net_ = cv::dnn::readNetFromONNX("../model/mlp_bh3.onnx");
 }
 
 void BuffDetector::HandleImg(){
@@ -15,12 +15,15 @@ void BuffDetector::HandleImg(){
     cv::cvtColor(img_, gray_img_, cv::COLOR_BGR2GRAY);  
     // cv::imshow("gray", gray_img_); 
     // 进行二值化 
-    cv::threshold(gray_img_, gray_img_, 60, 255, cv::THRESH_BINARY);
+    cv::threshold(gray_img_, gray_img_, 40, 255, cv::THRESH_BINARY);
+    // 闭运算（3x3）
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::morphologyEx(gray_img_, gray_img_, cv::MORPH_CLOSE, kernel);
     // cv::imshow("gray", gray_img_);
     // 找轮廓
     cv::findContours(gray_img_, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     auto it = std::remove_if(contours.begin(), contours.end(),
-        [](const std::vector<cv::Point>& c) { return c.size() < 2; });
+        [](const std::vector<cv::Point>& c) { return c.size() < 10; });
     contours.erase(it, contours.end());
 }
 
@@ -56,6 +59,10 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     }
     // 获得流水灯
     GetLightBars(fanblades,rects);
+    if(fanblades.empty()){
+        Lose();
+        return std::nullopt;
+    }
     /// 生成PowerRune
     auto r_center = GetR(fanblades);    
     PowerRune powerrune(fanblades, r_center, last_powerrune_);
@@ -66,7 +73,8 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     status_ = TRACK;
     lose_ = 0;
 
-    if(show_)Show(powerrune);
+    if(show_)Show(fanblades, powerrune);
+
     std::optional<PowerRune> P;
     P.emplace(std::move(powerrune));
     last_powerrune_ = P;
@@ -74,16 +82,18 @@ std::optional<PowerRune> BuffDetector::Detect(cv::Mat & img){
     
 }
 
-void BuffDetector::Show(PowerRune &P){
-    for(auto &fan : P.fanblades){
-        for(int i=0;i<6;i++){
-            circle(img_,fan.points[i],2,Scalar(0,200,0),-1);
-            putText(img_, std::to_string(i), fan.points[i], FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0,200,0), 0.2);
+void BuffDetector::Show(vector<FanBlade>& fanblades, PowerRune &P){
+    // 绘制所有扇叶（选扇叶前），每片6个关键点
+    for(auto &fan : fanblades){
+        for(int i = 0; i < 6; i++){
+            circle(img_, fan.points[i], 2, Scalar(0, 200, 0), -1);
+            putText(img_, std::to_string(i), fan.points[i],
+                    FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0, 200, 0), 0.2);
         }
-    }    
-    circle(img_,P.r_center,2,Scalar(0,200,0),-1);
-    putText(img_, std::to_string(6), P.r_center, FONT_HERSHEY_SIMPLEX, 0.4, Scalar(0,200,0), 0.2);    
-    
+    }
+    // 绘制R标中心
+    circle(img_, P.r_center, 3, Scalar(0, 0, 255), -1);
+    putText(img_, "R", P.r_center + cv::Point2f(5, -5), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(0, 0, 255), 1);
 }
 
 cv::Point2f BuffDetector::GetR(std::vector<FanBlade> & fanblades)
@@ -123,7 +133,7 @@ cv::Point2f BuffDetector::GetR(std::vector<FanBlade> & fanblades)
 
 void SaveImg(Mat &input_image){
     if (input_image.empty()) cout << "warpPerspective失败，图像为空!" << endl;
-    static int number =1;
+    static int number = 1;
     number++;
     if(number%5==0){
         string filename = "../photos/" + to_string(number) + ".png";
@@ -153,35 +163,36 @@ bool BuffDetector::Verify(cv::Point2f points[4]) {
 }
 
 void BuffDetector::DetectCircles(vector<FanBlade>& fanblades){
-    double min_ratio = 0.1;
-    double max_ratio = 1;
-    int min_area = 3500;
-    int max_area = 7000;
+    int min_area = 500;
+    int max_area = 5500;
     for (const auto& contour : contours) {
-        double area = cv::contourArea(contour);
         cv::Point2f center;float radius;
         cv::minEnclosingCircle(contour, center, radius);
-        double area_ratio = area /(CV_PI * pow(radius,2));
+        double area = CV_PI * radius * radius;  // 使用外接圆面积
         if(this->debug_){
             circle(img_,center,radius,Scalar(200,0,200),2);
-            putText(img_,"Size: "+to_string(area)+"Ratio :"+to_string(area_ratio),center, cv::FONT_HERSHEY_COMPLEX, 0.6, Scalar(205, 100, 225), 1);
+            putText(img_,"Size: "+to_string(area)+"Radius: "+to_string(radius),center, cv::FONT_HERSHEY_COMPLEX, 0.6, Scalar(205, 100, 225), 1);
         }
-        
-        if ((area>min_area) && (area<max_area) && (area_ratio>min_ratio) && (area_ratio<max_ratio) ){
-            
+
+        if ((area>min_area) && (area<max_area)){
             cv::RotatedRect rect = cv::minAreaRect(contour);
             cv::Point2f vertices[4];
             rect.points(vertices);
-            if(Verify(vertices))fanblades.emplace_back(center,radius,_light);
+            if(Verify(vertices)){
+                fanblades.emplace_back(center,radius,_light);
+                // 绘制符合条件的扇叶
+                circle(img_, center, radius, Scalar(0, 255, 0), 2);
+            }
         }
+
     }
 }
 
 void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2f>>> &rects){
     float min_area = 500;
-    float max_area = 3000;
+    float max_area = 2200;
     float min_aspect = 0.05f;
-    float max_aspect = 0.35f;
+    float max_aspect = 0.4f;
     for (const auto& contour : contours) {
         cv::RotatedRect rect = cv::minAreaRect(contour);
         cv::Point2f vertices[4];
@@ -193,6 +204,7 @@ void BuffDetector::DetectRect(std::vector<std::pair<float,std::vector<cv::Point2
             for (int i = 0; i < 4; ++i) cv::line(img_, vertices[i], vertices[(i+1)%4], cv::Scalar(0, 255, 0), 2, cv::LINE_AA); 
             putText(img_,"Size: "+to_string(area)+"Bili :"+to_string(aspect_ratio),vertices[1], cv::FONT_HERSHEY_COMPLEX,0.6, Scalar(0, 255, 0), 1);
         }
+        
         if ((area>min_area) && (area<max_area) && (aspect_ratio>min_aspect) && (aspect_ratio<max_aspect)) {
             if(w_h)rect.angle+=90;
             std::vector<cv::Point2f> points(vertices, vertices + 4);
@@ -221,6 +233,49 @@ std::vector<cv::Point2f> GetPoints(
     return all_points;
 }
 
+static bool RectLongSideAlignedWithFanCenter(
+    const std::vector<cv::Point2f>& rect_points,
+    const cv::Point2f& fan_center,
+    const cv::Point2f& ref_point)
+{
+    if (rect_points.size() < 4) {
+        return false;
+    }
+
+    int long_edge_index = 0;
+    float long_edge_length = 0.0f;
+    for (int i = 0; i < 4; ++i) {
+        const cv::Point2f& p1 = rect_points[i];
+        const cv::Point2f& p2 = rect_points[(i + 1) % 4];
+        float edge_length = cv::norm(p2 - p1);
+        if (edge_length > long_edge_length) {
+            long_edge_length = edge_length;
+            long_edge_index = i;
+        }
+    }
+
+    if (long_edge_length <= 1e-6f) {
+        return false;
+    }
+
+    const cv::Point2f& long_edge_start = rect_points[long_edge_index];
+    const cv::Point2f& long_edge_end = rect_points[(long_edge_index + 1) % 4];
+    cv::Point2f long_edge_vec = long_edge_end - long_edge_start;
+    cv::Point2f center_line_vec = ref_point - fan_center;
+
+    float long_edge_norm = cv::norm(long_edge_vec);
+    float center_line_norm = cv::norm(center_line_vec);
+    if (long_edge_norm <= 1e-6f || center_line_norm <= 1e-6f) {
+        return false;
+    }
+
+    float cos_value = std::abs(long_edge_vec.dot(center_line_vec)) /
+                      (long_edge_norm * center_line_norm);
+    cos_value = std::clamp(cos_value, 0.0f, 1.0f);
+    float acute_angle = std::acos(cos_value) * 180.0f / static_cast<float>(CV_PI);
+    return acute_angle < 15.0f;
+}
+
 void BuffDetector::GetLightBars(vector<FanBlade>& fanblades, std::vector<std::pair<float, std::vector<cv::Point2f>>>& rects) {
     for (auto& fan : fanblades) {
 
@@ -229,6 +284,9 @@ void BuffDetector::GetLightBars(vector<FanBlade>& fanblades, std::vector<std::pa
 
         for (const auto& rect : rects) {
             const cv::Point2f& ref_point = rect.second.back(); 
+            if (!RectLongSideAlignedWithFanCenter(rect.second, fan.center, ref_point)) {
+                continue;
+            }
             float dist = cv::norm(ref_point - fan.center);
             if (dist < min_distance) {
                 min_distance = dist;
@@ -236,16 +294,20 @@ void BuffDetector::GetLightBars(vector<FanBlade>& fanblades, std::vector<std::pa
             }
         }
 
-        if (min_distance != std::numeric_limits<float>::max() && best_rect_points) {
-            cv::Point2f ref_point = best_rect_points->back(); 
+        if (min_distance < fan.radius *3.5 && best_rect_points) {
+            cv::Point2f ref_point = best_rect_points->back();
             float r = fan.radius - 4;
             std::vector<cv::Point2f> all_points = GetPoints(fan.center, r, ref_point);
             fan.points = all_points;
 
         }
-
     }
+
+    // 剔除未匹配到灯条的扇叶，防止后续 GetR 越界访问
+    fanblades.erase(
+        std::remove_if(fanblades.begin(), fanblades.end(),
+            [](const FanBlade& f) { return f.points.empty(); }),
+        fanblades.end());
 }
 }// namespace
-
 

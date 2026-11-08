@@ -100,14 +100,14 @@ void SerialPort::read_data()
             unsigned char read_buffer[17];
             long bytes_read = ::read(fd, read_buffer, sizeof(read_buffer));
             
-            if (bytes_read <= 0) {
-                static int error_count = 0;
-                if (++error_count > 5) {
-                    restart_serial();
-                    error_count = 0;
-                }
-                continue;
-            }
+            // if (bytes_read <= 0) {
+            //     static int error_count = 0;
+            //     if (++error_count > 5) {
+            //         restart_serial();
+            //         error_count = 0;
+            //     }
+            //     continue;
+            // }
 
             if (read_buffer[0] == 0xAA && read_buffer[1] == 0xBB) 
             {

@@ -42,6 +42,7 @@ int main()
     Mat img;time_point t;Data_Save ds;Data_Get dg;
     bool last_mode = false;
 
+    
     while(!exiter.exit()){
         camera_->Query(img,t);
         serial_->Query(ds,t);

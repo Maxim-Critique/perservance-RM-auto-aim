@@ -10,7 +10,7 @@
 
 #define PI 3.1415926
 // 弹速
-#define bullet_speed 22
+#define bullet_speed 21.9
 #define _std_radian(angle) ((angle) + round((0 - (angle)) / (2 * PI)) * (2 * PI))
 using time_point = std::chrono::steady_clock::time_point;
 
