@@ -23,8 +23,9 @@ void AutoArmor::Reset()
     last_mode_ = last_color_ = -1;
 }
 
-bool AutoArmor::AutoAim(Mat & img, const Data_Save & ds, Data_Get & dg)
+bool AutoArmor::AutoAim(Mat & img, const Data_Save & ds, Data_Get & dg, Armors * detections)
 {
+    if (detections) detections->clear();
     dg.Vision2Control();
     const auto enemy = sentry_aim::color_from_a(ds.color);
     if (img.empty() || !enemy || !std::isfinite(ds.camera_yaw_angle) ||
@@ -49,6 +50,7 @@ bool AutoArmor::AutoAim(Mat & img, const Data_Save & ds, Data_Get & dg)
         last_color_ = ds.color;
     }
     const auto armors = find_ptr_->Detect(img, ds.color);
+    if (detections) *detections = armors;
     solve_ptr_->UpdateStatus(ds);
     std::vector<sentry_aim::Armor> observations;
     Armors solved;

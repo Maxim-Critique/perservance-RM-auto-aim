@@ -12,7 +12,8 @@ class AutoArmor
 public:
     explicit AutoArmor(const std::string & config_path = YamlPath, bool realtime = true);
     void Reset();
-    bool AutoAim(Mat & img, const Data_Save & ds, Data_Get & dg);
+    const sentry_aim::AimPoint & PredictedAimPoint() const { return aimer_->debug_aim_point; }
+    bool AutoAim(Mat & img, const Data_Save & ds, Data_Get & dg, Armors * detections = nullptr);
 private:
     void ShowArmors(const Armors & armors, Mat & img);
     sentry_aim::Config config_;

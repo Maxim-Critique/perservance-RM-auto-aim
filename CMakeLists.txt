@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(VISION)
+option(KEYBOARD_GIMBAL_ONLY "Build only the keyboard camera/gimbal test" OFF)
+if(KEYBOARD_GIMBAL_ONLY)
+    add_subdirectory(Test/keyboard)
+    return()
+endif()
 option(AUTO_AIM_CORE_ONLY "Build hardware-free sentry regression checks" OFF)
 if(AUTO_AIM_CORE_ONLY)
     enable_testing()
@@ -173,3 +178,9 @@ target_link_libraries(aim_preview
     ${rosidl_runtime_c_LIBRARIES}
     ${rosidl_typesupport_interface_LIBRARIES}
 )
+
+# 可选键盘云台测试：保留 review 和 aim_preview 原有入口。
+option(BUILD_KEYBOARD_GIMBAL_TEST "Build Qt keyboard gimbal test" OFF)
+if(BUILD_KEYBOARD_GIMBAL_TEST)
+    add_subdirectory(Test/keyboard)
+endif()
