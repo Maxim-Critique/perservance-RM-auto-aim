@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(VISION)
+option(CAMERA_PREVIEW_ONLY "Build only the read-only camera detection/pixel prediction preview" OFF)
+if(CAMERA_PREVIEW_ONLY)
+    add_subdirectory(Test/camera)
+    return()
+endif()
 option(KEYBOARD_GIMBAL_ONLY "Build only the keyboard camera/gimbal test" OFF)
 if(KEYBOARD_GIMBAL_ONLY)
     add_subdirectory(Test/keyboard)

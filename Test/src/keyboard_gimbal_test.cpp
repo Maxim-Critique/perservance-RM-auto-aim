@@ -356,7 +356,8 @@ class Preview : public QWidget {
                 cv::line(display, armor.points[i], armor.points[(i+1)%4], cv::Scalar(0,255,0), 2);
             }
             cv::drawMarker(display, center, cv::Scalar(0,255,255), cv::MARKER_CROSS, 16, 2);
-            cv::putText(display, cv::format("%s %.2f (%.1f,%.1f)", armor.number.c_str(),
+            cv::putText(display, cv::format("%s %.2f (%.1f,%.1f)",
+                        ArmorDetector::kLightBarsOnly ? "LIGHTS" : armor.number.c_str(),
                         armor.confidence, center.x, center.y), armor.points[0],
                         cv::FONT_HERSHEY_SIMPLEX, 0.55, cv::Scalar(0,255,255), 2);
             const double distance = cv::norm(center-screen_center);

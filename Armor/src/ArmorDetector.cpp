@@ -507,6 +507,19 @@ Armors ArmorDetector::Detect(Mat &img, int enemy_color) {
     Armors armors = FindArmor(img, light_blobs);
     if (armors.empty()) return Armors();
 
+    if (kLightBarsOnly) {
+        for (auto &armor : armors) {
+            armor.number = kLightBarsPlaceholderId;
+            armor.confidence = 1.0f; // 几何通过标记，不是数字分类置信度。
+            for (size_t i = 0; i < armor.points.size(); ++i)
+                cv::line(img, armor.points[i], armor.points[(i + 1) % armor.points.size()],
+                         cv::Scalar(0, 255, 0), 2);
+            cv::putText(img, "LIGHTS ONLY", armor.points[0], cv::FONT_HERSHEY_SIMPLEX,
+                        0.6, cv::Scalar(0, 255, 255), 2);
+        }
+        return armors;
+    }
+
     ExtractNumbers(img, armors);
     Classify(armors);
     VisualizeResult(img, armors);
@@ -524,6 +537,7 @@ ArmorDetector::ArmorDetector(
     : threshold_(binary_threshold), adaptive_block_size_(adaptive_block_size), adaptive_c_(adaptive_c),
       ignore_classes_(ignore_classes), classify_threshold_(classify_threshold) {
     enemy_color_ = 0;
+    if (kLightBarsOnly) return; // 不依赖数字 ONNX 或标签文件；恢复时只需关闭头文件开关。
     net_ = cv::dnn::readNetFromONNX(model_path);
 
     std::ifstream label_file(label_path);
