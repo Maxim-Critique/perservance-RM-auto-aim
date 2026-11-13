@@ -24,8 +24,8 @@
  */
 class ArmorDetector {
 public:
-    /// 临时仅灯条模式：改为 false 并重新编译，即恢复数字模型加载及原分类流程。
-    static constexpr bool kLightBarsOnly = true;
+    /// false：加载模型并识别数字；临时只检查灯条时改为 true 并重新编译。
+    static constexpr bool kLightBarsOnly = false;
     /// 供原追踪/协议接口使用的统一占位类别，不是数字识别结果，也不能区分不同目标身份。
     static constexpr const char* kLightBarsPlaceholderId = "1";
 
@@ -51,7 +51,7 @@ public:
      * @brief 一帧检测主入口；不足两个灯条或没有配对结果时返回空列表。
      * @param img 输入图像；仅灯条模式叠加框和 LIGHTS ONLY，原模式叠加数字 ROI 画中画。
      * @param enemy_color 敌方颜色编码：ENEMY_BLUE=0、ENEMY_RED=1。
-     * @return 默认仅灯条模式直接返回几何配对结果，不做数字分类或类别过滤；
+     * @return 开启仅灯条模式时直接返回几何配对结果，不做数字分类或类别过滤；
      * number 为占位类别，confidence=1 仅表示几何配对通过，并非分类概率，number_img 为空。
      * 关闭 kLightBarsOnly 后恢复按分类概率、忽略类别及大小板/类别规则筛选。
      * 输出含 points、center、type、number_img、number、confidence；不包含已解算的位姿。
